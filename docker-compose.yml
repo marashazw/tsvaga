@@ -1,0 +1,73 @@
+# Local development only - see docs/DEPLOYMENT.md for Railway/Vercel production deploys.
+#
+# Usage:
+#   docker compose up
+#   (in another terminal, once postgres is healthy, run once:)
+#   docker compose exec backend npm run db:setup
+#   docker compose exec backend npm run create:admin -- "Your Name" "+263771234567" "a-strong-password"
+#
+# Then open:
+#   http://localhost:5173         (requester app)
+#   http://localhost:5173/vendor.html
+#   http://localhost:5173/admin.html
+#   http://localhost:4000/health  (backend health check)
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tsvaga
+      POSTGRES_PASSWORD: tsvaga
+      POSTGRES_DB: tsvaga
+    ports:
+      - "5432:5432"
+    volumes:
+      - tsvaga_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tsvaga"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://tsvaga:tsvaga@postgres:5432/tsvaga
+      JWT_SECRET: dev_only_secret_change_in_production
+      JWT_EXPIRES_IN: 7d
+      CORS_ORIGINS: http://localhost:5173
+      # Push notifications are optional locally - leave blank to disable, or run
+      # `docker compose exec backend npm run generate:vapid` and paste the output here.
+      VAPID_PUBLIC_KEY: ""
+      VAPID_PRIVATE_KEY: ""
+      VAPID_CONTACT_EMAIL: "mailto:dev@example.com"
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE: http://localhost:4000/api
+      VITE_SOCKET_BASE: http://localhost:4000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
+volumes:
+  tsvaga_pgdata:
