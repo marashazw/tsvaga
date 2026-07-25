@@ -4,7 +4,6 @@ import { api, setAuthToken } from '../api';
 export default function VendorAuth({ onAuthed }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [form, setForm] = useState({ name: '', phone: '', password: '', business_name: '' });
-  const [alsoRequester, setAlsoRequester] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +20,7 @@ export default function VendorAuth({ onAuthed }) {
       const payload =
         mode === 'login'
           ? { phone: form.phone, password: form.password }
-          : { ...form, role: alsoRequester ? 'both' : 'vendor' };
+          : { ...form, role: 'vendor' };
       const { data } = await api.post(endpoint, payload);
       setAuthToken(data.token);
       onAuthed(data.user);
@@ -50,10 +49,6 @@ export default function VendorAuth({ onAuthed }) {
                 placeholder="e.g. Avondale Mini Market"
                 required
               />
-            </label>
-            <label className="radio-label">
-              <input type="checkbox" checked={alsoRequester} onChange={(e) => setAlsoRequester(e.target.checked)} />
-              I also want to request products as a customer (same login on the main site)
             </label>
           </>
         )}
