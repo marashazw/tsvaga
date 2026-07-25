@@ -94,19 +94,4 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET /api/auth/me - confirms who's actually signed in (used by the frontend to
-// gate pages and show a name), rather than just trusting that a token exists.
-router.get('/me', require('../middleware/auth').requireAuth, async (req, res) => {
-  try {
-    const result = await pool.query('SELECT id, name, phone, role, created_at FROM users WHERE id = $1', [
-      req.user.id,
-    ]);
-    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch profile' });
-  }
-});
-
 module.exports = router;

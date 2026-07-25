@@ -34,8 +34,7 @@ module.exports = function buildOrdersRouter(io) {
       const result = await pool.query(
         `SELECT o.id, o.status, o.created_at, o.delivered_at,
                 r.id AS request_id, r.product_text, r.quantity, r.address_text AS request_address, r.requester_id,
-                r.fulfillment_type, r.delivery_address_text,
-                of.price, of.delivery_fee, of.delivery_eta_minutes, of.message,
+                of.price, of.delivery_eta_minutes, of.message,
                 v.id AS vendor_id, v.business_name, v.address_text AS vendor_address, v.rating_avg,
                 rv.id AS review_id, rv.rating AS review_rating, rv.comment AS review_comment
          FROM orders o

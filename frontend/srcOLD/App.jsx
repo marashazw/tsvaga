@@ -4,16 +4,11 @@ import MapView from './components/MapView.jsx';
 import RequestForm from './components/RequestForm.jsx';
 import OfferList from './components/OfferList.jsx';
 import OrderTracker from './components/OrderTracker.jsx';
-import RequesterAuth from './components/RequesterAuth.jsx';
-import { api, loadStoredToken, setAuthToken } from './api';
+import { api, loadStoredToken } from './api';
 
 const SOCKET_BASE = import.meta.env.VITE_SOCKET_BASE || 'http://localhost:4000';
 
 export default function App() {
-  const [authed, setAuthed] = useState(false);
-  const [user, setUser] = useState(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-
   const [location, setLocation] = useState(null);
   const [radiusKm, setRadiusKm] = useState(5);
   const [request, setRequest] = useState(null);
@@ -22,39 +17,13 @@ export default function App() {
   const [order, setOrder] = useState(null);
   const [socket, setSocket] = useState(null);
 
-  // On load, if there's a stored token, verify it actually belongs to a real
-  // account (rather than just assuming any token present means "logged in") -
-  // this is what makes sure a requester is a genuine, distinct identity rather
-  // than silently reusing whatever token happens to be sitting in the browser.
-  const checkAuth = useCallback(async () => {
-    const token = loadStoredToken();
-    if (!token) {
-      setCheckingAuth(false);
-      return;
-    }
-    try {
-      const { data } = await api.get('/auth/me');
-      setUser(data);
-      setAuthed(true);
-    } catch {
-      setAuthToken(null);
-      setAuthed(false);
-    } finally {
-      setCheckingAuth(false);
-    }
-  }, []);
-
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  useEffect(() => {
-    if (!authed) return;
+    loadStoredToken();
     const token = localStorage.getItem('tsvaga_token');
     const s = io(SOCKET_BASE, { auth: { token } });
     setSocket(s);
     return () => s.disconnect();
-  }, [authed]);
+  }, []);
 
   useEffect(() => {
     if (!socket || !request) return;
@@ -73,22 +42,7 @@ export default function App() {
 
   const handlePickLocation = useCallback((loc) => setLocation(loc), []);
 
-  function handleAuthed(userData) {
-    setUser(userData);
-    setAuthed(true);
-  }
-
-  function handleLogout() {
-    setAuthToken(null);
-    setAuthed(false);
-    setUser(null);
-    socket?.disconnect();
-    setRequest(null);
-    setOffers([]);
-    setOrder(null);
-  }
-
-  async function handleSubmitRequest({ product_text, quantity, fulfillment_type, delivery_address_text }) {
+  async function handleSubmitRequest({ product_text, quantity }) {
     setSubmitting(true);
     try {
       const { data } = await api.post('/requests', {
@@ -97,8 +51,6 @@ export default function App() {
         lng: location.lng,
         lat: location.lat,
         radius_km: radiusKm,
-        fulfillment_type,
-        delivery_address_text,
       });
       setRequest(data.request);
       setOffers([]);
@@ -127,28 +79,11 @@ export default function App() {
     setOrder(null);
   }
 
-  if (checkingAuth) return <div className="app-shell">Loading…</div>;
-
-  if (!authed) {
-    return (
-      <div className="app-shell">
-        <header>
-          <h1>Tsvaga</h1>
-          <p className="tagline">Ask for what you want. Nearby stores come to you.</p>
-        </header>
-        <RequesterAuth onAuthed={handleAuthed} />
-      </div>
-    );
-  }
-
   return (
     <div className="app-shell">
-      <header className="vendor-header">
-        <div>
-          <h1>Tsvaga</h1>
-          <p className="tagline">Hi {user.name} — ask for what you want. Nearby stores come to you.</p>
-        </div>
-        <button className="secondary" onClick={handleLogout}>Sign out</button>
+      <header>
+        <h1>Tsvaga</h1>
+        <p className="tagline">Ask for what you want. Nearby stores come to you.</p>
       </header>
 
       <main>
@@ -177,13 +112,6 @@ export default function App() {
           ) : (
             <div className="request-status">
               <h2>{request.product_text}</h2>
-              <p className="hint">
-                {request.fulfillment_type === 'pickup'
-                  ? "You'll collect this yourself."
-                  : request.delivery_address_text
-                    ? `Deliver to: ${request.delivery_address_text}`
-                    : 'Deliver to your pinned location.'}
-              </p>
               <p className="hint">Live offers from nearby stores:</p>
               <OfferList offers={offers} onAccept={handleAcceptOffer} matched={false} />
               <button className="secondary" onClick={startOver}>

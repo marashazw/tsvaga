@@ -5,8 +5,7 @@ export default function OfferList({ offers, onAccept, matched }) {
     return <p className="hint">Waiting for nearby stores to respond…</p>;
   }
 
-  const withTotals = offers.map((o) => ({ ...o, total: Number(o.price) + Number(o.delivery_fee || 0) }));
-  const sorted = [...withTotals].sort((a, b) => a.total - b.total);
+  const sorted = [...offers].sort((a, b) => a.price - b.price);
 
   return (
     <ul className="offer-list">
@@ -17,13 +16,9 @@ export default function OfferList({ offers, onAccept, matched }) {
             <span className="rating">★ {offer.rating_avg}</span>
           </div>
           <div className="offer-meta">
-            <span className="price">${offer.total.toFixed(2)}</span>
-            <span className="eta">{offer.delivery_eta_minutes} min</span>
+            <span className="price">${Number(offer.price).toFixed(2)}</span>
+            <span className="eta">{offer.delivery_eta_minutes} min delivery</span>
           </div>
-          <p className="hint" style={{ margin: '2px 0 0' }}>
-            Item: ${Number(offer.price).toFixed(2)}
-            {Number(offer.delivery_fee || 0) > 0 && ` + Delivery: $${Number(offer.delivery_fee).toFixed(2)}`}
-          </p>
           {offer.message && <p className="offer-message">{offer.message}</p>}
           {!matched && offer.status === 'pending' && (
             <button onClick={() => onAccept(offer.id)}>Accept this offer</button>

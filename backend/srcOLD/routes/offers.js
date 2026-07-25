@@ -6,15 +6,12 @@ const { isVendorPaidUp, getSettings } = require('../utils/subscription');
 module.exports = function buildOffersRouter(io) {
   const router = express.Router();
 
-  // POST /api/requests/:requestId/offers  { price, delivery_fee?, delivery_eta_minutes, message }
+  // POST /api/requests/:requestId/offers  { price, delivery_eta_minutes, message }
   router.post('/:requestId/offers', requireAuth, async (req, res) => {
     const { requestId } = req.params;
-    const { price, delivery_fee, delivery_eta_minutes, message } = req.body;
+    const { price, delivery_eta_minutes, message } = req.body;
     if (typeof price !== 'number' || typeof delivery_eta_minutes !== 'number') {
       return res.status(400).json({ error: 'price and delivery_eta_minutes (numbers) are required' });
-    }
-    if (delivery_fee !== undefined && (typeof delivery_fee !== 'number' || delivery_fee < 0)) {
-      return res.status(400).json({ error: 'delivery_fee must be a non-negative number if provided' });
     }
     try {
       const paidUp = await isVendorPaidUp(req.user.id);
@@ -36,14 +33,13 @@ module.exports = function buildOffersRouter(io) {
       }
 
       const result = await pool.query(
-        `INSERT INTO offers (request_id, vendor_id, price, delivery_fee, delivery_eta_minutes, message)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO offers (request_id, vendor_id, price, delivery_eta_minutes, message)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (request_id, vendor_id)
-         DO UPDATE SET price = EXCLUDED.price, delivery_fee = EXCLUDED.delivery_fee,
-                        delivery_eta_minutes = EXCLUDED.delivery_eta_minutes,
+         DO UPDATE SET price = EXCLUDED.price, delivery_eta_minutes = EXCLUDED.delivery_eta_minutes,
                         message = EXCLUDED.message, status = 'pending'
          RETURNING *`,
-        [requestId, req.user.id, price, delivery_fee || 0, delivery_eta_minutes, message || null]
+        [requestId, req.user.id, price, delivery_eta_minutes, message || null]
       );
       const offer = result.rows[0];
 

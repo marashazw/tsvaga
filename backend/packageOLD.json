@@ -8,8 +8,6 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "db:setup": "node src/db/setup.js",
-    "db:migrate-fulfillment": "node src/db/migrate_fulfillment_type.js",
-    "db:migrate-delivery-fee": "node src/db/migrate_delivery_fee.js",
     "create:admin": "node src/utils/createAdmin.js",
     "generate:vapid": "node src/utils/generateVapidKeys.js"
   },

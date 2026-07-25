@@ -10,7 +10,6 @@ CREATE TYPE offer_status AS ENUM ('pending', 'accepted', 'declined', 'withdrawn'
 CREATE TYPE order_status AS ENUM ('confirmed', 'out_for_delivery', 'delivered', 'cancelled');
 CREATE TYPE subscription_status AS ENUM ('inactive', 'active', 'waived');
 CREATE TYPE payment_submission_status AS ENUM ('pending', 'approved', 'rejected');
-CREATE TYPE fulfillment_type AS ENUM ('delivery', 'pickup');
 
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -55,17 +54,9 @@ CREATE TABLE requests (
   product_id UUID REFERENCES products(id),
   product_text TEXT NOT NULL,
   quantity TEXT,
-  -- 'location' is the SEARCH center (where the requester is standing / wants to
-  -- search around) - it is NOT necessarily the delivery destination. See
-  -- fulfillment_type and delivery_address_text below.
   location GEOGRAPHY(Point, 4326) NOT NULL,
   address_text TEXT,
   radius_km NUMERIC(4,1) NOT NULL DEFAULT 5,
-  fulfillment_type fulfillment_type NOT NULL DEFAULT 'delivery',
-  -- Free-text delivery address/landmark, only meaningful when fulfillment_type
-  -- = 'delivery'. If left blank, the vendor should assume delivery to
-  -- address_text (the search location) by default. Null/ignored for 'pickup'.
-  delivery_address_text TEXT,
   status request_status NOT NULL DEFAULT 'open',
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '30 minutes'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -77,11 +68,6 @@ CREATE TABLE offers (
   request_id UUID NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
   vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
   price NUMERIC(10,2) NOT NULL,
-  -- Separate from 'price' so both sides can see an itemized breakdown rather
-  -- than guessing whether delivery is already baked into the item price.
-  -- Meaningful only when the request's fulfillment_type = 'delivery'; vendors
-  -- responding to a pickup request should leave this at 0.
-  delivery_fee NUMERIC(10,2) NOT NULL DEFAULT 0,
   delivery_eta_minutes INT NOT NULL,
   message TEXT,
   status offer_status NOT NULL DEFAULT 'pending',

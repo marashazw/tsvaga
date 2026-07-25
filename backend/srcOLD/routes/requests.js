@@ -8,20 +8,9 @@ const { isVendorPaidUp, getPaidVendorIdSet } = require('../utils/subscription');
 module.exports = function buildRequestsRouter(io) {
   const router = express.Router();
 
-  // POST /api/requests  { product_text, product_id?, quantity, lng, lat, address_text, radius_km,
-  //                        fulfillment_type?: 'delivery'|'pickup', delivery_address_text? }
+  // POST /api/requests  { product_text, product_id?, quantity, lng, lat, address_text, radius_km }
   router.post('/', requireAuth, async (req, res) => {
-    const {
-      product_text,
-      product_id,
-      quantity,
-      lng,
-      lat,
-      address_text,
-      radius_km,
-      fulfillment_type,
-      delivery_address_text,
-    } = req.body;
+    const { product_text, product_id, quantity, lng, lat, address_text, radius_km } = req.body;
 
     if (!product_text || typeof lng !== 'number' || typeof lat !== 'number') {
       return res.status(400).json({ error: 'product_text, lng, and lat are required' });
@@ -29,28 +18,15 @@ module.exports = function buildRequestsRouter(io) {
     if (!isWithinZimbabwe(lng, lat)) {
       return res.status(422).json({ error: 'Coordinates fall outside the supported Zimbabwe service area' });
     }
-    const safeFulfillment = fulfillment_type === 'pickup' ? 'pickup' : 'delivery';
-    // Delivery address only makes sense for 'delivery' - ignore it for pickup
-    // rather than storing something that would never be read.
-    const safeDeliveryAddress = safeFulfillment === 'delivery' ? delivery_address_text || null : null;
 
     let client;
     try {
       client = await pool.connect();
       const insertResult = await client.query(
-        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text)
-         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5), $7, $8)
+        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km)
+         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5))
          RETURNING *`,
-        [
-          req.user.id,
-          product_id || null,
-          product_text,
-          quantity || null,
-          address_text || null,
-          radius_km || null,
-          safeFulfillment,
-          safeDeliveryAddress,
-        ]
+        [req.user.id, product_id || null, product_text, quantity || null, address_text || null, radius_km || null]
       );
       const request = insertResult.rows[0];
 
@@ -89,8 +65,6 @@ module.exports = function buildRequestsRouter(io) {
           product_text: paidUp ? request.product_text : null,
           quantity: paidUp ? request.quantity : null,
           address_text: paidUp ? request.address_text : null,
-          fulfillment_type: request.fulfillment_type,
-          delivery_address_text: paidUp ? request.delivery_address_text : null,
           distance_m: Math.round(vendor.distance_m),
           expires_at: request.expires_at,
           subscription_required: !paidUp,
@@ -153,8 +127,6 @@ module.exports = function buildRequestsRouter(io) {
             product_text: null,
             quantity: null,
             address_text: null,
-            fulfillment_type: requestRow.fulfillment_type,
-            delivery_address_text: null,
           },
           offers: [],
           subscription_required: true,
@@ -174,7 +146,7 @@ module.exports = function buildRequestsRouter(io) {
     if (!lng || !lat) return res.status(400).json({ error: 'lng and lat query params are required' });
     try {
       const result = await pool.query(
-        `SELECT id, product_text, quantity, address_text, expires_at, fulfillment_type, delivery_address_text,
+        `SELECT id, product_text, quantity, address_text, expires_at,
                 ST_Distance(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}) AS distance_m
          FROM requests
          WHERE status = 'open'
@@ -186,16 +158,13 @@ module.exports = function buildRequestsRouter(io) {
       const paidUp = req.user.role === 'admin' || (await isVendorPaidUp(req.user.id));
       if (paidUp) return res.json(result.rows);
 
-      // Unpaid vendor: teaser only - distance, expiry, and fulfillment type
-      // (delivery vs pickup is safe to reveal on its own), no product/address.
+      // Unpaid vendor: teaser only - distance and expiry, no product/address.
       res.json(
         result.rows.map((r) => ({
           id: r.id,
           product_text: null,
           quantity: null,
           address_text: null,
-          fulfillment_type: r.fulfillment_type,
-          delivery_address_text: null,
           expires_at: r.expires_at,
           distance_m: r.distance_m,
           subscription_required: true,

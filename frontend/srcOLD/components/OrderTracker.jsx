@@ -1,16 +1,10 @@
 import React, { useState } from 'react';
 import ReviewForm from './ReviewForm.jsx';
 
-const STEPS_DELIVERY = [
+const STEPS = [
   { key: 'confirmed', label: 'Order confirmed' },
   { key: 'out_for_delivery', label: 'Out for delivery' },
   { key: 'delivered', label: 'Delivered' },
-];
-
-const STEPS_PICKUP = [
-  { key: 'confirmed', label: 'Order confirmed' },
-  { key: 'out_for_delivery', label: 'Ready for pickup' },
-  { key: 'delivered', label: 'Picked up' },
 ];
 
 export default function OrderTracker({ order }) {
@@ -19,9 +13,7 @@ export default function OrderTracker({ order }) {
   );
 
   if (!order) return null;
-  const isPickup = order.fulfillment_type === 'pickup';
-  const steps = isPickup ? STEPS_PICKUP : STEPS_DELIVERY;
-  const currentIndex = steps.findIndex((s) => s.key === order.status);
+  const currentIndex = STEPS.findIndex((s) => s.key === order.status);
   const isCancelled = order.status === 'cancelled';
   const isDelivered = order.status === 'delivered';
 
@@ -29,25 +21,14 @@ export default function OrderTracker({ order }) {
     <div className="order-tracker">
       <h3 style={{ marginTop: 0 }}>{order.business_name}</h3>
       <p className="hint">
-        {order.product_text} ·{' '}
-        {Number(order.delivery_fee || 0) > 0
-          ? `$${Number(order.price).toFixed(2)} + $${Number(order.delivery_fee).toFixed(2)} delivery = $${(Number(order.price) + Number(order.delivery_fee)).toFixed(2)}`
-          : `$${Number(order.price).toFixed(2)}`}
-        {' · '}{order.delivery_eta_minutes} min ETA
-      </p>
-      <p className="hint">
-        {isPickup
-          ? "You'll collect this yourself."
-          : order.delivery_address_text
-            ? `Deliver to: ${order.delivery_address_text}`
-            : 'Deliver to your pinned location.'}
+        {order.product_text} · ${Number(order.price).toFixed(2)} · {order.delivery_eta_minutes} min ETA
       </p>
 
       {isCancelled ? (
         <p className="badge status-cancelled">Order cancelled</p>
       ) : (
         <ol className="tracker-steps">
-          {steps.map((step, i) => (
+          {STEPS.map((step, i) => (
             <li key={step.key} className={i <= currentIndex ? 'done' : ''}>
               <span className="dot" />
               {step.label}

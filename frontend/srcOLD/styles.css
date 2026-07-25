@@ -27,20 +27,6 @@ header h1 {
   color: var(--forest);
 }
 
-.vendor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
 .tagline {
   margin-top: 4px;
   color: #6b5f4f;
@@ -79,29 +65,6 @@ main {
   border: 1px solid #d8cdb9;
   border-radius: 8px;
   font-size: 1rem;
-}
-
-.fulfillment-choice {
-  border: 1px solid #e7ddc9;
-  border-radius: 8px;
-  padding: 10px 14px 14px;
-  margin-bottom: 14px;
-}
-.fulfillment-choice legend {
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0 4px;
-}
-.radio-label {
-  display: flex !important;
-  align-items: center;
-  gap: 8px;
-  font-weight: 400 !important;
-  margin-bottom: 6px !important;
-}
-.radio-label input {
-  width: auto !important;
-  margin-top: 0 !important;
 }
 
 button {
@@ -196,25 +159,3 @@ button.secondary {
 .star-display { font-size: 1.4rem; color: var(--clay); letter-spacing: 2px; }
 .review-summary { padding: 10px; background: #f7f1e3; border-radius: 8px; }
 .error { color: #a03c3c; font-size: 0.9rem; }
-
-.auth-panel { max-width: 420px; margin: 40px auto 0; }
-.auth-panel label { display: block; margin-bottom: 12px; font-size: 0.9rem; font-weight: 600; }
-.auth-panel input {
-  display: block;
-  width: 100%;
-  margin-top: 6px;
-  padding: 8px 10px;
-  border: 1px solid #d8cdb9;
-  border-radius: 8px;
-  font-size: 1rem;
-}
-.link-btn {
-  background: none;
-  border: none;
-  color: var(--forest);
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-  margin-top: 10px;
-  font-size: 0.9rem;
-}
