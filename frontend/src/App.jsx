@@ -5,6 +5,9 @@ import RequestForm from './components/RequestForm.jsx';
 import OfferList from './components/OfferList.jsx';
 import OrderTracker from './components/OrderTracker.jsx';
 import RequesterAuth from './components/RequesterAuth.jsx';
+import AdSlot from './components/AdSlot.jsx';
+import AdvertiseForm from './components/AdvertiseForm.jsx';
+import OnlineCount from './components/OnlineCount.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications } from './push';
 
@@ -166,6 +169,7 @@ export default function App() {
         <div>
           <h1>Tsvaga</h1>
           <p className="tagline">Hi {user.name} — ask for what you want. Nearby stores come to you.</p>
+          <OnlineCount socket={socket} />
         </div>
         <div className="header-actions">
           {pushStatus !== 'granted' && (
@@ -191,6 +195,7 @@ export default function App() {
       <main>
         <section className="map-section">
           <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
+          <AdSlot />
         </section>
 
         <section className="panel">
@@ -230,6 +235,10 @@ export default function App() {
           )}
         </section>
       </main>
+
+      <section style={{ marginTop: 20, textAlign: 'center' }}>
+        <AdvertiseForm />
+      </section>
     </div>
   );
 }

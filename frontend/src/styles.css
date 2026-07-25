@@ -270,3 +270,30 @@ button.secondary {
   border-radius: 8px;
   font-size: 0.9rem;
 }
+
+.ad-slot {
+  margin-top: 12px;
+  border: 1px solid #e7ddc9;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+  position: relative;
+}
+.ad-label {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #a99;
+  background: #f2e9dc;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.online-count {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: #4a7a5f;
+}

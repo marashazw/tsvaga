@@ -48,13 +48,19 @@ module.exports = function buildOffersRouter(io) {
       );
       const offer = result.rows[0];
 
-      const vendorInfo = await pool.query('SELECT business_name, rating_avg FROM vendors WHERE id = $1', [req.user.id]);
+      const vendorInfo = await pool.query(
+        `SELECT business_name, rating_avg,
+                CASE WHEN priority_expires_at > now() THEN priority_score ELSE 0 END AS vendor_priority
+         FROM vendors WHERE id = $1`,
+        [req.user.id]
+      );
 
       // Push the new offer live to whoever is watching this request.
       io.to(`request:${requestId}`).emit('offer:new', {
         ...offer,
         business_name: vendorInfo.rows[0]?.business_name,
         rating_avg: vendorInfo.rows[0]?.rating_avg,
+        vendor_priority: vendorInfo.rows[0]?.vendor_priority || 0,
       });
 
       res.status(201).json(offer);

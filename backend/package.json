@@ -13,6 +13,8 @@
     "db:migrate-push-subscriptions": "node src/db/migrate_push_subscriptions.js",
     "db:migrate-recipient-contact": "node src/db/migrate_recipient_contact.js",
     "db:migrate-offer-messages": "node src/db/migrate_offer_messages.js",
+    "db:migrate-priority-ranking": "node src/db/migrate_priority_ranking.js",
+    "db:migrate-ads": "node src/db/migrate_ads.js",
     "create:admin": "node src/utils/createAdmin.js",
     "generate:vapid": "node src/utils/generateVapidKeys.js"
   },

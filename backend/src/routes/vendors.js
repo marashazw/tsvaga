@@ -44,6 +44,56 @@ router.get('/me/subscription', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/vendors/me/priority - current boost status + available packages to buy
+router.get('/me/priority', requireAuth, async (req, res) => {
+  try {
+    const vendor = await pool.query('SELECT priority_score, priority_expires_at FROM vendors WHERE id = $1', [
+      req.user.id,
+    ]);
+    const packages = await pool.query('SELECT * FROM priority_packages WHERE active = true ORDER BY boost_score ASC');
+    const settings = await getSettings();
+    res.json({
+      current: vendor.rows[0] || { priority_score: 0, priority_expires_at: null },
+      packages: packages.rows,
+      ecocash_number: settings.ecocash_number,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch priority status' });
+  }
+});
+
+// POST /api/vendors/me/priority-submissions  { package_id, amount, ecocash_reference? }
+// Same manual EcoCash-pay + admin-approve pattern as the base subscription.
+router.post('/me/priority-submissions', requireAuth, async (req, res) => {
+  const { package_id, amount, ecocash_reference } = req.body;
+  if (!package_id || typeof amount !== 'number' || amount <= 0) {
+    return res.status(400).json({ error: 'package_id and a valid amount are required' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO priority_purchase_submissions (vendor_id, package_id, amount, ecocash_reference)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.user.id, package_id, amount, ecocash_reference || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to submit priority purchase' });
+  }
+});
+
+// GET /api/vendors/me/priority-submissions - a vendor's own submission history
+router.get('/me/priority-submissions', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT ps.*, pp.name AS package_name FROM priority_purchase_submissions ps
+     JOIN priority_packages pp ON pp.id = ps.package_id
+     WHERE ps.vendor_id = $1 ORDER BY ps.created_at DESC LIMIT 20`,
+    [req.user.id]
+  );
+  res.json(rows);
+});
+
 // POST /api/vendors/me/payment-submissions  { amount, ecocash_reference?, note? }
 // Vendor self-reports an EcoCash payment; sits pending until an admin approves it.
 router.post('/me/payment-submissions', requireAuth, async (req, res) => {

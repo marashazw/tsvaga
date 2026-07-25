@@ -143,9 +143,11 @@ module.exports = function buildRequestsRouter(io) {
       const requestRow = request.rows[0];
 
       const offers = await pool.query(
-        `SELECT o.*, v.business_name, v.rating_avg
+        `SELECT o.*, v.business_name, v.rating_avg,
+                CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END AS vendor_priority
          FROM offers o JOIN vendors v ON v.id = o.vendor_id
-         WHERE o.request_id = $1 ORDER BY o.price ASC`,
+         WHERE o.request_id = $1
+         ORDER BY (CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END) DESC, o.price ASC`,
         [req.params.id]
       );
 

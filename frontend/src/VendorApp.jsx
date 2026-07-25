@@ -7,6 +7,10 @@ import IncomingRequests from './components/IncomingRequests.jsx';
 import VendorOrders from './components/VendorOrders.jsx';
 import VendorReviews from './components/VendorReviews.jsx';
 import SubscriptionPanel from './components/SubscriptionPanel.jsx';
+import PriorityPanel from './components/PriorityPanel.jsx';
+import AdSlot from './components/AdSlot.jsx';
+import AdvertiseForm from './components/AdvertiseForm.jsx';
+import OnlineCount from './components/OnlineCount.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications } from './push';
 
@@ -198,6 +202,7 @@ export default function VendorApp() {
             </h1>
           )}
           <p className="tagline">{vendor.address_text || 'Set your store location on the map below'}</p>
+          <OnlineCount socket={socket} />
         </div>
         <div className="header-actions">
           <button className={vendor.is_online ? 'status-btn online' : 'status-btn offline'} onClick={toggleOnline}>
@@ -226,6 +231,10 @@ export default function VendorApp() {
         <SubscriptionPanel subscriptionInfo={subscriptionInfo} onSubmitted={loadSubscription} />
       </section>
 
+      <section style={{ marginBottom: 20 }}>
+        <PriorityPanel />
+      </section>
+
       {paywallNotice && (
         <div className="panel subscription-panel unpaid" style={{ marginBottom: 20 }}>
           <strong>That request needs an active subscription to respond to.</strong>
@@ -240,6 +249,7 @@ export default function VendorApp() {
         <section className="map-section">
           <MapView requesterLocation={vendorLocation} onPickLocation={handlePickLocation} radiusKm={0} />
           <p className="hint">Tap the map to set or update your store's pin.</p>
+          <AdSlot />
         </section>
 
         <section className="panel">
@@ -275,6 +285,10 @@ export default function VendorApp() {
           inventory={vendor.inventory || []}
           onChange={(inv) => setVendor((v) => ({ ...v, inventory: inv }))}
         />
+      </section>
+
+      <section style={{ marginTop: 20, textAlign: 'center' }}>
+        <AdvertiseForm />
       </section>
     </div>
   );

@@ -9,14 +9,21 @@ export default function OfferList({ offers, onAccept, matched, socket, currentUs
   }
 
   const withTotals = offers.map((o) => ({ ...o, total: Number(o.price) + Number(o.delivery_fee || 0) }));
-  const sorted = [...withTotals].sort((a, b) => a.total - b.total);
+  const sorted = [...withTotals].sort((a, b) => {
+    const priorityDiff = (b.vendor_priority || 0) - (a.vendor_priority || 0);
+    if (priorityDiff !== 0) return priorityDiff;
+    return a.total - b.total;
+  });
 
   return (
     <ul className="offer-list">
       {sorted.map((offer) => (
         <li key={offer.id} className={`offer-card ${offer.status}`}>
           <div className="offer-main">
-            <strong>{offer.business_name}</strong>
+            <strong>
+              {offer.business_name}
+              {offer.vendor_priority > 0 && <span className="badge status-delivered" style={{ marginLeft: 6 }}>⭐ Featured</span>}
+            </strong>
             <span className="rating">★ {offer.rating_avg}</span>
           </div>
           <div className="offer-meta">

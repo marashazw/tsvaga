@@ -11,6 +11,7 @@ CREATE TYPE order_status AS ENUM ('confirmed', 'out_for_delivery', 'delivered', 
 CREATE TYPE subscription_status AS ENUM ('inactive', 'active', 'waived');
 CREATE TYPE payment_submission_status AS ENUM ('pending', 'approved', 'rejected');
 CREATE TYPE fulfillment_type AS ENUM ('delivery', 'pickup');
+CREATE TYPE ad_status AS ENUM ('pending', 'active', 'rejected', 'expired');
 
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -28,6 +29,12 @@ CREATE TABLE vendors (
   address_text TEXT,
   is_online BOOLEAN NOT NULL DEFAULT false,
   rating_avg NUMERIC(2,1) DEFAULT 5.0,
+  -- Paid priority ranking boost (separate from the base subscription that's
+  -- required just to respond at all). Effective only while priority_expires_at
+  -- is in the future; expired boosts are treated as zero without needing a
+  -- cleanup job.
+  priority_score INT NOT NULL DEFAULT 0,
+  priority_expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX vendors_location_gix ON vendors USING GIST (location);
@@ -173,6 +180,61 @@ CREATE TABLE platform_settings (
   subscription_price NUMERIC(10,2) NOT NULL DEFAULT 7.00,
   subscription_currency TEXT NOT NULL DEFAULT 'USD',
   ecocash_number TEXT NOT NULL DEFAULT '0772738126',
+  ad_price_per_day NUMERIC(10,2) NOT NULL DEFAULT 2.00,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 INSERT INTO platform_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+-- Admin-defined priority ranking packages (e.g. "Gold - $15/month - rank
+-- boost 100"). Vendors pay for one of these on top of their base
+-- subscription, to appear higher in a requester's offer list.
+CREATE TABLE priority_packages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  price NUMERIC(10,2) NOT NULL,
+  duration_days INT NOT NULL DEFAULT 30,
+  boost_score INT NOT NULL DEFAULT 10,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Same manual EcoCash-pay + admin-approve pattern as the base subscription.
+CREATE TABLE priority_purchase_submissions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+  package_id UUID NOT NULL REFERENCES priority_packages(id),
+  amount NUMERIC(10,2) NOT NULL,
+  ecocash_reference TEXT,
+  status payment_submission_status NOT NULL DEFAULT 'pending',
+  reviewed_by UUID REFERENCES users(id),
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX priority_purchase_submissions_vendor_idx ON priority_purchase_submissions (vendor_id);
+CREATE INDEX priority_purchase_submissions_status_idx ON priority_purchase_submissions (status);
+
+-- Paid ads - open to any signed-in user (vendor or not), not just vendors.
+-- Video ads use a direct video file URL (played with a plain <video> tag) or
+-- an embeddable link - there's no self-hosted video upload/storage here, so
+-- the advertiser hosts the file/stream themselves and just gives us the URL.
+CREATE TABLE ads (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  ad_type TEXT NOT NULL CHECK (ad_type IN ('text', 'video')),
+  title TEXT NOT NULL,
+  body TEXT,
+  video_url TEXT,
+  image_url TEXT,
+  link_url TEXT,
+  duration_days INT NOT NULL DEFAULT 7,
+  amount NUMERIC(10,2) NOT NULL,
+  ecocash_reference TEXT,
+  status ad_status NOT NULL DEFAULT 'pending',
+  starts_at TIMESTAMPTZ,
+  ends_at TIMESTAMPTZ,
+  reviewed_by UUID REFERENCES users(id),
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ads_status_idx ON ads (status);
+CREATE INDEX ads_owner_idx ON ads (owner_id);

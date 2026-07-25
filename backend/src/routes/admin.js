@@ -176,4 +176,222 @@ router.patch('/payment-submissions/:id/reject', async (req, res) => {
   }
 });
 
+// ── Priority ranking packages ──────────────────────────────────────────
+
+// GET /api/admin/priority-packages - all packages (active and inactive)
+router.get('/priority-packages', async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM priority_packages ORDER BY boost_score DESC');
+  res.json(rows);
+});
+
+// POST /api/admin/priority-packages  { name, price, duration_days, boost_score }
+router.post('/priority-packages', async (req, res) => {
+  const { name, price, duration_days, boost_score } = req.body;
+  if (!name || typeof price !== 'number') {
+    return res.status(400).json({ error: 'name and price are required' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO priority_packages (name, price, duration_days, boost_score)
+       VALUES ($1, $2, COALESCE($3, 30), COALESCE($4, 10)) RETURNING *`,
+      [name, price, duration_days || null, boost_score || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create priority package' });
+  }
+});
+
+// PATCH /api/admin/priority-packages/:id  { name?, price?, duration_days?, boost_score?, active? }
+router.patch('/priority-packages/:id', async (req, res) => {
+  const { name, price, duration_days, boost_score, active } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE priority_packages SET
+         name = COALESCE($2, name), price = COALESCE($3, price),
+         duration_days = COALESCE($4, duration_days), boost_score = COALESCE($5, boost_score),
+         active = COALESCE($6, active)
+       WHERE id = $1 RETURNING *`,
+      [req.params.id, name ?? null, price ?? null, duration_days ?? null, boost_score ?? null, active ?? null]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Package not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update priority package' });
+  }
+});
+
+// GET /api/admin/priority-submissions?status=pending
+router.get('/priority-submissions', async (req, res) => {
+  const status = req.query.status || 'pending';
+  const { rows } = await pool.query(
+    `SELECT ps.*, v.business_name, u.phone, pp.name AS package_name, pp.duration_days, pp.boost_score
+     FROM priority_purchase_submissions ps
+     JOIN vendors v ON v.id = ps.vendor_id
+     JOIN users u ON u.id = v.id
+     JOIN priority_packages pp ON pp.id = ps.package_id
+     WHERE ps.status = $1
+     ORDER BY ps.created_at ASC`,
+    [status]
+  );
+  res.json(rows);
+});
+
+// PATCH /api/admin/priority-submissions/:id/approve
+router.patch('/priority-submissions/:id/approve', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const sub = await client.query(
+      `SELECT ps.*, pp.duration_days, pp.boost_score
+       FROM priority_purchase_submissions ps JOIN priority_packages pp ON pp.id = ps.package_id
+       WHERE ps.id = $1 FOR UPDATE`,
+      [req.params.id]
+    );
+    if (!sub.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Priority submission not found' });
+    }
+    const submission = sub.rows[0];
+
+    await client.query(
+      `UPDATE priority_purchase_submissions SET status = 'approved', reviewed_by = $2, reviewed_at = now() WHERE id = $1`,
+      [submission.id, req.user.id]
+    );
+
+    // Extend from the current expiry if it's still in the future, otherwise from now.
+    const vendorResult = await client.query(
+      `UPDATE vendors SET
+         priority_score = $2,
+         priority_expires_at = GREATEST(COALESCE(priority_expires_at, now()), now()) + ($3 || ' days')::interval
+       WHERE id = $1 RETURNING id, priority_score, priority_expires_at`,
+      [submission.vendor_id, submission.boost_score, submission.duration_days]
+    );
+
+    await client.query('COMMIT');
+    res.json({ submission: { ...submission, status: 'approved' }, vendor: vendorResult.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to approve priority submission' });
+  } finally {
+    client.release();
+  }
+});
+
+// PATCH /api/admin/priority-submissions/:id/reject
+router.patch('/priority-submissions/:id/reject', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE priority_purchase_submissions SET status = 'rejected', reviewed_by = $2, reviewed_at = now()
+       WHERE id = $1 RETURNING *`,
+      [req.params.id, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Priority submission not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to reject priority submission' });
+  }
+});
+
+// ── Ads ─────────────────────────────────────────────────────────────────
+
+// GET /api/admin/ads?status=pending
+router.get('/ads', async (req, res) => {
+  const status = req.query.status || 'pending';
+  const { rows } = await pool.query(
+    `SELECT a.*, u.name AS owner_name, u.phone AS owner_phone
+     FROM ads a JOIN users u ON u.id = a.owner_id
+     WHERE a.status = $1 ORDER BY a.created_at ASC`,
+    [status]
+  );
+  res.json(rows);
+});
+
+// PATCH /api/admin/ads/:id/approve  { duration_days? }
+router.patch('/ads/:id/approve', async (req, res) => {
+  try {
+    const adRow = await pool.query('SELECT * FROM ads WHERE id = $1', [req.params.id]);
+    if (!adRow.rows.length) return res.status(404).json({ error: 'Ad not found' });
+    const ad = adRow.rows[0];
+    const days = Number(req.body.duration_days) > 0 ? Number(req.body.duration_days) : ad.duration_days;
+
+    const { rows } = await pool.query(
+      `UPDATE ads SET status = 'active', starts_at = now(), ends_at = now() + ($2 || ' days')::interval,
+              reviewed_by = $3, reviewed_at = now()
+       WHERE id = $1 RETURNING *`,
+      [ad.id, days, req.user.id]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to approve ad' });
+  }
+});
+
+// PATCH /api/admin/ads/:id/reject
+router.patch('/ads/:id/reject', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE ads SET status = 'rejected', reviewed_by = $2, reviewed_at = now() WHERE id = $1 RETURNING *`,
+      [req.params.id, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Ad not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to reject ad' });
+  }
+});
+
+// ── Usage statistics ───────────────────────────────────────────────────
+
+// GET /api/admin/stats
+router.get('/stats', async (req, res) => {
+  try {
+    const [
+      users,
+      vendors,
+      requestsToday,
+      requests7d,
+      requests30d,
+      ordersCompleted,
+      ordersCompleted30d,
+      activeSubs,
+      activeAds,
+    ] = await Promise.all([
+      pool.query(`SELECT role, COUNT(*) FROM users GROUP BY role`),
+      pool.query(`SELECT COUNT(*) FROM vendors`),
+      pool.query(`SELECT COUNT(*) FROM requests WHERE created_at > now() - interval '1 day'`),
+      pool.query(`SELECT COUNT(*) FROM requests WHERE created_at > now() - interval '7 days'`),
+      pool.query(`SELECT COUNT(*) FROM requests WHERE created_at > now() - interval '30 days'`),
+      pool.query(`SELECT COUNT(*) FROM orders WHERE status = 'delivered'`),
+      pool.query(`SELECT COUNT(*) FROM orders WHERE status = 'delivered' AND delivered_at > now() - interval '30 days'`),
+      pool.query(`SELECT COUNT(*) FROM subscriptions WHERE status = 'active' AND expires_at > now()`),
+      pool.query(`SELECT COUNT(*) FROM ads WHERE status = 'active' AND ends_at > now()`),
+    ]);
+
+    const usersByRole = {};
+    users.rows.forEach((r) => (usersByRole[r.role] = Number(r.count)));
+
+    res.json({
+      users_by_role: usersByRole,
+      total_vendors: Number(vendors.rows[0].count),
+      requests_last_24h: Number(requestsToday.rows[0].count),
+      requests_last_7d: Number(requests7d.rows[0].count),
+      requests_last_30d: Number(requests30d.rows[0].count),
+      orders_completed_total: Number(ordersCompleted.rows[0].count),
+      orders_completed_last_30d: Number(ordersCompleted30d.rows[0].count),
+      active_subscriptions: Number(activeSubs.rows[0].count),
+      active_ads: Number(activeAds.rows[0].count),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
 module.exports = router;

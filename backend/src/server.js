@@ -20,6 +20,7 @@ const vendorRoutes = require('./routes/vendors');
 const productRoutes = require('./routes/products');
 const pushRoutes = require('./routes/push');
 const adminRoutes = require('./routes/admin');
+const adsRoutes = require('./routes/ads');
 const buildRequestsRouter = require('./routes/requests');
 const buildOffersRouter = require('./routes/offers');
 const buildOrdersRouter = require('./routes/orders');
@@ -42,6 +43,7 @@ app.use('/api/users', pushRoutes); // adds POST/DELETE /me/push-subscription (re
 app.use('/api/push', pushRoutes); // adds GET /public-key
 app.use('/api/products', productRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/ads', adsRoutes);
 const offersRouter = buildOffersRouter(io);
 app.use('/api/requests', buildRequestsRouter(io));
 app.use('/api/requests', offersRouter); // adds POST /:requestId/offers
@@ -49,6 +51,14 @@ app.use('/api/offers', offersRouter); // adds PATCH /:id/accept
 app.use('/api/orders', buildOrdersRouter(io));
 
 attachSocketHandlers(io);
+
+// Broadcast a live "how many people are online right now" count every 10s.
+// io.engine.clientsCount is every open Socket.io connection (both the
+// requester and vendor apps connect one each while their tab is open) - a
+// simple, good-enough proxy for "online now" without extra bookkeeping.
+setInterval(() => {
+  io.emit('presence:count', { count: io.engine.clientsCount });
+}, 10000);
 
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
