@@ -12,6 +12,7 @@
     "db:migrate-delivery-fee": "node src/db/migrate_delivery_fee.js",
     "db:migrate-push-subscriptions": "node src/db/migrate_push_subscriptions.js",
     "db:migrate-recipient-contact": "node src/db/migrate_recipient_contact.js",
+    "db:migrate-offer-messages": "node src/db/migrate_offer_messages.js",
     "create:admin": "node src/utils/createAdmin.js",
     "generate:vapid": "node src/utils/generateVapidKeys.js"
   },

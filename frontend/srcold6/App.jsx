@@ -204,7 +204,7 @@ export default function App() {
             />
           ) : order ? (
             <>
-              <OrderTracker order={order} socket={socket} currentUserId={user.id} />
+              <OrderTracker order={order} />
               {(order.status === 'delivered' || order.status === 'cancelled') && (
                 <button className="secondary" onClick={startOver} style={{ marginTop: 12 }}>
                   Start a new request
@@ -222,7 +222,7 @@ export default function App() {
                     : 'Deliver to your pinned location.'}
               </p>
               <p className="hint">Live offers from nearby stores:</p>
-              <OfferList offers={offers} onAccept={handleAcceptOffer} matched={false} socket={socket} currentUserId={user.id} />
+              <OfferList offers={offers} onAccept={handleAcceptOffer} matched={false} />
               <button className="secondary" onClick={startOver}>
                 Cancel and start over
               </button>

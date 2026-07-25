@@ -18,7 +18,6 @@ export default function VendorApp() {
   const [subscriptionInfo, setSubscriptionInfo] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [respondedIds, setRespondedIds] = useState(new Set());
-  const [offerIdsByRequest, setOfferIdsByRequest] = useState({});
   const [orders, setOrders] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured'
@@ -131,9 +130,8 @@ export default function VendorApp() {
     loadNearbyRequests({ lng: loc.lng, lat: loc.lat });
   }
 
-  function handleOffered(requestId, offerId) {
+  function handleOffered(requestId) {
     setRespondedIds((prev) => new Set(prev).add(requestId));
-    if (offerId) setOfferIdsByRequest((prev) => ({ ...prev, [requestId]: offerId }));
   }
 
   function handlePaywalled(data) {
@@ -252,18 +250,15 @@ export default function VendorApp() {
           <IncomingRequests
             alerts={alerts}
             respondedIds={respondedIds}
-            offerIdsByRequest={offerIdsByRequest}
             onResponded={handleOffered}
             onPaywalled={handlePaywalled}
-            socket={socket}
-            currentUserId={vendor.id}
           />
         </section>
       </main>
 
       <section className="panel" style={{ marginTop: 20 }}>
         <h2 style={{ marginTop: 0 }}>Orders to fulfill</h2>
-        <VendorOrders orders={orders} onUpdated={handleOrderUpdated} socket={socket} currentUserId={vendor.id} />
+        <VendorOrders orders={orders} onUpdated={handleOrderUpdated} />
       </section>
 
       <section className="panel" style={{ marginTop: 20 }}>

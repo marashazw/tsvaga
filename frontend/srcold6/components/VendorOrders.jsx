@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { api } from '../api';
-import OfferChat from './OfferChat.jsx';
 
 function statusLabel(order) {
   const pickup = order.fulfillment_type === 'pickup';
@@ -20,20 +19,7 @@ function nextAction(order) {
   }[order.status];
 }
 
-function OrderChatToggle({ offerId, socket, currentUserId }) {
-  const [showChat, setShowChat] = useState(false);
-  if (!offerId) return null;
-  return (
-    <div style={{ marginTop: 6 }}>
-      <button className="link-btn" type="button" onClick={() => setShowChat((s) => !s)}>
-        💬 {showChat ? 'Hide chat' : 'Message customer'}
-      </button>
-      {showChat && <OfferChat offerId={offerId} socket={socket} currentUserId={currentUserId} />}
-    </div>
-  );
-}
-
-export default function VendorOrders({ orders, onUpdated, socket, currentUserId }) {
+export default function VendorOrders({ orders, onUpdated }) {
   async function advance(order) {
     const next = nextAction(order);
     if (!next) return;
@@ -76,7 +62,6 @@ export default function VendorOrders({ orders, onUpdated, socket, currentUserId 
               {nextAction(o).label}
             </button>
           )}
-          <OrderChatToggle offerId={o.offer_id} socket={socket} currentUserId={currentUserId} />
         </li>
       ))}
     </ul>

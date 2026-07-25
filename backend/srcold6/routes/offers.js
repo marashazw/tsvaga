@@ -102,7 +102,7 @@ module.exports = function buildOffersRouter(io) {
                 r.product_text, r.quantity, r.address_text AS request_address,
                 r.fulfillment_type, r.delivery_address_text, r.recipient_name, r.recipient_phone,
                 u.phone AS requester_phone,
-                of.id AS offer_id, of.price, of.delivery_fee, of.delivery_eta_minutes
+                of.price, of.delivery_fee, of.delivery_eta_minutes
          FROM orders o
          JOIN offers of ON of.id = o.offer_id
          JOIN requests r ON r.id = o.request_id
@@ -127,98 +127,6 @@ module.exports = function buildOffersRouter(io) {
       res.status(500).json({ error: 'Failed to accept offer' });
     } finally {
       if (client) client.release();
-    }
-  });
-
-  // Shared lookup: fetch the offer plus enough context (vendor_id,
-  // request_id, requester_id) to authorize a message and know which
-  // socket rooms to notify. Returns null if the offer doesn't exist.
-  async function getOfferContext(offerId) {
-    const { rows } = await pool.query(
-      `SELECT o.id AS offer_id, o.vendor_id, o.request_id, r.requester_id
-       FROM offers o JOIN requests r ON r.id = o.request_id
-       WHERE o.id = $1`,
-      [offerId]
-    );
-    return rows[0] || null;
-  }
-
-  // GET /api/offers/:id/messages - only the requester who placed the request
-  // or the vendor who made this specific offer can see this thread.
-  router.get('/:id/messages', requireAuth, async (req, res) => {
-    try {
-      const ctx = await getOfferContext(req.params.id);
-      if (!ctx) return res.status(404).json({ error: 'Offer not found' });
-      if (req.user.id !== ctx.requester_id && req.user.id !== ctx.vendor_id) {
-        return res.status(403).json({ error: 'Not authorized to view this conversation' });
-      }
-      const { rows } = await pool.query(
-        `SELECT id, offer_id, sender_id, body, created_at FROM offer_messages
-         WHERE offer_id = $1 ORDER BY created_at ASC LIMIT 200`,
-        [req.params.id]
-      );
-      res.json(rows);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Failed to fetch messages' });
-    }
-  });
-
-  // POST /api/offers/:id/messages  { body }
-  router.post('/:id/messages', requireAuth, async (req, res) => {
-    const { body } = req.body;
-    if (!body || !body.trim()) {
-      return res.status(400).json({ error: 'body is required' });
-    }
-    try {
-      const ctx = await getOfferContext(req.params.id);
-      if (!ctx) return res.status(404).json({ error: 'Offer not found' });
-
-      const isRequester = req.user.id === ctx.requester_id;
-      const isVendor = req.user.id === ctx.vendor_id;
-      if (!isRequester && !isVendor) {
-        return res.status(403).json({ error: 'Not authorized to message in this conversation' });
-      }
-      // A vendor still needs an active subscription to participate, same rule
-      // as responding to requests in the first place - a lapsed subscription
-      // shouldn't let them keep negotiating for free.
-      if (isVendor && !(await isVendorPaidUp(req.user.id))) {
-        const settings = await getSettings();
-        return res.status(402).json({
-          error: 'An active subscription is required to message requesters',
-          subscription_required: true,
-          price: settings.subscription_price,
-          currency: settings.subscription_currency,
-          ecocash_number: settings.ecocash_number,
-        });
-      }
-
-      const { rows } = await pool.query(
-        `INSERT INTO offer_messages (offer_id, sender_id, body) VALUES ($1, $2, $3)
-         RETURNING id, offer_id, sender_id, body, created_at`,
-        [req.params.id, req.user.id, body.trim()]
-      );
-      const savedMessage = rows[0];
-
-      // Deliver live to whichever side is watching - the requester's
-      // request room, and the vendor's own room.
-      io.to(`request:${ctx.request_id}`).emit('offer:message', savedMessage);
-      io.to(`vendor:${ctx.vendor_id}`).emit('offer:message', savedMessage);
-
-      // Push-notify whichever party didn't send this message, in case their
-      // tab isn't open right now.
-      const recipientId = isRequester ? ctx.vendor_id : ctx.requester_id;
-      notifyUsersByPush([recipientId], {
-        title: 'New message',
-        body: body.trim().slice(0, 120),
-        offer_id: req.params.id,
-        url: isRequester ? '/vendor.html' : '/',
-      }).catch((err) => console.error('Push notification failed:', err));
-
-      res.status(201).json(savedMessage);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Failed to send message' });
     }
   });
 

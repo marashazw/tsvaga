@@ -95,19 +95,6 @@ CREATE TABLE offers (
   UNIQUE (request_id, vendor_id)
 );
 
--- A private back-and-forth between the requester and ONE specific vendor,
--- scoped to a single offer - not visible to any other vendor who responded
--- to the same request. This is what lets a requester negotiate price/timing
--- with each vendor separately, before (or after) accepting an offer.
-CREATE TABLE offer_messages (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  offer_id UUID NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
-  sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  body TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX offer_messages_offer_idx ON offer_messages (offer_id);
-
 CREATE TABLE orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   request_id UUID NOT NULL REFERENCES requests(id),

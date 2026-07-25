@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { api } from '../api';
-import OfferChat from './OfferChat.jsx';
 
 function RespondForm({ alert, onSent, onPaywalled }) {
   const [price, setPrice] = useState('');
@@ -14,13 +13,13 @@ function RespondForm({ alert, onSent, onPaywalled }) {
     e.preventDefault();
     setSending(true);
     try {
-      const { data } = await api.post(`/requests/${alert.request_id}/offers`, {
+      await api.post(`/requests/${alert.request_id}/offers`, {
         price: Number(price),
         delivery_fee: isPickup ? 0 : Number(deliveryFee || 0),
         delivery_eta_minutes: Number(eta),
         message: message || undefined,
       });
-      onSent(alert.request_id, data.id);
+      onSent(alert.request_id);
     } catch (err) {
       if (err.response?.status === 402) {
         onPaywalled(err.response.data);
@@ -49,20 +48,7 @@ function RespondForm({ alert, onSent, onPaywalled }) {
   );
 }
 
-function SentOfferChat({ offerId, socket, currentUserId }) {
-  const [showChat, setShowChat] = useState(false);
-  return (
-    <>
-      <span className="badge accepted">Offer sent</span>{' '}
-      <button className="link-btn" type="button" onClick={() => setShowChat((s) => !s)}>
-        💬 {showChat ? 'Hide chat' : 'Message customer'}
-      </button>
-      {showChat && <OfferChat offerId={offerId} socket={socket} currentUserId={currentUserId} />}
-    </>
-  );
-}
-
-export default function IncomingRequests({ alerts, respondedIds, offerIdsByRequest, onResponded, onPaywalled, socket, currentUserId }) {
+export default function IncomingRequests({ alerts, respondedIds, onResponded, onPaywalled }) {
   if (!alerts.length) {
     return <p className="hint">You're online — new nearby requests will show up here instantly.</p>;
   }
@@ -99,11 +85,7 @@ export default function IncomingRequests({ alerts, respondedIds, offerIdsByReque
                 </p>
               )}
               {respondedIds.has(a.request_id) ? (
-                <SentOfferChat
-                  offerId={offerIdsByRequest[a.request_id]}
-                  socket={socket}
-                  currentUserId={currentUserId}
-                />
+                <span className="badge accepted">Offer sent</span>
               ) : (
                 <RespondForm alert={a} onSent={onResponded} onPaywalled={onPaywalled} />
               )}

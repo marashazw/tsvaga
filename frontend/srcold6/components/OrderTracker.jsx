@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import ReviewForm from './ReviewForm.jsx';
-import OfferChat from './OfferChat.jsx';
 
 const STEPS_DELIVERY = [
   { key: 'confirmed', label: 'Order confirmed' },
@@ -14,11 +13,10 @@ const STEPS_PICKUP = [
   { key: 'delivered', label: 'Picked up' },
 ];
 
-export default function OrderTracker({ order, socket, currentUserId }) {
+export default function OrderTracker({ order }) {
   const [review, setReview] = useState(
     order.review_id ? { rating: order.review_rating, comment: order.review_comment } : null
   );
-  const [showChat, setShowChat] = useState(false);
 
   if (!order) return null;
   const isPickup = order.fulfillment_type === 'pickup';
@@ -56,15 +54,6 @@ export default function OrderTracker({ order, socket, currentUserId }) {
             </li>
           ))}
         </ol>
-      )}
-
-      {order.offer_id && (
-        <>
-          <button className="link-btn" type="button" onClick={() => setShowChat((s) => !s)}>
-            💬 {showChat ? 'Hide chat' : `Message ${order.business_name}`}
-          </button>
-          {showChat && <OfferChat offerId={order.offer_id} socket={socket} currentUserId={currentUserId} />}
-        </>
       )}
 
       {isDelivered && (
