@@ -19,8 +19,9 @@ module.exports = function buildRequestsRouter(io) {
       return res.status(422).json({ error: 'Coordinates fall outside the supported Zimbabwe service area' });
     }
 
-    const client = await pool.connect();
+    let client;
     try {
+      client = await pool.connect();
       const insertResult = await client.query(
         `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km)
          VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5))
@@ -95,7 +96,7 @@ module.exports = function buildRequestsRouter(io) {
       console.error(err);
       res.status(500).json({ error: 'Failed to create request' });
     } finally {
-      client.release();
+      if (client) client.release();
     }
   });
 

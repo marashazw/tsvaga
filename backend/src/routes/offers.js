@@ -61,8 +61,9 @@ module.exports = function buildOffersRouter(io) {
 
   // PATCH /api/offers/:id/accept
   router.patch('/:id/accept', requireAuth, async (req, res) => {
-    const client = await pool.connect();
+    let client;
     try {
+      client = await pool.connect();
       await client.query('BEGIN');
       const offerRow = await client.query('SELECT * FROM offers WHERE id = $1 FOR UPDATE', [req.params.id]);
       if (!offerRow.rows.length) {
@@ -90,11 +91,11 @@ module.exports = function buildOffersRouter(io) {
 
       res.json({ order: orderResult.rows[0] });
     } catch (err) {
-      await client.query('ROLLBACK');
+      if (client) await client.query('ROLLBACK').catch(() => {});
       console.error(err);
       res.status(500).json({ error: 'Failed to accept offer' });
     } finally {
-      client.release();
+      if (client) client.release();
     }
   });
 

@@ -108,8 +108,9 @@ module.exports = function buildOrdersRouter(io) {
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       return res.status(400).json({ error: 'rating must be an integer between 1 and 5' });
     }
-    const client = await pool.connect();
+    let client;
     try {
+      client = await pool.connect();
       await client.query('BEGIN');
       const orderRow = await client.query(
         `SELECT o.*, of.vendor_id, r.requester_id
@@ -151,11 +152,11 @@ module.exports = function buildOrdersRouter(io) {
 
       res.status(201).json(review.rows[0]);
     } catch (err) {
-      await client.query('ROLLBACK');
+      if (client) await client.query('ROLLBACK').catch(() => {});
       console.error(err);
       res.status(500).json({ error: 'Failed to submit review' });
     } finally {
-      client.release();
+      if (client) client.release();
     }
   });
 

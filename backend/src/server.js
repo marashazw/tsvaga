@@ -4,6 +4,15 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 
+// Safety net: without this, Node (since v15) terminates the *entire process*
+// on any unhandled promise rejection. We've already fixed the known cases
+// where a route let one slip through (a pool.connect() call sitting outside
+// its try/catch), but this catches anything else so one bad request can't
+// take the whole server down - it logs and keeps running instead.
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection (server kept running):', reason);
+});
+
 const { attachSocketHandlers } = require('./config/socket');
 
 const authRoutes = require('./routes/auth');

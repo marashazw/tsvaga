@@ -21,8 +21,9 @@ router.post('/register', async (req, res) => {
   const safeRole = allowedRoles.includes(role) ? role : 'requester';
   // Admin accounts are never created through public self-registration - see
   // `npm run create:admin` for the only way to create/promote one.
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const existing = await client.query('SELECT id FROM users WHERE phone = $1', [phone]);
     if (existing.rows.length) {
       return res.status(409).json({ error: 'An account with this phone number already exists' });
@@ -60,11 +61,11 @@ router.post('/register', async (req, res) => {
     });
     res.status(201).json({ user, token });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(500).json({ error: 'Failed to register user' });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

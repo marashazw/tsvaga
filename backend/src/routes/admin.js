@@ -119,8 +119,9 @@ router.get('/payment-submissions', async (req, res) => {
 
 // PATCH /api/admin/payment-submissions/:id/approve  { months? }
 router.patch('/payment-submissions/:id/approve', async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('BEGIN');
     const sub = await client.query('SELECT * FROM payment_submissions WHERE id = $1 FOR UPDATE', [req.params.id]);
     if (!sub.rows.length) {
@@ -151,11 +152,11 @@ router.patch('/payment-submissions/:id/approve', async (req, res) => {
     await client.query('COMMIT');
     res.json({ payment_submission: { ...submission, status: 'approved' }, subscription: result.rows[0] });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(500).json({ error: 'Failed to approve payment submission' });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
