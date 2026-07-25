@@ -47,7 +47,7 @@ module.exports = function buildRequestsRouter(io) {
                   ST_Distance(v.location, ${toGeoPoint(lng, lat)}) AS distance_m
            FROM vendors v
            WHERE v.is_online = true
-             AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $2 * 1000)
+             AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $1 * 1000)
            ORDER BY distance_m ASC
            LIMIT 25`;
 
