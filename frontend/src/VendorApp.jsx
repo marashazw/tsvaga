@@ -30,6 +30,31 @@ export default function VendorApp() {
     setSubscriptionInfo(data);
   }, []);
 
+  const loadNearbyRequests = useCallback(async (vendorData) => {
+    if (typeof vendorData.lng !== 'number' || typeof vendorData.lat !== 'number') return;
+    try {
+      const { data } = await api.get('/requests/nearby/list', {
+        params: { lng: vendorData.lng, lat: vendorData.lat, radius_km: 10 },
+      });
+      // Normalize field names to match what live socket alerts look like
+      // (request_id, not id) so both sources render the same way.
+      const normalized = data.map((r) => ({
+        request_id: r.id,
+        product_text: r.product_text,
+        quantity: r.quantity,
+        address_text: r.address_text,
+        fulfillment_type: r.fulfillment_type,
+        delivery_address_text: r.delivery_address_text,
+        distance_m: r.distance_m,
+        expires_at: r.expires_at,
+        subscription_required: r.subscription_required,
+      }));
+      setAlerts(normalized);
+    } catch (err) {
+      console.error('Failed to load nearby requests', err);
+    }
+  }, []);
+
   const loadProfile = useCallback(async () => {
     try {
       const { data } = await api.get('/vendors/me');
@@ -40,12 +65,13 @@ export default function VendorApp() {
       const { data: myReviews } = await api.get(`/vendors/${data.id}/reviews`);
       setReviews(myReviews);
       await loadSubscription();
+      await loadNearbyRequests(data);
     } catch {
       setAuthed(false);
     } finally {
       setLoading(false);
     }
-  }, [loadSubscription]);
+  }, [loadSubscription, loadNearbyRequests]);
 
   useEffect(() => {
     const token = loadStoredToken();
@@ -78,6 +104,7 @@ export default function VendorApp() {
   async function handlePickLocation(loc) {
     await api.post('/vendors/me/location', { lng: loc.lng, lat: loc.lat });
     setVendor((v) => ({ ...v, lng: loc.lng, lat: loc.lat }));
+    loadNearbyRequests({ lng: loc.lng, lat: loc.lat });
   }
 
   function handleOffered(requestId) {
@@ -172,7 +199,12 @@ export default function VendorApp() {
         </section>
 
         <section className="panel">
-          <h2>Nearby requests</h2>
+          <div className="alert-main">
+            <h2 style={{ margin: 0 }}>Nearby requests</h2>
+            <button className="secondary" onClick={() => loadNearbyRequests(vendor)}>
+              Refresh
+            </button>
+          </div>
           <IncomingRequests
             alerts={alerts}
             respondedIds={respondedIds}
