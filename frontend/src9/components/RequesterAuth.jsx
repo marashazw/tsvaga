@@ -7,7 +7,6 @@ export default function RequesterAuth({ onAuthed }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [registeredAsVendor, setRegisteredAsVendor] = useState(false);
-  const [pendingUser, setPendingUser] = useState(null);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -32,14 +31,9 @@ export default function RequesterAuth({ onAuthed }) {
       const { data } = await api.post(endpoint, payload);
       setAuthToken(data.token);
       if (mode === 'register' && data.user.role !== 'requester') {
-        // Show the "go set up your store" screen first - calling onAuthed here
-        // immediately would switch the parent straight to the main app before
-        // this screen ever gets a chance to render.
-        setPendingUser(data.user);
         setRegisteredAsVendor(true);
-      } else {
-        onAuthed(data.user);
       }
+      onAuthed(data.user);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong');
     } finally {
@@ -58,7 +52,7 @@ export default function RequesterAuth({ onAuthed }) {
         <a href="/vendor.html">
           <button type="button">Go to vendor dashboard</button>
         </a>
-        <button className="link-btn" onClick={() => onAuthed(pendingUser)}>
+        <button className="link-btn" onClick={() => setRegisteredAsVendor(false)}>
           Continue here as a customer instead
         </button>
       </div>

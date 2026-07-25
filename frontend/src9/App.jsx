@@ -172,11 +172,6 @@ export default function App() {
           <OnlineCount socket={socket} />
         </div>
         <div className="header-actions">
-          {(user.role === 'vendor' || user.role === 'both') && (
-            <a href="/vendor.html">
-              <button className="secondary">Vendor dashboard</button>
-            </a>
-          )}
           {pushStatus !== 'granted' && (
             <button className="secondary" onClick={handleEnablePush}>
               Enable notifications

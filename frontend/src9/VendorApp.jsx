@@ -208,11 +208,6 @@ export default function VendorApp() {
           <button className={vendor.is_online ? 'status-btn online' : 'status-btn offline'} onClick={toggleOnline}>
             {vendor.is_online ? '● Online — accepting requests' : '○ Offline'}
           </button>
-          {vendor.role === 'both' && (
-            <a href="/">
-              <button className="secondary">Customer site</button>
-            </a>
-          )}
           {pushStatus !== 'granted' && (
             <button className="secondary" onClick={handleEnablePush}>
               Enable notifications
