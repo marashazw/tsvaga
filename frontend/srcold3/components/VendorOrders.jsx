@@ -53,9 +53,6 @@ export default function VendorOrders({ orders, onUpdated }) {
                 ? `🚚 Deliver to: ${o.delivery_address_text}`
                 : `🚚 Deliver to: ${o.request_address || 'their pinned location'}`}
           </p>
-          <p className="hint">
-            📞 {o.recipient_name || 'Contact'}: {o.recipient_phone || o.requester_phone}
-          </p>
           <span className={`badge status-${o.status}`}>{statusLabel(o)}</span>
           {nextAction(o) && (
             <button onClick={() => advance(o)} style={{ marginLeft: 10 }}>

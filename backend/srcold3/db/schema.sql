@@ -66,12 +66,6 @@ CREATE TABLE requests (
   -- = 'delivery'. If left blank, the vendor should assume delivery to
   -- address_text (the search location) by default. Null/ignored for 'pickup'.
   delivery_address_text TEXT,
-  -- The requester's own account phone may not be the right contact - they
-  -- might be ordering for someone else, or want a different number reachable
-  -- at the door/pickup counter. Both optional; if blank, the vendor should
-  -- fall back to contacting the requester's account phone directly.
-  recipient_name TEXT,
-  recipient_phone TEXT,
   status request_status NOT NULL DEFAULT 'open',
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '30 minutes'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -113,19 +107,18 @@ CREATE TABLE reviews (
   UNIQUE (order_id)
 );
 
--- Web Push subscriptions for ANY signed-in user (requester or vendor), so
--- they can be alerted (new nearby request, order accepted, out for delivery,
--- delivered, etc.) even when the app/tab isn't open, as long as the
--- browser/OS is running with the service worker registered.
-CREATE TABLE push_subscriptions (
+-- Web Push subscriptions, so a vendor can be alerted to new nearby requests
+-- even when the dashboard tab/app isn't open (only requires the browser/OS
+-- to be running with the service worker registered).
+CREATE TABLE vendor_push_subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
   endpoint TEXT NOT NULL UNIQUE,
   p256dh TEXT NOT NULL,
   auth TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX push_subscriptions_user_idx ON push_subscriptions (user_id);
+CREATE INDEX vendor_push_subscriptions_vendor_idx ON vendor_push_subscriptions (vendor_id);
 
 -- One row per vendor tracking whether they're "paid up" and can see full
 -- request details / respond with offers. 'waived' means an admin has granted

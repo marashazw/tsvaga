@@ -79,13 +79,11 @@ router.get('/me/orders', requireAuth, async (req, res) => {
     const result = await pool.query(
       `SELECT o.id, o.status, o.created_at, o.delivered_at,
               r.product_text, r.quantity, r.address_text AS request_address,
-              r.fulfillment_type, r.delivery_address_text, r.recipient_name, r.recipient_phone,
-              u.phone AS requester_phone,
+              r.fulfillment_type, r.delivery_address_text,
               of.price, of.delivery_fee, of.delivery_eta_minutes
        FROM orders o
        JOIN offers of ON of.id = o.offer_id
        JOIN requests r ON r.id = o.request_id
-       JOIN users u ON u.id = r.requester_id
        WHERE of.vendor_id = $1 AND o.status != 'cancelled'
        ORDER BY o.created_at DESC
        LIMIT 20`,

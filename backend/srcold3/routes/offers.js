@@ -2,7 +2,6 @@ const express = require('express');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { isVendorPaidUp, getSettings } = require('../utils/subscription');
-const { notifyUsersByPush } = require('../utils/pushSender');
 
 module.exports = function buildOffersRouter(io) {
   const router = express.Router();
@@ -93,19 +92,6 @@ module.exports = function buildOffersRouter(io) {
 
       io.to(`request:${offer.request_id}`).emit('request:matched', { request_id: offer.request_id, offer_id: offer.id });
       io.to(`vendor:${offer.vendor_id}`).emit('order:status', orderResult.rows[0]);
-
-      // Let the vendor know even if their dashboard tab isn't open right now.
-      pool
-        .query('SELECT product_text FROM requests WHERE id = $1', [offer.request_id])
-        .then(({ rows }) =>
-          notifyUsersByPush([offer.vendor_id], {
-            title: 'Your offer was accepted!',
-            body: rows[0] ? `Get moving on: ${rows[0].product_text}` : 'Check your orders to fulfill',
-            order_id: orderResult.rows[0].id,
-            url: '/vendor.html',
-          })
-        )
-        .catch((err) => console.error('Push notification failed:', err));
 
       res.json({ order: orderResult.rows[0] });
     } catch (err) {

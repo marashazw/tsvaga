@@ -45,8 +45,6 @@ export default function VendorApp() {
         address_text: r.address_text,
         fulfillment_type: r.fulfillment_type,
         delivery_address_text: r.delivery_address_text,
-        recipient_name: r.recipient_name,
-        recipient_phone: r.recipient_phone,
         distance_m: r.distance_m,
         expires_at: r.expires_at,
         subscription_required: r.subscription_required,

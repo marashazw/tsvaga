@@ -10,9 +10,7 @@ router.get('/public-key', (req, res) => {
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || null, enabled: isConfigured });
 });
 
-// POST /me/push-subscription  { endpoint, keys: { p256dh, auth } }
-// Works for ANY signed-in user (requester or vendor) - mounted under both
-// /api/vendors and /api/users so either frontend can call the same shape.
+// POST /api/vendors/me/push-subscription  { endpoint, keys: { p256dh, auth } }
 router.post('/me/push-subscription', requireAuth, async (req, res) => {
   const { endpoint, keys } = req.body;
   if (!endpoint || !keys?.p256dh || !keys?.auth) {
@@ -20,7 +18,7 @@ router.post('/me/push-subscription', requireAuth, async (req, res) => {
   }
   try {
     await pool.query(
-      `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
+      `INSERT INTO vendor_push_subscriptions (vendor_id, endpoint, p256dh, auth)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (endpoint) DO UPDATE SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth`,
       [req.user.id, endpoint, keys.p256dh, keys.auth]
@@ -32,11 +30,11 @@ router.post('/me/push-subscription', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /me/push-subscription  { endpoint }
+// DELETE /api/vendors/me/push-subscription  { endpoint }
 router.delete('/me/push-subscription', requireAuth, async (req, res) => {
   const { endpoint } = req.body;
   try {
-    await pool.query('DELETE FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2', [
+    await pool.query('DELETE FROM vendor_push_subscriptions WHERE vendor_id = $1 AND endpoint = $2', [
       req.user.id,
       endpoint,
     ]);

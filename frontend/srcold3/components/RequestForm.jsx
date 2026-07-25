@@ -5,8 +5,6 @@ export default function RequestForm({ location, radiusKm, onRadiusChange, onSubm
   const [quantity, setQuantity] = useState('');
   const [fulfillmentType, setFulfillmentType] = useState('delivery');
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientPhone, setRecipientPhone] = useState('');
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -16,8 +14,6 @@ export default function RequestForm({ location, radiusKm, onRadiusChange, onSubm
       quantity,
       fulfillment_type: fulfillmentType,
       delivery_address_text: fulfillmentType === 'delivery' ? deliveryAddress : undefined,
-      recipient_name: recipientName || undefined,
-      recipient_phone: recipientPhone || undefined,
     });
   }
 
@@ -93,31 +89,6 @@ export default function RequestForm({ location, radiusKm, onRadiusChange, onSubm
           </span>
         </label>
       )}
-
-      <fieldset className="fulfillment-choice">
-        <legend>Contact for {fulfillmentType === 'pickup' ? 'collection' : 'delivery'} (optional)</legend>
-        <label>
-          Recipient name (if not you)
-          <input
-            type="text"
-            placeholder="e.g. Tendai (if collecting/receiving on your behalf)"
-            value={recipientName}
-            onChange={(e) => setRecipientName(e.target.value)}
-          />
-        </label>
-        <label>
-          Contact phone (if different from your account)
-          <input
-            type="text"
-            placeholder="+263 7..."
-            value={recipientPhone}
-            onChange={(e) => setRecipientPhone(e.target.value)}
-          />
-        </label>
-        <span className="hint" style={{ display: 'block' }}>
-          Leave blank and the vendor will use your account phone number.
-        </span>
-      </fieldset>
 
       <p className="hint">
         {location ? 'Location set — tap the map again to move it.' : 'Tap the map to drop your location pin first.'}

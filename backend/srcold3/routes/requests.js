@@ -2,15 +2,14 @@ const express = require('express');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { toGeoPoint, isWithinZimbabwe } = require('../utils/geo');
-const { notifyUsersByPush } = require('../utils/pushSender');
+const { notifyVendorsByPush } = require('../utils/pushSender');
 const { isVendorPaidUp, getPaidVendorIdSet } = require('../utils/subscription');
 
 module.exports = function buildRequestsRouter(io) {
   const router = express.Router();
 
   // POST /api/requests  { product_text, product_id?, quantity, lng, lat, address_text, radius_km,
-  //                        fulfillment_type?: 'delivery'|'pickup', delivery_address_text?,
-  //                        recipient_name?, recipient_phone? }
+  //                        fulfillment_type?: 'delivery'|'pickup', delivery_address_text? }
   router.post('/', requireAuth, async (req, res) => {
     const {
       product_text,
@@ -22,8 +21,6 @@ module.exports = function buildRequestsRouter(io) {
       radius_km,
       fulfillment_type,
       delivery_address_text,
-      recipient_name,
-      recipient_phone,
     } = req.body;
 
     if (!product_text || typeof lng !== 'number' || typeof lat !== 'number') {
@@ -41,8 +38,8 @@ module.exports = function buildRequestsRouter(io) {
     try {
       client = await pool.connect();
       const insertResult = await client.query(
-        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text, recipient_name, recipient_phone)
-         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5), $7, $8, $9, $10)
+        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text)
+         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5), $7, $8)
          RETURNING *`,
         [
           req.user.id,
@@ -53,8 +50,6 @@ module.exports = function buildRequestsRouter(io) {
           radius_km || null,
           safeFulfillment,
           safeDeliveryAddress,
-          recipient_name || null,
-          recipient_phone || null,
         ]
       );
       const request = insertResult.rows[0];
@@ -96,8 +91,6 @@ module.exports = function buildRequestsRouter(io) {
           address_text: paidUp ? request.address_text : null,
           fulfillment_type: request.fulfillment_type,
           delivery_address_text: paidUp ? request.delivery_address_text : null,
-          recipient_name: paidUp ? request.recipient_name : null,
-          recipient_phone: paidUp ? request.recipient_phone : null,
           distance_m: Math.round(vendor.distance_m),
           expires_at: request.expires_at,
           subscription_required: !paidUp,
@@ -112,18 +105,16 @@ module.exports = function buildRequestsRouter(io) {
       const paidVendorList = matches.rows.filter((v) => paidVendorIds.has(v.id)).map((v) => v.id);
       const unpaidVendorList = matches.rows.filter((v) => !paidVendorIds.has(v.id)).map((v) => v.id);
 
-      notifyUsersByPush(paidVendorList, {
+      notifyVendorsByPush(paidVendorList, {
         title: `Someone nearby wants: ${request.product_text}`,
         body: request.address_text ? `Near ${request.address_text}` : 'Tap to view and send an offer',
         request_id: request.id,
-        url: '/vendor.html',
       }).catch((err) => console.error('Push notification batch failed:', err));
 
-      notifyUsersByPush(unpaidVendorList, {
+      notifyVendorsByPush(unpaidVendorList, {
         title: 'A nearby request just came in',
         body: 'Subscribe to see the details and respond',
         request_id: request.id,
-        url: '/vendor.html',
       }).catch((err) => console.error('Push notification batch failed:', err));
 
       res.status(201).json({ request, alerted_vendors: matches.rows.length });
@@ -164,8 +155,6 @@ module.exports = function buildRequestsRouter(io) {
             address_text: null,
             fulfillment_type: requestRow.fulfillment_type,
             delivery_address_text: null,
-            recipient_name: null,
-            recipient_phone: null,
           },
           offers: [],
           subscription_required: true,
@@ -186,7 +175,6 @@ module.exports = function buildRequestsRouter(io) {
     try {
       const result = await pool.query(
         `SELECT id, product_text, quantity, address_text, expires_at, fulfillment_type, delivery_address_text,
-                recipient_name, recipient_phone,
                 ST_Distance(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}) AS distance_m
          FROM requests
          WHERE status = 'open'
@@ -208,8 +196,6 @@ module.exports = function buildRequestsRouter(io) {
           address_text: null,
           fulfillment_type: r.fulfillment_type,
           delivery_address_text: null,
-          recipient_name: null,
-          recipient_phone: null,
           expires_at: r.expires_at,
           distance_m: r.distance_m,
           subscription_required: true,

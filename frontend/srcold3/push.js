@@ -29,6 +29,6 @@ export async function enablePushNotifications() {
     applicationServerKey: urlBase64ToUint8Array(data.publicKey),
   });
 
-  await api.post('/users/me/push-subscription', subscription.toJSON());
+  await api.post('/vendors/me/push-subscription', subscription.toJSON());
   return 'granted';
 }

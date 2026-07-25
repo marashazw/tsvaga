@@ -6,7 +6,6 @@ import OfferList from './components/OfferList.jsx';
 import OrderTracker from './components/OrderTracker.jsx';
 import RequesterAuth from './components/RequesterAuth.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
-import { enablePushNotifications } from './push';
 
 const SOCKET_BASE = import.meta.env.VITE_SOCKET_BASE || 'http://localhost:4000';
 
@@ -25,7 +24,6 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState(null);
   const [socket, setSocket] = useState(null);
-  const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured'
 
   // On load, if there's a stored token, verify it actually belongs to a real
   // account (rather than just assuming any token present means "logged in") -
@@ -83,11 +81,6 @@ export default function App() {
     setAuthed(true);
   }
 
-  async function handleEnablePush() {
-    const result = await enablePushNotifications();
-    setPushStatus(result);
-  }
-
   function handleLogout() {
     setAuthToken(null);
     setAuthed(false);
@@ -98,14 +91,7 @@ export default function App() {
     setOrder(null);
   }
 
-  async function handleSubmitRequest({
-    product_text,
-    quantity,
-    fulfillment_type,
-    delivery_address_text,
-    recipient_name,
-    recipient_phone,
-  }) {
+  async function handleSubmitRequest({ product_text, quantity, fulfillment_type, delivery_address_text }) {
     setSubmitting(true);
     try {
       const { data } = await api.post('/requests', {
@@ -116,8 +102,6 @@ export default function App() {
         radius_km: radiusKm,
         fulfillment_type,
         delivery_address_text,
-        recipient_name,
-        recipient_phone,
       });
       setRequest(data.request);
       setOffers([]);
@@ -167,26 +151,8 @@ export default function App() {
           <h1>Tsvaga</h1>
           <p className="tagline">Hi {user.name} — ask for what you want. Nearby stores come to you.</p>
         </div>
-        <div className="header-actions">
-          {pushStatus !== 'granted' && (
-            <button className="secondary" onClick={handleEnablePush}>
-              Enable notifications
-            </button>
-          )}
-          <button className="secondary" onClick={handleLogout}>Sign out</button>
-        </div>
+        <button className="secondary" onClick={handleLogout}>Sign out</button>
       </header>
-
-      {pushStatus === 'granted' && (
-        <p className="hint" style={{ textAlign: 'center' }}>
-          Push notifications on — you'll be alerted even if this tab is closed.
-        </p>
-      )}
-      {pushStatus === 'denied' && (
-        <p className="hint" style={{ textAlign: 'center' }}>
-          Notifications were blocked in your browser — enable them in browser settings to use this.
-        </p>
-      )}
 
       <main>
         <section className="map-section">

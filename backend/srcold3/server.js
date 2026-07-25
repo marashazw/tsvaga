@@ -37,8 +37,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok', service: 'tsvaga-backe
 
 app.use('/api/auth', authRoutes);
 app.use('/api/vendors', vendorRoutes);
-app.use('/api/vendors', pushRoutes); // adds POST/DELETE /me/push-subscription (vendor dashboard)
-app.use('/api/users', pushRoutes); // adds POST/DELETE /me/push-subscription (requester app) + GET /public-key
+app.use('/api/vendors', pushRoutes); // adds POST/DELETE /me/push-subscription
 app.use('/api/push', pushRoutes); // adds GET /public-key
 app.use('/api/products', productRoutes);
 app.use('/api/admin', adminRoutes);
