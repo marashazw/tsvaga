@@ -154,27 +154,6 @@ router.post('/me/location', requireAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/vendors/me/profile  { business_name }
-// Lets a vendor fix a typo in their shop name (or rename it later) without
-// needing to contact support.
-router.patch('/me/profile', requireAuth, async (req, res) => {
-  const { business_name } = req.body;
-  if (!business_name || !business_name.trim()) {
-    return res.status(400).json({ error: 'business_name is required' });
-  }
-  try {
-    const result = await pool.query(
-      `UPDATE vendors SET business_name = $2 WHERE id = $1 RETURNING id, business_name`,
-      [req.user.id, business_name.trim()]
-    );
-    if (!result.rows.length) return res.status(404).json({ error: 'Vendor profile not found' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update shop name' });
-  }
-});
-
 // PATCH /api/vendors/me/status  { is_online: true|false }
 router.patch('/me/status', requireAuth, async (req, res) => {
   const { is_online } = req.body;

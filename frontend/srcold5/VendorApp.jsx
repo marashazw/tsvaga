@@ -24,8 +24,6 @@ export default function VendorApp() {
   const [paywallNotice, setPaywallNotice] = useState(null);
   const [socket, setSocket] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState('');
 
   const loadSubscription = useCallback(async () => {
     const { data } = await api.get('/vendors/me/subscription');
@@ -103,22 +101,6 @@ export default function VendorApp() {
     return () => s.disconnect();
   }, [vendor?.id]);
 
-  function startEditingName() {
-    setNameInput(vendor.business_name);
-    setEditingName(true);
-  }
-
-  async function saveShopName() {
-    if (!nameInput.trim()) return;
-    try {
-      const { data } = await api.patch('/vendors/me/profile', { business_name: nameInput.trim() });
-      setVendor((v) => ({ ...v, business_name: data.business_name }));
-      setEditingName(false);
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update shop name');
-    }
-  }
-
   async function toggleOnline() {
     const { data } = await api.patch('/vendors/me/status', { is_online: !vendor.is_online });
     setVendor((v) => ({ ...v, is_online: data.is_online }));
@@ -175,26 +157,7 @@ export default function VendorApp() {
     <div className="app-shell">
       <header className="vendor-header">
         <div>
-          {editingName ? (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
-              <input
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                style={{ fontSize: '1.4rem', padding: '4px 8px', borderRadius: 6, border: '1px solid #d8cdb9' }}
-                autoFocus
-              />
-              <button onClick={saveShopName}>Save</button>
-              <button className="secondary" onClick={() => setEditingName(false)}>Cancel</button>
-            </div>
-          ) : (
-            <h1>
-              {vendor.business_name}{' '}
-              <button className="link-btn" onClick={startEditingName} style={{ fontSize: '0.9rem' }}>
-                ✎ Edit name
-              </button>
-            </h1>
-          )}
+          <h1>{vendor.business_name}</h1>
           <p className="tagline">{vendor.address_text || 'Set your store location on the map below'}</p>
         </div>
         <div className="header-actions">
