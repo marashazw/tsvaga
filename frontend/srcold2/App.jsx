@@ -14,10 +14,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // Default the pin to Harare CBD so there's already a sensible starting point -
-  // the user can still tap the map to move it anywhere else in Zimbabwe.
-  const HARARE_CBD = { lat: -17.8292, lng: 31.0522 };
-  const [location, setLocation] = useState(HARARE_CBD);
+  const [location, setLocation] = useState(null);
   const [radiusKm, setRadiusKm] = useState(5);
   const [request, setRequest] = useState(null);
   const [offers, setOffers] = useState([]);
