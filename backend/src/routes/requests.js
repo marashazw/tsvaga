@@ -40,14 +40,14 @@ module.exports = function buildRequestsRouter(io) {
            WHERE vi.product_id = $1
              AND vi.in_stock = true
              AND v.is_online = true
-             AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $2 * 1000)
+             AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $2::numeric * 1000)
            ORDER BY distance_m ASC
            LIMIT 25`
         : `SELECT v.id, v.business_name, v.address_text,
                   ST_Distance(v.location, ${toGeoPoint(lng, lat)}) AS distance_m
            FROM vendors v
            WHERE v.is_online = true
-             AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $1 * 1000)
+             AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $1::numeric * 1000)
            ORDER BY distance_m ASC
            LIMIT 25`;
 
@@ -150,7 +150,7 @@ module.exports = function buildRequestsRouter(io) {
                 ST_Distance(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}) AS distance_m
          FROM requests
          WHERE status = 'open'
-           AND ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1 * 1000)
+           AND ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1::numeric * 1000)
          ORDER BY distance_m ASC`,
         [radius_km || 5]
       );
