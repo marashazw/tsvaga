@@ -92,33 +92,20 @@ module.exports = function buildOffersRouter(io) {
       await client.query('COMMIT');
 
       io.to(`request:${offer.request_id}`).emit('request:matched', { request_id: offer.request_id, offer_id: offer.id });
-
-      // Fetch the fully-joined order detail (same shape as GET /vendors/me/orders)
-      // so the vendor dashboard can add this straight into its list without a
-      // page reload - a bare order:status ping with just an id/status isn't
-      // enough to render a new list entry.
-      const fullOrder = await pool.query(
-        `SELECT o.id, o.status, o.created_at, o.delivered_at,
-                r.product_text, r.quantity, r.address_text AS request_address,
-                r.fulfillment_type, r.delivery_address_text, r.recipient_name, r.recipient_phone,
-                u.phone AS requester_phone,
-                of.price, of.delivery_fee, of.delivery_eta_minutes
-         FROM orders o
-         JOIN offers of ON of.id = o.offer_id
-         JOIN requests r ON r.id = o.request_id
-         JOIN users u ON u.id = r.requester_id
-         WHERE o.id = $1`,
-        [orderResult.rows[0].id]
-      );
-      io.to(`vendor:${offer.vendor_id}`).emit('order:new', fullOrder.rows[0]);
+      io.to(`vendor:${offer.vendor_id}`).emit('order:status', orderResult.rows[0]);
 
       // Let the vendor know even if their dashboard tab isn't open right now.
-      notifyUsersByPush([offer.vendor_id], {
-        title: 'Your offer was accepted!',
-        body: `Get moving on: ${fullOrder.rows[0].product_text}`,
-        order_id: orderResult.rows[0].id,
-        url: '/vendor.html',
-      }).catch((err) => console.error('Push notification failed:', err));
+      pool
+        .query('SELECT product_text FROM requests WHERE id = $1', [offer.request_id])
+        .then(({ rows }) =>
+          notifyUsersByPush([offer.vendor_id], {
+            title: 'Your offer was accepted!',
+            body: rows[0] ? `Get moving on: ${rows[0].product_text}` : 'Check your orders to fulfill',
+            order_id: orderResult.rows[0].id,
+            url: '/vendor.html',
+          })
+        )
+        .catch((err) => console.error('Push notification failed:', err));
 
       res.json({ order: orderResult.rows[0] });
     } catch (err) {

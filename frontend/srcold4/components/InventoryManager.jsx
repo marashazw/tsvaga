@@ -4,10 +4,8 @@ import { api } from '../api';
 export default function InventoryManager({ inventory, onChange }) {
   const [catalog, setCatalog] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState('');
-  const [newProductName, setNewProductName] = useState('');
   const [price, setPrice] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     api.get('/products').then(({ data }) => setCatalog(data)).catch(() => {});
@@ -15,40 +13,18 @@ export default function InventoryManager({ inventory, onChange }) {
 
   async function addOrUpdate(e) {
     e.preventDefault();
-    setError(null);
-
-    if (!selectedProduct && !newProductName.trim()) {
-      setError('Choose a product from the list, or type a new one.');
-      return;
-    }
-
+    if (!selectedProduct) return;
     setSaving(true);
     try {
-      let productId = selectedProduct;
-      let productName;
-
-      if (!productId) {
-        // Not in the catalog yet - create it (or reuse an existing one with
-        // the same name, which the backend handles for us).
-        const { data: newProduct } = await api.post('/products', { name: newProductName.trim() });
-        productId = newProduct.id;
-        productName = newProduct.name;
-        setCatalog((prev) => (prev.some((p) => p.id === newProduct.id) ? prev : [...prev, newProduct]));
-      } else {
-        productName = catalog.find((p) => p.id === productId)?.name;
-      }
-
       const { data } = await api.post('/vendors/me/inventory', {
-        product_id: productId,
+        product_id: selectedProduct,
         in_stock: true,
         typical_price: price ? Number(price) : null,
       });
-      onChange([...inventory.filter((i) => i.product_id !== productId), { ...data, name: productName }]);
+      const product = catalog.find((p) => p.id === selectedProduct);
+      onChange([...inventory.filter((i) => i.product_id !== selectedProduct), { ...data, name: product?.name }]);
       setSelectedProduct('');
-      setNewProductName('');
       setPrice('');
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save product');
     } finally {
       setSaving(false);
     }
@@ -80,30 +56,14 @@ export default function InventoryManager({ inventory, onChange }) {
       </ul>
 
       <form onSubmit={addOrUpdate} className="inventory-form">
-        <select
-          value={selectedProduct}
-          onChange={(e) => {
-            setSelectedProduct(e.target.value);
-            if (e.target.value) setNewProductName('');
-          }}
-        >
-          <option value="">Choose from catalog…</option>
+        <select value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} required>
+          <option value="">Add a product…</option>
           {catalog.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
             </option>
           ))}
         </select>
-        <span className="hint" style={{ alignSelf: 'center' }}>or</span>
-        <input
-          type="text"
-          placeholder="Type a new product name"
-          value={newProductName}
-          onChange={(e) => {
-            setNewProductName(e.target.value);
-            if (e.target.value) setSelectedProduct('');
-          }}
-        />
         <input
           type="number"
           step="0.01"
@@ -115,7 +75,6 @@ export default function InventoryManager({ inventory, onChange }) {
           {saving ? 'Saving…' : 'Add / update'}
         </button>
       </form>
-      {error && <p className="error">{error}</p>}
     </div>
   );
 }

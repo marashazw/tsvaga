@@ -88,9 +88,6 @@ export default function VendorApp() {
     const s = io(SOCKET_BASE, { auth: { token } });
     s.on('connect', () => s.emit('vendor:subscribe', vendor.id));
     s.on('request:new', (alert) => setAlerts((prev) => [alert, ...prev].slice(0, 20)));
-    s.on('order:new', (order) =>
-      setOrders((prev) => (prev.some((o) => o.id === order.id) ? prev : [order, ...prev]))
-    );
     s.on('order:status', (payload) =>
       setOrders((prev) => prev.map((o) => (o.id === payload.order_id ? { ...o, status: payload.status } : o)))
     );
