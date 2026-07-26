@@ -32,30 +32,30 @@ function EditAdForm({ ad, onSaved, onCancel }) {
     <form onSubmit={save} className="settings-form" style={{ marginTop: 8 }}>
       <label>
         Title
-        <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} required />
       </label>
       <label>
         Description
-        <input value={body} onChange={(e) => setBody(e.target.value)} />
+        <input value={body} onChange={(e) => setBody(e.target.value)} maxLength={300} />
       </label>
       {ad.ad_type === 'video' ? (
         <label>
           Video URL
-          <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} />
+          <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} maxLength={500} />
         </label>
       ) : (
         <label>
           Image URL
-          <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+          <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} maxLength={500} />
         </label>
       )}
       <label>
         Link URL
-        <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
+        <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} maxLength={500} />
       </label>
       <label>
         WhatsApp number
-        <input value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+263 7..." />
+        <input value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+263 7..." maxLength={20} />
       </label>
       <button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
       <button type="button" className="secondary" onClick={onCancel} style={{ marginLeft: 8 }}>Cancel</button>

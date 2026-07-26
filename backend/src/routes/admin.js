@@ -5,6 +5,16 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 router.use(requireAuth, requireAdmin);
 
+// Same caps as the public ad submission endpoint - an admin editing an ad
+// shouldn't be able to bypass the "no dumping a whole book in here" limit.
+const AD_LIMITS = { title: 100, body: 300, url: 500, whatsapp_number: 20 };
+function checkAdLength(value, field, max) {
+  if (value && value.length > max) {
+    return `${field} must be ${max} characters or fewer (got ${value.length})`;
+  }
+  return null;
+}
+
 // GET /api/admin/settings
 router.get('/settings', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM platform_settings WHERE id = 1');
@@ -416,6 +426,18 @@ router.patch('/ads/:id/reject', async (req, res) => {
 // regardless of its current status.
 router.patch('/ads/:id', async (req, res) => {
   const { title, body, video_url, image_url, link_url, whatsapp_number } = req.body;
+
+  const lengthError =
+    checkAdLength(title, 'title', AD_LIMITS.title) ||
+    checkAdLength(body, 'body', AD_LIMITS.body) ||
+    checkAdLength(video_url, 'video_url', AD_LIMITS.url) ||
+    checkAdLength(image_url, 'image_url', AD_LIMITS.url) ||
+    checkAdLength(link_url, 'link_url', AD_LIMITS.url) ||
+    checkAdLength(whatsapp_number, 'whatsapp_number', AD_LIMITS.whatsapp_number);
+  if (lengthError) {
+    return res.status(400).json({ error: lengthError });
+  }
+
   try {
     const { rows } = await pool.query(
       `UPDATE ads SET

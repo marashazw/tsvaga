@@ -4,6 +4,22 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Character caps so a submission can't turn into a wall of text (or a
+// literal book) - enforced here server-side, not just as a UI suggestion.
+const LIMITS = {
+  title: 100,
+  body: 300,
+  url: 500,
+  whatsapp_number: 20,
+};
+
+function checkLength(value, field, max) {
+  if (value && value.length > max) {
+    return `${field} must be ${max} characters or fewer (got ${value.length})`;
+  }
+  return null;
+}
+
 // GET /api/ads/active - public, no auth. Returns only what's needed to render
 // an ad slot; never the payment/review fields.
 router.get('/active', async (req, res) => {
@@ -71,6 +87,17 @@ router.post('/', requireAuth, async (req, res) => {
   }
   if (typeof amount !== 'number' || amount <= 0) {
     return res.status(400).json({ error: 'A valid amount is required' });
+  }
+
+  const lengthError =
+    checkLength(title, 'title', LIMITS.title) ||
+    checkLength(body, 'body', LIMITS.body) ||
+    checkLength(video_url, 'video_url', LIMITS.url) ||
+    checkLength(image_url, 'image_url', LIMITS.url) ||
+    checkLength(link_url, 'link_url', LIMITS.url) ||
+    checkLength(whatsapp_number, 'whatsapp_number', LIMITS.whatsapp_number);
+  if (lengthError) {
+    return res.status(400).json({ error: lengthError });
   }
 
   try {

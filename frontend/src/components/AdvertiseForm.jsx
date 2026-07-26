@@ -88,26 +88,34 @@ export default function AdvertiseForm() {
 
         <label>
           Title
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} required />
+          <span className="hint" style={{ display: 'block', textAlign: 'right' }}>{title.length}/100</span>
         </label>
         <label>
           Description (optional)
-          <input type="text" value={body} onChange={(e) => setBody(e.target.value)} />
+          <input type="text" value={body} onChange={(e) => setBody(e.target.value)} maxLength={300} />
+          <span className="hint" style={{ display: 'block', textAlign: 'right' }}>{body.length}/300</span>
         </label>
         {adType === 'video' ? (
           <label>
             Video URL (direct file link)
-            <input type="text" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} required />
+            <input type="text" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} maxLength={500} required />
           </label>
         ) : (
           <label>
             Image URL (optional)
-            <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+            <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} maxLength={500} />
           </label>
         )}
         <label>
           Click-through link (optional)
-          <input type="text" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..." />
+          <input
+            type="text"
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            placeholder="https://..."
+            maxLength={500}
+          />
         </label>
         <label>
           WhatsApp contact number (optional)
@@ -116,6 +124,7 @@ export default function AdvertiseForm() {
             value={whatsappNumber}
             onChange={(e) => setWhatsappNumber(e.target.value)}
             placeholder="+263 7... (international format)"
+            maxLength={20}
           />
           <span className="hint" style={{ display: 'block', marginTop: 4 }}>
             Shows a "Chat on WhatsApp" button that opens a pre-written message mentioning your ad — often gets more
