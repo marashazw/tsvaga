@@ -65,7 +65,7 @@ router.post('/register', async (req, res) => {
       );
       await client.query(
         `INSERT INTO vendors (id, business_name, location, address_text, is_online)
-         VALUES ($1, $2, ${point}, $3, false)`,
+         VALUES ($1, $2, ${point}, $3, true)`,
         [user.id, business_name || name, address_text || null]
       );
       await client.query(
