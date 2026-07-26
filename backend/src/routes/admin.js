@@ -43,7 +43,7 @@ router.patch('/settings', async (req, res) => {
 // GET /api/admin/vendors - every vendor with their current subscription status
 router.get('/vendors', async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT v.id, v.business_name, v.address_text, v.is_online, u.phone,
+    `SELECT v.id, v.business_name, v.address_text, v.is_online, v.created_at, u.phone,
             s.status AS subscription_status, s.expires_at, s.note
      FROM vendors v
      JOIN users u ON u.id = v.id
