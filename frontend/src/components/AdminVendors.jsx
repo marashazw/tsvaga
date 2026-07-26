@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { api } from '../api';
+
+function isPaidUp(v) {
+  return v.subscription_status === 'waived' || (v.subscription_status === 'active' && v.expires_at && new Date(v.expires_at) > new Date());
+}
 
 function statusLabel(v) {
   if (v.subscription_status === 'waived') return 'Waived (free access)';
@@ -10,11 +14,7 @@ function statusLabel(v) {
 }
 
 function statusClass(v) {
-  if (v.subscription_status === 'waived') return 'status-delivered';
-  if (v.subscription_status === 'active' && v.expires_at && new Date(v.expires_at) > new Date()) {
-    return 'status-delivered';
-  }
-  return 'status-cancelled';
+  return isPaidUp(v) ? 'status-delivered' : 'status-cancelled';
 }
 
 function EditVendorForm({ vendor, onSaved, onCancel }) {
@@ -55,6 +55,24 @@ function EditVendorForm({ vendor, onSaved, onCancel }) {
 export default function AdminVendors({ vendors, onChanged, onEdited, onDeleted }) {
   const [monthsByVendor, setMonthsByVendor] = useState({});
   const [editingId, setEditingId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all'); // all | active | inactive
+  const [sortBy, setSortBy] = useState('name'); // name | newest | location
+
+  const visibleVendors = useMemo(() => {
+    let list = vendors;
+    if (statusFilter === 'active') list = list.filter(isPaidUp);
+    if (statusFilter === 'inactive') list = list.filter((v) => !isPaidUp(v));
+
+    const sorted = [...list];
+    if (sortBy === 'newest') {
+      sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } else if (sortBy === 'location') {
+      sorted.sort((a, b) => (a.address_text || '').localeCompare(b.address_text || ''));
+    } else {
+      sorted.sort((a, b) => a.business_name.localeCompare(b.business_name));
+    }
+    return sorted;
+  }, [vendors, statusFilter, sortBy]);
 
   async function activate(vendorId) {
     const months = Number(monthsByVendor[vendorId]) || 1;
@@ -84,9 +102,31 @@ export default function AdminVendors({ vendors, onChanged, onEdited, onDeleted }
 
   return (
     <div className="panel">
-      <h2 style={{ marginTop: 0 }}>Vendors</h2>
+      <div className="alert-main">
+        <h2 style={{ margin: 0 }}>Vendors ({visibleVendors.length})</h2>
+      </div>
+
+      <div className="admin-actions" style={{ marginBottom: 12 }}>
+        <label className="hint">
+          Show:{' '}
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+        <label className="hint">
+          Sort by:{' '}
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="name">Name (A-Z)</option>
+            <option value="newest">Newest first</option>
+            <option value="location">Location (A-Z)</option>
+          </select>
+        </label>
+      </div>
+
       <ul className="order-list">
-        {vendors.map((v) => (
+        {visibleVendors.map((v) => (
           <li key={v.id} className="order-card">
             <div className="alert-main">
               <strong>{v.business_name}</strong>

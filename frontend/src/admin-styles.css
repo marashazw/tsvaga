@@ -10,7 +10,7 @@
 }
 
 .admin-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
-.admin-actions input {
+.admin-actions input, .admin-actions select {
   padding: 6px 8px;
   border: 1px solid #d8cdb9;
   border-radius: 6px;
