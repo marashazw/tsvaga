@@ -8,6 +8,7 @@ import RequesterAuth from './components/RequesterAuth.jsx';
 import AdSlot from './components/AdSlot.jsx';
 import AdvertiseForm from './components/AdvertiseForm.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
+import AddressSearch from './components/AddressSearch.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications } from './push';
 
@@ -22,6 +23,7 @@ export default function App() {
   // the user can still tap the map to move it anywhere else in Zimbabwe.
   const HARARE_CBD = { lat: -17.8292, lng: 31.0522 };
   const [location, setLocation] = useState(HARARE_CBD);
+  const [addressLabel, setAddressLabel] = useState(null);
   const [radiusKm, setRadiusKm] = useState(5);
   const [request, setRequest] = useState(null);
   const [offers, setOffers] = useState([]);
@@ -79,7 +81,15 @@ export default function App() {
     };
   }, [socket, request]);
 
-  const handlePickLocation = useCallback((loc) => setLocation(loc), []);
+  const handlePickLocation = useCallback((loc) => {
+    setLocation(loc);
+    setAddressLabel(null); // a manual pin drop no longer matches any previously found address
+  }, []);
+
+  function handleAddressFound({ lat, lng, label }) {
+    setLocation({ lat, lng });
+    setAddressLabel(label);
+  }
 
   function handleAuthed(userData) {
     setUser(userData);
@@ -116,6 +126,7 @@ export default function App() {
         quantity,
         lng: location.lng,
         lat: location.lat,
+        address_text: addressLabel || undefined,
         radius_km: radiusKm,
         fulfillment_type,
         delivery_address_text,
@@ -199,6 +210,7 @@ export default function App() {
 
       <main>
         <section className="map-section">
+          <AddressSearch onFound={handleAddressFound} />
           <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
           <AdSlot />
         </section>
@@ -207,6 +219,7 @@ export default function App() {
           {!request ? (
             <RequestForm
               location={location}
+              addressLabel={addressLabel}
               radiusKm={radiusKm}
               onRadiusChange={setRadiusKm}
               onSubmit={handleSubmitRequest}

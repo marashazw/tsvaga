@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function RequestForm({ location, radiusKm, onRadiusChange, onSubmit, submitting }) {
+export default function RequestForm({ location, addressLabel, radiusKm, onRadiusChange, onSubmit, submitting }) {
   const [productText, setProductText] = useState('');
   const [quantity, setQuantity] = useState('');
   const [fulfillmentType, setFulfillmentType] = useState('delivery');
@@ -120,7 +120,11 @@ export default function RequestForm({ location, radiusKm, onRadiusChange, onSubm
       </fieldset>
 
       <p className="hint">
-        {location ? 'Location set — tap the map again to move it.' : 'Tap the map to drop your location pin first.'}
+        {location
+          ? addressLabel
+            ? `Location set: ${addressLabel}`
+            : 'Location set — tap the map again to move it.'
+          : 'Tap the map to drop your location pin first.'}
       </p>
 
       <button type="submit" disabled={!location || submitting}>

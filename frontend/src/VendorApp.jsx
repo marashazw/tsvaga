@@ -11,6 +11,7 @@ import PriorityPanel from './components/PriorityPanel.jsx';
 import AdSlot from './components/AdSlot.jsx';
 import AdvertiseForm from './components/AdvertiseForm.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
+import AddressSearch from './components/AddressSearch.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications } from './push';
 
@@ -129,10 +130,14 @@ export default function VendorApp() {
     setVendor((v) => ({ ...v, is_online: data.is_online }));
   }
 
-  async function handlePickLocation(loc) {
-    await api.post('/vendors/me/location', { lng: loc.lng, lat: loc.lat });
-    setVendor((v) => ({ ...v, lng: loc.lng, lat: loc.lat }));
+  async function handlePickLocation(loc, addressLabel) {
+    await api.post('/vendors/me/location', { lng: loc.lng, lat: loc.lat, address_text: addressLabel || undefined });
+    setVendor((v) => ({ ...v, lng: loc.lng, lat: loc.lat, address_text: addressLabel || v.address_text }));
     loadNearbyRequests({ lng: loc.lng, lat: loc.lat });
+  }
+
+  function handleAddressFound({ lat, lng, label }) {
+    handlePickLocation({ lat, lng }, label);
   }
 
   function handleOffered(requestId, offerId) {
@@ -252,6 +257,7 @@ export default function VendorApp() {
 
       <main>
         <section className="map-section">
+          <AddressSearch onFound={handleAddressFound} />
           <MapView requesterLocation={vendorLocation} onPickLocation={handlePickLocation} radiusKm={0} />
           <p className="hint">Tap the map to set or update your store's pin.</p>
           <AdSlot />

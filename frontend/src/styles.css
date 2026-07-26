@@ -306,3 +306,18 @@ button.secondary {
   animation: chatFlash 0.9s infinite;
   font-weight: 700;
 }
+
+.address-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.address-search input {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 10px;
+  border: 1px solid #d8cdb9;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}

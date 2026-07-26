@@ -21,6 +21,7 @@ const productRoutes = require('./routes/products');
 const pushRoutes = require('./routes/push');
 const adminRoutes = require('./routes/admin');
 const adsRoutes = require('./routes/ads');
+const geocodeRoutes = require('./routes/geocode');
 const buildRequestsRouter = require('./routes/requests');
 const buildOffersRouter = require('./routes/offers');
 const buildOrdersRouter = require('./routes/orders');
@@ -44,6 +45,7 @@ app.use('/api/push', pushRoutes); // adds GET /public-key
 app.use('/api/products', productRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ads', adsRoutes);
+app.use('/api/geocode', geocodeRoutes);
 const offersRouter = buildOffersRouter(io);
 app.use('/api/requests', buildRequestsRouter(io));
 app.use('/api/requests', offersRouter); // adds POST /:requestId/offers
