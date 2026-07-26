@@ -4,17 +4,20 @@ export default function AdminTodoList({ pendingPaymentsCount, pendingPriorityCou
   const tasks = [
     {
       count: pendingPaymentsCount,
-      label: 'subscription payment confirmation',
+      label: 'vendor',
+      suffix: 'paid their subscription and is awaiting your approval',
       anchor: '#section-payment-submissions',
     },
     {
       count: pendingPriorityCount,
-      label: 'priority boost payment confirmation',
+      label: 'vendor',
+      suffix: 'paid for a priority boost and is awaiting your approval',
       anchor: '#section-priority-submissions',
     },
     {
       count: pendingAdsCount,
-      label: 'ad awaiting approval',
+      label: 'ad',
+      suffix: 'awaiting approval',
       anchor: '#section-ads',
     },
   ].filter((t) => t.count > 0);
@@ -32,7 +35,7 @@ export default function AdminTodoList({ pendingPaymentsCount, pendingPriorityCou
                 <span className="todo-count">{t.count}</span>
                 {' '}
                 {t.label}
-                {t.count > 1 ? 's' : ''} to review →
+                {t.count > 1 ? 's' : ''} {t.suffix} →
               </a>
             </li>
           ))}
