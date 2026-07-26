@@ -242,7 +242,7 @@ export default function VendorApp() {
       </section>
 
       <section style={{ marginBottom: 20 }}>
-        <PriorityPanel />
+        <PriorityPanel subscriptionInfo={subscriptionInfo} />
       </section>
 
       {paywallNotice && (

@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { toGeoPoint, isWithinZimbabwe } = require('../utils/geo');
-const { getSettings } = require('../utils/subscription');
+const { getSettings, isVendorPaidUp } = require('../utils/subscription');
 
 const router = express.Router();
 
@@ -69,6 +69,15 @@ router.post('/me/priority-submissions', requireAuth, async (req, res) => {
   const { package_id, amount, ecocash_reference } = req.body;
   if (!package_id || typeof amount !== 'number' || amount <= 0) {
     return res.status(400).json({ error: 'package_id and a valid amount are required' });
+  }
+  // A priority boost is an add-on ON TOP of an active base subscription - it
+  // shouldn't be purchasable (or even submittable for approval) by a vendor
+  // who isn't paid up yet, waived, or still pending approval.
+  if (!(await isVendorPaidUp(req.user.id))) {
+    return res.status(402).json({
+      error: 'An active subscription is required before purchasing a priority boost. Subscribe first.',
+      subscription_required: true,
+    });
   }
   try {
     const { rows } = await pool.query(

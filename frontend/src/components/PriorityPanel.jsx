@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 
-export default function PriorityPanel() {
+export default function PriorityPanel({ subscriptionInfo }) {
   const [info, setInfo] = useState(null);
   const [selectedPackage, setSelectedPackage] = useState('');
   const [reference, setReference] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     api.get('/vendors/me/priority').then(({ data }) => setInfo(data));
@@ -18,10 +19,15 @@ export default function PriorityPanel() {
     current.priority_score > 0 && current.priority_expires_at && new Date(current.priority_expires_at) > new Date();
   const chosenPackage = packages.find((p) => p.id === selectedPackage);
 
+  const sub = subscriptionInfo?.subscription;
+  const hasActiveSubscription =
+    sub && (sub.status === 'waived' || (sub.status === 'active' && sub.expires_at && new Date(sub.expires_at) > new Date()));
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!chosenPackage) return;
     setSubmitting(true);
+    setError(null);
     try {
       await api.post('/vendors/me/priority-submissions', {
         package_id: chosenPackage.id,
@@ -29,6 +35,8 @@ export default function PriorityPanel() {
         ecocash_reference: reference || undefined,
       });
       setSubmitted(true);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to submit priority purchase');
     } finally {
       setSubmitting(false);
     }
@@ -49,7 +57,11 @@ export default function PriorityPanel() {
         </p>
       )}
 
-      {submitted ? (
+      {!hasActiveSubscription ? (
+        <p className="badge status-cancelled">
+          You need an active subscription before you can buy a priority boost — subscribe above first.
+        </p>
+      ) : submitted ? (
         <p className="badge status-confirmed">Payment submitted — awaiting admin approval.</p>
       ) : (
         <form onSubmit={handleSubmit} className="inventory-form">
@@ -72,7 +84,8 @@ export default function PriorityPanel() {
           </button>
         </form>
       )}
-      {chosenPackage && !submitted && (
+      {error && <p className="error">{error}</p>}
+      {hasActiveSubscription && chosenPackage && !submitted && (
         <p className="hint" style={{ marginTop: 8 }}>
           Send ${Number(chosenPackage.price).toFixed(2)} via EcoCash to <strong>{ecocash_number}</strong>, then submit
           above.
