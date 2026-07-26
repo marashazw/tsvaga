@@ -1,13 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.jsx';
+import VendorApp from './VendorApp.jsx';
 import './styles.css';
-import { registerServiceWorker } from './registerServiceWorker.js';
-
-registerServiceWorker();
+import './vendor-styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <VendorApp />
   </React.StrictMode>
 );
