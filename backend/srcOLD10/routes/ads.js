@@ -8,15 +8,12 @@ const router = express.Router();
 // an ad slot; never the payment/review fields.
 router.get('/active', async (req, res) => {
   try {
-    const settings = await pool.query('SELECT max_active_ads FROM platform_settings WHERE id = 1');
-    const limit = settings.rows[0]?.max_active_ads || 5;
     const { rows } = await pool.query(
       `SELECT id, ad_type, title, body, video_url, image_url, link_url
        FROM ads
        WHERE status = 'active' AND starts_at <= now() AND ends_at > now()
        ORDER BY random()
-       LIMIT $1`,
-      [limit]
+       LIMIT 10`
     );
     res.json(rows);
   } catch (err) {

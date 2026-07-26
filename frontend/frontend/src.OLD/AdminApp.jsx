@@ -18,7 +18,6 @@ export default function AdminApp() {
   const [priorityPackages, setPriorityPackages] = useState([]);
   const [prioritySubmissions, setPrioritySubmissions] = useState([]);
   const [pendingAds, setPendingAds] = useState([]);
-  const [activeAds, setActiveAds] = useState([]);
 
   const loadAll = useCallback(async () => {
     try {
@@ -28,8 +27,7 @@ export default function AdminApp() {
         { data: submissionsData },
         { data: packagesData },
         { data: prioritySubsData },
-        { data: pendingAdsData },
-        { data: activeAdsData },
+        { data: adsData },
       ] = await Promise.all([
         api.get('/admin/settings'),
         api.get('/admin/vendors'),
@@ -37,15 +35,13 @@ export default function AdminApp() {
         api.get('/admin/priority-packages'),
         api.get('/admin/priority-submissions', { params: { status: 'pending' } }),
         api.get('/admin/ads', { params: { status: 'pending' } }),
-        api.get('/admin/ads', { params: { status: 'active' } }),
       ]);
       setSettings(settingsData);
       setVendors(vendorsData);
       setSubmissions(submissionsData);
       setPriorityPackages(packagesData);
       setPrioritySubmissions(prioritySubsData);
-      setPendingAds(pendingAdsData);
-      setActiveAds(activeAdsData);
+      setPendingAds(adsData);
       setAuthed(true);
     } catch {
       setAuthed(false);
@@ -70,16 +66,6 @@ export default function AdminApp() {
     );
   }
 
-  function handleVendorEdited(vendorId, updated) {
-    setVendors((prev) =>
-      prev.map((v) => (v.id === vendorId ? { ...v, business_name: updated.business_name, address_text: updated.address_text } : v))
-    );
-  }
-
-  function handleVendorDeleted(vendorId) {
-    setVendors((prev) => prev.filter((v) => v.id !== vendorId));
-  }
-
   function handleSubmissionReviewed(id, status, subscription) {
     setSubmissions((prev) => prev.filter((s) => s.id !== id));
     if (status === 'approved' && subscription) {
@@ -95,6 +81,10 @@ export default function AdminApp() {
 
   function handlePrioritySubmissionReviewed(id) {
     setPrioritySubmissions((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  function handleAdReviewed(id) {
+    setPendingAds((prev) => prev.filter((a) => a.id !== id));
   }
 
   function handleLogout() {
@@ -147,21 +137,11 @@ export default function AdminApp() {
       </section>
 
       <section style={{ marginTop: 20 }}>
-        <AdminAds
-          pendingAds={pendingAds}
-          activeAds={activeAds}
-          onPendingChanged={setPendingAds}
-          onActiveChanged={setActiveAds}
-        />
+        <AdminAds ads={pendingAds} onReviewed={handleAdReviewed} />
       </section>
 
       <section style={{ marginTop: 20 }}>
-        <AdminVendors
-          vendors={vendors}
-          onChanged={handleVendorChanged}
-          onEdited={handleVendorEdited}
-          onDeleted={handleVendorDeleted}
-        />
+        <AdminVendors vendors={vendors} onChanged={handleVendorChanged} />
       </section>
     </div>
   );

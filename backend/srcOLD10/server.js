@@ -60,29 +60,6 @@ setInterval(() => {
   io.emit('presence:count', { count: io.engine.clientsCount });
 }, 10000);
 
-// Housekeeping, run every hour:
-// - Any ad submission still sitting 'pending' (never reviewed/paid-confirmed)
-//   for more than 10 days is auto-deleted, rather than accumulating forever.
-// - Any 'active' ad whose ends_at has passed gets flipped to 'expired' for
-//   clean admin visibility (GET /api/ads/active already filters these out
-//   regardless, this is just for bookkeeping).
-const pool = require('./config/db');
-async function runHousekeeping() {
-  try {
-    const deleted = await pool.query(
-      `DELETE FROM ads WHERE status = 'pending' AND created_at < now() - interval '10 days' RETURNING id`
-    );
-    if (deleted.rows.length) {
-      console.log(`Housekeeping: deleted ${deleted.rows.length} stale pending ad submission(s).`);
-    }
-    await pool.query(`UPDATE ads SET status = 'expired' WHERE status = 'active' AND ends_at <= now()`);
-  } catch (err) {
-    console.error('Housekeeping job failed:', err);
-  }
-}
-runHousekeeping(); // once on startup
-setInterval(runHousekeeping, 60 * 60 * 1000); // then every hour
-
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
   console.log(`Tsvaga backend listening on port ${PORT}`);

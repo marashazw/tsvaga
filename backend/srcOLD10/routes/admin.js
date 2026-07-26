@@ -11,27 +11,19 @@ router.get('/settings', async (req, res) => {
   res.json(rows[0]);
 });
 
-// PATCH /api/admin/settings  { subscription_price?, subscription_currency?, ecocash_number?, ad_price_per_day?, max_active_ads? }
+// PATCH /api/admin/settings  { subscription_price?, subscription_currency?, ecocash_number? }
 router.patch('/settings', async (req, res) => {
-  const { subscription_price, subscription_currency, ecocash_number, ad_price_per_day, max_active_ads } = req.body;
+  const { subscription_price, subscription_currency, ecocash_number } = req.body;
   try {
     const { rows } = await pool.query(
       `UPDATE platform_settings SET
          subscription_price = COALESCE($1, subscription_price),
          subscription_currency = COALESCE($2, subscription_currency),
          ecocash_number = COALESCE($3, ecocash_number),
-         ad_price_per_day = COALESCE($4, ad_price_per_day),
-         max_active_ads = COALESCE($5, max_active_ads),
          updated_at = now()
        WHERE id = 1
        RETURNING *`,
-      [
-        subscription_price ?? null,
-        subscription_currency ?? null,
-        ecocash_number ?? null,
-        ad_price_per_day ?? null,
-        max_active_ads ?? null,
-      ]
+      [subscription_price ?? null, subscription_currency ?? null, ecocash_number ?? null]
     );
     res.json(rows[0]);
   } catch (err) {
@@ -51,50 +43,6 @@ router.get('/vendors', async (req, res) => {
      ORDER BY v.business_name`
   );
   res.json(rows);
-});
-
-// PATCH /api/admin/vendors/:vendorId  { business_name?, address_text? }
-// Lets an admin correct a vendor's shop details - typos, inappropriate/spam
-// names, etc. - without needing the vendor's own cooperation.
-router.patch('/vendors/:vendorId', async (req, res) => {
-  const { business_name, address_text } = req.body;
-  try {
-    const { rows } = await pool.query(
-      `UPDATE vendors SET
-         business_name = COALESCE($2, business_name),
-         address_text = COALESCE($3, address_text)
-       WHERE id = $1 RETURNING id, business_name, address_text`,
-      [req.params.vendorId, business_name ?? null, address_text ?? null]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Vendor not found' });
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update vendor' });
-  }
-});
-
-// DELETE /api/admin/vendors/:vendorId
-// Deletes the account entirely (cascades through their vendor profile,
-// inventory, subscriptions, etc.) - for clear spam/fake accounts. Blocked
-// with a clear error if the vendor has real order history, since that would
-// otherwise leave broken references behind; deactivating their subscription
-// is the right move for a vendor who has genuine history but needs stopping.
-router.delete('/vendors/:vendorId', async (req, res) => {
-  try {
-    const { rows } = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [req.params.vendorId]);
-    if (!rows.length) return res.status(404).json({ error: 'Vendor not found' });
-    res.json({ deleted: true });
-  } catch (err) {
-    if (err.code === '23503') {
-      return res.status(409).json({
-        error:
-          'This vendor has order history and cannot be deleted outright. Deactivate their subscription instead to stop further activity.',
-      });
-    }
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete vendor' });
-  }
 });
 
 // POST /api/admin/vendors/:vendorId/activate
@@ -371,18 +319,6 @@ router.patch('/ads/:id/approve', async (req, res) => {
     const ad = adRow.rows[0];
     const days = Number(req.body.duration_days) > 0 ? Number(req.body.duration_days) : ad.duration_days;
 
-    // Enforce a cap on how many ads can be running at once, so paid placements
-    // stay meaningful rather than an unlimited pile competing for attention.
-    const settings = await getSettings();
-    const activeCount = await pool.query(
-      `SELECT COUNT(*) FROM ads WHERE status = 'active' AND ends_at > now()`
-    );
-    if (Number(activeCount.rows[0].count) >= settings.max_active_ads) {
-      return res.status(409).json({
-        error: `Maximum of ${settings.max_active_ads} active ads already running. Deactivate or delete one first.`,
-      });
-    }
-
     const { rows } = await pool.query(
       `UPDATE ads SET status = 'active', starts_at = now(), ends_at = now() + ($2 || ' days')::interval,
               reviewed_by = $3, reviewed_at = now()
@@ -408,42 +344,6 @@ router.patch('/ads/:id/reject', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to reject ad' });
-  }
-});
-
-// PATCH /api/admin/ads/:id  { title?, body?, video_url?, image_url?, link_url? }
-// Lets an admin correct/edit an ad's content (spam text, broken link, etc.)
-// regardless of its current status.
-router.patch('/ads/:id', async (req, res) => {
-  const { title, body, video_url, image_url, link_url } = req.body;
-  try {
-    const { rows } = await pool.query(
-      `UPDATE ads SET
-         title = COALESCE($2, title), body = COALESCE($3, body),
-         video_url = COALESCE($4, video_url), image_url = COALESCE($5, image_url),
-         link_url = COALESCE($6, link_url)
-       WHERE id = $1 RETURNING *`,
-      [req.params.id, title ?? null, body ?? null, video_url ?? null, image_url ?? null, link_url ?? null]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Ad not found' });
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update ad' });
-  }
-});
-
-// DELETE /api/admin/ads/:id
-// Immediately removes an ad regardless of status - for spam or content that
-// shouldn't just sit rejected, but gone entirely.
-router.delete('/ads/:id', async (req, res) => {
-  try {
-    const { rows } = await pool.query('DELETE FROM ads WHERE id = $1 RETURNING id', [req.params.id]);
-    if (!rows.length) return res.status(404).json({ error: 'Ad not found' });
-    res.json({ deleted: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete ad' });
   }
 });
 

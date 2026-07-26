@@ -181,7 +181,6 @@ CREATE TABLE platform_settings (
   subscription_currency TEXT NOT NULL DEFAULT 'USD',
   ecocash_number TEXT NOT NULL DEFAULT '0772738126',
   ad_price_per_day NUMERIC(10,2) NOT NULL DEFAULT 2.00,
-  max_active_ads INT NOT NULL DEFAULT 5,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 INSERT INTO platform_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
