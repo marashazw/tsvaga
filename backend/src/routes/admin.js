@@ -411,19 +411,27 @@ router.patch('/ads/:id/reject', async (req, res) => {
   }
 });
 
-// PATCH /api/admin/ads/:id  { title?, body?, video_url?, image_url?, link_url? }
+// PATCH /api/admin/ads/:id  { title?, body?, video_url?, image_url?, link_url?, whatsapp_number? }
 // Lets an admin correct/edit an ad's content (spam text, broken link, etc.)
 // regardless of its current status.
 router.patch('/ads/:id', async (req, res) => {
-  const { title, body, video_url, image_url, link_url } = req.body;
+  const { title, body, video_url, image_url, link_url, whatsapp_number } = req.body;
   try {
     const { rows } = await pool.query(
       `UPDATE ads SET
          title = COALESCE($2, title), body = COALESCE($3, body),
          video_url = COALESCE($4, video_url), image_url = COALESCE($5, image_url),
-         link_url = COALESCE($6, link_url)
+         link_url = COALESCE($6, link_url), whatsapp_number = COALESCE($7, whatsapp_number)
        WHERE id = $1 RETURNING *`,
-      [req.params.id, title ?? null, body ?? null, video_url ?? null, image_url ?? null, link_url ?? null]
+      [
+        req.params.id,
+        title ?? null,
+        body ?? null,
+        video_url ?? null,
+        image_url ?? null,
+        link_url ?? null,
+        whatsapp_number ?? null,
+      ]
     );
     if (!rows.length) return res.status(404).json({ error: 'Ad not found' });
     res.json(rows[0]);

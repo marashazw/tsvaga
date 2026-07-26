@@ -7,6 +7,7 @@ function EditAdForm({ ad, onSaved, onCancel }) {
   const [videoUrl, setVideoUrl] = useState(ad.video_url || '');
   const [imageUrl, setImageUrl] = useState(ad.image_url || '');
   const [linkUrl, setLinkUrl] = useState(ad.link_url || '');
+  const [whatsappNumber, setWhatsappNumber] = useState(ad.whatsapp_number || '');
   const [saving, setSaving] = useState(false);
 
   async function save(e) {
@@ -19,6 +20,7 @@ function EditAdForm({ ad, onSaved, onCancel }) {
         video_url: videoUrl,
         image_url: imageUrl,
         link_url: linkUrl,
+        whatsapp_number: whatsappNumber,
       });
       onSaved(data);
     } finally {
@@ -51,6 +53,10 @@ function EditAdForm({ ad, onSaved, onCancel }) {
         Link URL
         <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
       </label>
+      <label>
+        WhatsApp number
+        <input value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+263 7..." />
+      </label>
       <button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
       <button type="button" className="secondary" onClick={onCancel} style={{ marginLeft: 8 }}>Cancel</button>
     </form>
@@ -79,6 +85,7 @@ function AdCard({ ad, showApprove, onApprove, onReject, onSaved, onDeleted }) {
       {ad.body && <p className="hint">"{ad.body}"</p>}
       {ad.video_url && <p className="hint">Video: {ad.video_url}</p>}
       {ad.link_url && <p className="hint">Link: {ad.link_url}</p>}
+      {ad.whatsapp_number && <p className="hint">WhatsApp: {ad.whatsapp_number}</p>}
 
       {editing ? (
         <EditAdForm

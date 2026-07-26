@@ -16,6 +16,7 @@
     "db:migrate-priority-ranking": "node src/db/migrate_priority_ranking.js",
     "db:migrate-ads": "node src/db/migrate_ads.js",
     "db:migrate-max-active-ads": "node src/db/migrate_max_active_ads.js",
+    "db:migrate-ad-whatsapp": "node src/db/migrate_ad_whatsapp.js",
     "create:admin": "node src/utils/createAdmin.js",
     "generate:vapid": "node src/utils/generateVapidKeys.js"
   },

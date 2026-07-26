@@ -11,7 +11,7 @@ router.get('/active', async (req, res) => {
     const settings = await pool.query('SELECT max_active_ads FROM platform_settings WHERE id = 1');
     const limit = settings.rows[0]?.max_active_ads || 5;
     const { rows } = await pool.query(
-      `SELECT id, ad_type, title, body, video_url, image_url, link_url
+      `SELECT id, ad_type, title, body, video_url, image_url, link_url, whatsapp_number
        FROM ads
        WHERE status = 'active' AND starts_at <= now() AND ends_at > now()
        ORDER BY random()
@@ -53,11 +53,12 @@ router.get('/pricing', async (req, res) => {
   }
 });
 
-// POST /api/ads  { ad_type, title, body?, video_url?, image_url?, link_url?, duration_days, amount, ecocash_reference? }
+// POST /api/ads  { ad_type, title, body?, video_url?, image_url?, link_url?, whatsapp_number?, duration_days, amount, ecocash_reference? }
 // Open to ANY signed-in user - vendor or requester - not vendor-only. Sits as
 // 'pending' until an admin reviews the (self-reported, EcoCash) payment.
 router.post('/', requireAuth, async (req, res) => {
-  const { ad_type, title, body, video_url, image_url, link_url, duration_days, amount, ecocash_reference } = req.body;
+  const { ad_type, title, body, video_url, image_url, link_url, whatsapp_number, duration_days, amount, ecocash_reference } =
+    req.body;
 
   if (!['text', 'video'].includes(ad_type)) {
     return res.status(400).json({ error: "ad_type must be 'text' or 'video'" });
@@ -74,8 +75,8 @@ router.post('/', requireAuth, async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO ads (owner_id, ad_type, title, body, video_url, image_url, link_url, duration_days, amount, ecocash_reference)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, 7), $9, $10)
+      `INSERT INTO ads (owner_id, ad_type, title, body, video_url, image_url, link_url, whatsapp_number, duration_days, amount, ecocash_reference)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, 7), $10, $11)
        RETURNING *`,
       [
         req.user.id,
@@ -85,6 +86,7 @@ router.post('/', requireAuth, async (req, res) => {
         video_url || null,
         image_url || null,
         link_url || null,
+        whatsapp_number || null,
         duration_days || null,
         amount,
         ecocash_reference || null,

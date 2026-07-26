@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 
+function buildWhatsAppUrl(number, adTitle) {
+  const digitsOnly = number.replace(/[^\d]/g, '');
+  const message = `Hi, I saw your ad "${adTitle}" on Tsvaga, `;
+  return `https://wa.me/${digitsOnly}?text=${encodeURIComponent(message)}`;
+}
+
 // Renders in its own dedicated strip of the page - never as an overlay on
 // top of the map or any functional text/form. Rotates through active ads if
 // there's more than one.
@@ -21,7 +27,7 @@ export default function AdSlot() {
   if (!ads.length) return null;
   const ad = ads[index];
 
-  const content = (
+  return (
     <div className="ad-slot">
       <span className="ad-label">Sponsored</span>
       {ad.ad_type === 'video' && ad.video_url ? (
@@ -31,14 +37,26 @@ export default function AdSlot() {
       ) : null}
       <h4 style={{ margin: '6px 0 2px' }}>{ad.title}</h4>
       {ad.body && <p className="hint" style={{ margin: 0 }}>{ad.body}</p>}
-    </div>
-  );
 
-  return ad.link_url ? (
-    <a href={ad.link_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
-      {content}
-    </a>
-  ) : (
-    content
+      {(ad.whatsapp_number || ad.link_url) && (
+        <div className="ad-actions">
+          {ad.whatsapp_number && (
+            <a
+              href={buildWhatsAppUrl(ad.whatsapp_number, ad.title)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ad-whatsapp-btn"
+            >
+              💬 Chat on WhatsApp
+            </a>
+          )}
+          {ad.link_url && (
+            <a href={ad.link_url} target="_blank" rel="noopener noreferrer" className="link-btn">
+              Learn more
+            </a>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

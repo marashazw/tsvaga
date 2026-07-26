@@ -10,6 +10,7 @@ export default function AdvertiseForm() {
   const [videoUrl, setVideoUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [durationDays, setDurationDays] = useState(7);
   const [reference, setReference] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -36,6 +37,7 @@ export default function AdvertiseForm() {
         video_url: adType === 'video' ? videoUrl : undefined,
         image_url: imageUrl || undefined,
         link_url: linkUrl || undefined,
+        whatsapp_number: whatsappNumber || undefined,
         duration_days: Number(durationDays),
         amount: Number(estimatedCost),
         ecocash_reference: reference || undefined,
@@ -106,6 +108,19 @@ export default function AdvertiseForm() {
         <label>
           Click-through link (optional)
           <input type="text" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..." />
+        </label>
+        <label>
+          WhatsApp contact number (optional)
+          <input
+            type="text"
+            value={whatsappNumber}
+            onChange={(e) => setWhatsappNumber(e.target.value)}
+            placeholder="+263 7... (international format)"
+          />
+          <span className="hint" style={{ display: 'block', marginTop: 4 }}>
+            Shows a "Chat on WhatsApp" button that opens a pre-written message mentioning your ad — often gets more
+            responses than a plain link.
+          </span>
         </label>
         <label>
           Run for how many days?

@@ -227,6 +227,10 @@ CREATE TABLE ads (
   video_url TEXT,
   image_url TEXT,
   link_url TEXT,
+  -- International-format phone number (e.g. +263771234567) for a "chat on
+  -- WhatsApp" button, separate from a generic click-through link - opens
+  -- wa.me with a pre-composed message rather than just linking somewhere.
+  whatsapp_number TEXT,
   duration_days INT NOT NULL DEFAULT 7,
   amount NUMERIC(10,2) NOT NULL,
   ecocash_reference TEXT,
