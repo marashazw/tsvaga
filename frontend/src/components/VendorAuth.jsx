@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api, setAuthToken } from '../api';
+import Captcha from './Captcha.jsx';
 
 export default function VendorAuth({ onAuthed }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
@@ -7,6 +8,8 @@ export default function VendorAuth({ onAuthed }) {
   const [alsoRequester, setAlsoRequester] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [captcha, setCaptcha] = useState({ token: '', answer: '' });
+  const [captchaRefresh, setCaptchaRefresh] = useState(0);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -21,12 +24,20 @@ export default function VendorAuth({ onAuthed }) {
       const payload =
         mode === 'login'
           ? { phone: form.phone, password: form.password }
-          : { ...form, role: alsoRequester ? 'both' : 'vendor' };
+          : {
+              ...form,
+              role: alsoRequester ? 'both' : 'vendor',
+              captcha_token: captcha.token,
+              captcha_answer: captcha.answer,
+            };
       const { data } = await api.post(endpoint, payload);
       setAuthToken(data.token);
       onAuthed(data.user);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong');
+      if (err.response?.data?.captcha_failed) {
+        setCaptchaRefresh((n) => n + 1);
+      }
     } finally {
       setLoading(false);
     }
@@ -55,6 +66,8 @@ export default function VendorAuth({ onAuthed }) {
               <input type="checkbox" checked={alsoRequester} onChange={(e) => setAlsoRequester(e.target.checked)} />
               I also want to request products as a customer (same login on the main site)
             </label>
+
+            <Captcha onChange={setCaptcha} refreshSignal={captchaRefresh} />
           </>
         )}
         <label>

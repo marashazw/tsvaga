@@ -13,10 +13,29 @@ const ZW_CENTER = { lng: 29.1549, lat: -19.0154 };
 // POST /api/auth/register
 // For vendors, also pass business_name (defaults to name) and optionally lng/lat.
 router.post('/register', async (req, res) => {
-  const { name, phone, password, role, business_name, lng, lat, address_text } = req.body;
+  const { name, phone, password, role, business_name, lng, lat, address_text, captcha_token, captcha_answer } =
+    req.body;
   if (!name || !phone || !password) {
     return res.status(400).json({ error: 'name, phone, and password are required' });
   }
+
+  // Verify the math captcha before touching the database at all - stops
+  // basic spam bots without needing any server-side session/state, since
+  // the correct answer is embedded (signed) inside the token itself.
+  if (!captcha_token || captcha_answer === undefined || captcha_answer === null || captcha_answer === '') {
+    return res.status(400).json({ error: 'Please answer the verification question' });
+  }
+  try {
+    const captchaPayload = jwt.verify(captcha_token, process.env.JWT_SECRET);
+    if (captchaPayload.type !== 'captcha' || Number(captcha_answer) !== captchaPayload.answer) {
+      return res.status(400).json({ error: 'That answer is incorrect - please try again', captcha_failed: true });
+    }
+  } catch (err) {
+    return res
+      .status(400)
+      .json({ error: 'Verification question expired - please try again', captcha_failed: true });
+  }
+
   const allowedRoles = ['requester', 'vendor', 'both'];
   const safeRole = allowedRoles.includes(role) ? role : 'requester';
   // Admin accounts are never created through public self-registration - see

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api, setAuthToken } from '../api';
+import Captcha from './Captcha.jsx';
 
 export default function RequesterAuth({ onAuthed }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
@@ -8,6 +9,8 @@ export default function RequesterAuth({ onAuthed }) {
   const [loading, setLoading] = useState(false);
   const [registeredAsVendor, setRegisteredAsVendor] = useState(false);
   const [pendingUser, setPendingUser] = useState(null);
+  const [captcha, setCaptcha] = useState({ token: '', answer: '' });
+  const [captchaRefresh, setCaptchaRefresh] = useState(0);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -28,6 +31,8 @@ export default function RequesterAuth({ onAuthed }) {
               password: form.password,
               role: form.role,
               business_name: form.role !== 'requester' ? form.businessName || form.name : undefined,
+              captcha_token: captcha.token,
+              captcha_answer: captcha.answer,
             };
       const { data } = await api.post(endpoint, payload);
       setAuthToken(data.token);
@@ -42,6 +47,9 @@ export default function RequesterAuth({ onAuthed }) {
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong');
+      if (err.response?.data?.captcha_failed) {
+        setCaptchaRefresh((n) => n + 1);
+      }
     } finally {
       setLoading(false);
     }
@@ -117,6 +125,8 @@ export default function RequesterAuth({ onAuthed }) {
                 />
               </label>
             )}
+
+            <Captcha onChange={setCaptcha} refreshSignal={captchaRefresh} />
           </>
         )}
         <label>
