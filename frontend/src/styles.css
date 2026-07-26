@@ -297,3 +297,12 @@ button.secondary {
   font-size: 0.85rem;
   color: #4a7a5f;
 }
+
+@keyframes chatFlash {
+  0%, 100% { opacity: 1; color: var(--clay); }
+  50% { opacity: 0.35; color: var(--forest); }
+}
+.chat-flash {
+  animation: chatFlash 0.9s infinite;
+  font-weight: 700;
+}

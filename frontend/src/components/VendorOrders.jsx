@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { api } from '../api';
-import OfferChat from './OfferChat.jsx';
+import ChatToggleButton from './ChatToggleButton.jsx';
 
 function statusLabel(order) {
   const pickup = order.fulfillment_type === 'pickup';
@@ -18,19 +18,6 @@ function nextAction(order) {
     confirmed: { status: 'out_for_delivery', label: pickup ? 'Mark ready for pickup' : 'Mark out for delivery' },
     out_for_delivery: { status: 'delivered', label: pickup ? 'Mark picked up' : 'Mark delivered' },
   }[order.status];
-}
-
-function OrderChatToggle({ offerId, socket, currentUserId }) {
-  const [showChat, setShowChat] = useState(false);
-  if (!offerId) return null;
-  return (
-    <div style={{ marginTop: 6 }}>
-      <button className="link-btn" type="button" onClick={() => setShowChat((s) => !s)}>
-        💬 {showChat ? 'Hide chat' : 'Message customer'}
-      </button>
-      {showChat && <OfferChat offerId={offerId} socket={socket} currentUserId={currentUserId} />}
-    </div>
-  );
 }
 
 export default function VendorOrders({ orders, onUpdated, socket, currentUserId }) {
@@ -76,7 +63,9 @@ export default function VendorOrders({ orders, onUpdated, socket, currentUserId 
               {nextAction(o).label}
             </button>
           )}
-          <OrderChatToggle offerId={o.offer_id} socket={socket} currentUserId={currentUserId} />
+          <div style={{ marginTop: 6 }}>
+            <ChatToggleButton offerId={o.offer_id} socket={socket} currentUserId={currentUserId} label="Message customer" />
+          </div>
         </li>
       ))}
     </ul>

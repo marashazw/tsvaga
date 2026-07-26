@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../api';
-import OfferChat from './OfferChat.jsx';
+import ChatToggleButton from './ChatToggleButton.jsx';
 
 function RespondForm({ alert, onSent, onPaywalled }) {
   const [price, setPrice] = useState('');
@@ -50,14 +50,10 @@ function RespondForm({ alert, onSent, onPaywalled }) {
 }
 
 function SentOfferChat({ offerId, socket, currentUserId }) {
-  const [showChat, setShowChat] = useState(false);
   return (
     <>
       <span className="badge accepted">Offer sent</span>{' '}
-      <button className="link-btn" type="button" onClick={() => setShowChat((s) => !s)}>
-        💬 {showChat ? 'Hide chat' : 'Message customer'}
-      </button>
-      {showChat && <OfferChat offerId={offerId} socket={socket} currentUserId={currentUserId} />}
+      <ChatToggleButton offerId={offerId} socket={socket} currentUserId={currentUserId} label="Message customer" />
     </>
   );
 }

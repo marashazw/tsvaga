@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
-import OfferChat from './OfferChat.jsx';
+import React from 'react';
+import ChatToggleButton from './ChatToggleButton.jsx';
 
 export default function OfferList({ offers, onAccept, matched, socket, currentUserId }) {
-  const [openChatId, setOpenChatId] = useState(null);
-
   if (!offers.length) {
     return <p className="hint">Waiting for nearby stores to respond…</p>;
   }
@@ -35,16 +33,12 @@ export default function OfferList({ offers, onAccept, matched, socket, currentUs
             {Number(offer.delivery_fee || 0) > 0 && ` + Delivery: $${Number(offer.delivery_fee).toFixed(2)}`}
           </p>
           {offer.message && <p className="offer-message">{offer.message}</p>}
-          <button
-            className="link-btn"
-            type="button"
-            onClick={() => setOpenChatId(openChatId === offer.id ? null : offer.id)}
-          >
-            💬 {openChatId === offer.id ? 'Hide chat' : `Message ${offer.business_name}`}
-          </button>
-          {openChatId === offer.id && (
-            <OfferChat offerId={offer.id} socket={socket} currentUserId={currentUserId} />
-          )}
+          <ChatToggleButton
+            offerId={offer.id}
+            socket={socket}
+            currentUserId={currentUserId}
+            label={`Message ${offer.business_name}`}
+          />
           {!matched && offer.status === 'pending' && (
             <button onClick={() => onAccept(offer.id)}>Accept this offer</button>
           )}
