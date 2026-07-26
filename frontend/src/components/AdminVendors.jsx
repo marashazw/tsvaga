@@ -5,6 +5,14 @@ function isPaidUp(v) {
   return v.subscription_status === 'waived' || (v.subscription_status === 'active' && v.expires_at && new Date(v.expires_at) > new Date());
 }
 
+function isPaidActive(v) {
+  return v.subscription_status === 'active' && v.expires_at && new Date(v.expires_at) > new Date();
+}
+
+function isWaived(v) {
+  return v.subscription_status === 'waived';
+}
+
 function statusLabel(v) {
   if (v.subscription_status === 'waived') return 'Waived (free access)';
   if (v.subscription_status === 'active' && v.expires_at && new Date(v.expires_at) > new Date()) {
@@ -55,12 +63,13 @@ function EditVendorForm({ vendor, onSaved, onCancel }) {
 export default function AdminVendors({ vendors, onChanged, onEdited, onDeleted }) {
   const [monthsByVendor, setMonthsByVendor] = useState({});
   const [editingId, setEditingId] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('all'); // all | active | inactive
+  const [statusFilter, setStatusFilter] = useState('all'); // all | paid | waived | inactive
   const [sortBy, setSortBy] = useState('name'); // name | newest | location
 
   const visibleVendors = useMemo(() => {
     let list = vendors;
-    if (statusFilter === 'active') list = list.filter(isPaidUp);
+    if (statusFilter === 'paid') list = list.filter(isPaidActive);
+    if (statusFilter === 'waived') list = list.filter(isWaived);
     if (statusFilter === 'inactive') list = list.filter((v) => !isPaidUp(v));
 
     const sorted = [...list];
@@ -111,7 +120,8 @@ export default function AdminVendors({ vendors, onChanged, onEdited, onDeleted }
           Show:{' '}
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="all">All</option>
-            <option value="active">Active</option>
+            <option value="paid">Paid</option>
+            <option value="waived">Waived</option>
             <option value="inactive">Inactive</option>
           </select>
         </label>
