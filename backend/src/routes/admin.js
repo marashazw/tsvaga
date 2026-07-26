@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../config/db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { getSettings } = require('../utils/subscription');
 
 const router = express.Router();
 router.use(requireAuth, requireAdmin);
