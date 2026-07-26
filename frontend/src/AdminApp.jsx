@@ -7,6 +7,7 @@ import AdminPriorityPackages from './components/AdminPriorityPackages.jsx';
 import AdminPrioritySubmissions from './components/AdminPrioritySubmissions.jsx';
 import AdminAds from './components/AdminAds.jsx';
 import AdminStats from './components/AdminStats.jsx';
+import AdminTodoList from './components/AdminTodoList.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 
 export default function AdminApp() {
@@ -127,18 +128,22 @@ export default function AdminApp() {
       </header>
 
       <section style={{ marginTop: 20 }}>
-        <AdminStats />
+        <AdminTodoList
+          pendingPaymentsCount={submissions.length}
+          pendingPriorityCount={prioritySubmissions.length}
+          pendingAdsCount={pendingAds.length}
+        />
       </section>
 
       <section style={{ marginTop: 20 }}>
         <AdminSettings settings={settings} onUpdated={setSettings} />
       </section>
 
-      <section style={{ marginTop: 20 }}>
+      <section id="section-payment-submissions" style={{ marginTop: 20 }}>
         <AdminPaymentSubmissions submissions={submissions} onReviewed={handleSubmissionReviewed} />
       </section>
 
-      <section style={{ marginTop: 20 }}>
+      <section id="section-priority-submissions" style={{ marginTop: 20 }}>
         <AdminPrioritySubmissions submissions={prioritySubmissions} onReviewed={handlePrioritySubmissionReviewed} />
       </section>
 
@@ -146,7 +151,7 @@ export default function AdminApp() {
         <AdminPriorityPackages packages={priorityPackages} onChanged={setPriorityPackages} />
       </section>
 
-      <section style={{ marginTop: 20 }}>
+      <section id="section-ads" style={{ marginTop: 20 }}>
         <AdminAds
           pendingAds={pendingAds}
           activeAds={activeAds}
@@ -162,6 +167,10 @@ export default function AdminApp() {
           onEdited={handleVendorEdited}
           onDeleted={handleVendorDeleted}
         />
+      </section>
+
+      <section style={{ marginTop: 20 }}>
+        <AdminStats />
       </section>
     </div>
   );
