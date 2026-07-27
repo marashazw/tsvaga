@@ -57,6 +57,7 @@ export default function VendorApp() {
         recipient_phone: r.recipient_phone,
         distance_m: r.distance_m,
         expires_at: r.expires_at,
+        created_at: r.created_at,
         subscription_required: r.subscription_required,
       }));
       setAlerts(normalized);

@@ -188,12 +188,12 @@ module.exports = function buildRequestsRouter(io) {
     try {
       const result = await pool.query(
         `SELECT id, product_text, quantity, address_text, expires_at, fulfillment_type, delivery_address_text,
-                recipient_name, recipient_phone,
+                recipient_name, recipient_phone, created_at,
                 ST_Distance(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}) AS distance_m
          FROM requests
          WHERE status = 'open'
            AND ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1::numeric * 1000)
-         ORDER BY distance_m ASC`,
+         ORDER BY created_at DESC`,
         [radius_km || 5]
       );
 
@@ -213,6 +213,7 @@ module.exports = function buildRequestsRouter(io) {
           recipient_name: null,
           recipient_phone: null,
           expires_at: r.expires_at,
+          created_at: r.created_at,
           distance_m: r.distance_m,
           subscription_required: true,
         }))
