@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 
-export default function AdvertiseForm() {
-  const [open, setOpen] = useState(false);
+export default function AdvertiseForm({ prefill, onSubmitted }) {
+  const [open, setOpen] = useState(!!prefill);
   const [pricing, setPricing] = useState(null);
-  const [adType, setAdType] = useState('text');
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [linkUrl, setLinkUrl] = useState('');
-  const [whatsappNumber, setWhatsappNumber] = useState('');
-  const [durationDays, setDurationDays] = useState(7);
+  const [adType, setAdType] = useState(prefill?.ad_type || 'text');
+  const [title, setTitle] = useState(prefill?.title || '');
+  const [body, setBody] = useState(prefill?.body || '');
+  const [videoUrl, setVideoUrl] = useState(prefill?.video_url || '');
+  const [imageUrl, setImageUrl] = useState(prefill?.image_url || '');
+  const [linkUrl, setLinkUrl] = useState(prefill?.link_url || '');
+  const [whatsappNumber, setWhatsappNumber] = useState(prefill?.whatsapp_number || '');
+  const [durationDays, setDurationDays] = useState(prefill?.duration_days || 7);
   const [reference, setReference] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -43,6 +43,7 @@ export default function AdvertiseForm() {
         ecocash_reference: reference || undefined,
       });
       setSubmitted(true);
+      onSubmitted?.();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to submit ad');
     } finally {
@@ -68,7 +69,7 @@ export default function AdvertiseForm() {
 
   return (
     <div className="panel" style={{ marginTop: 12 }}>
-      <h3 style={{ marginTop: 0 }}>📢 Advertise with us</h3>
+      <h3 style={{ marginTop: 0 }}>📢 {prefill ? 'Renew this ad' : 'Advertise with us'}</h3>
       <p className="hint">
         Ads run in their own dedicated space — never covering the map or any form. Anyone can advertise, not just
         vendors.

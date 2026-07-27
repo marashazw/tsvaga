@@ -9,7 +9,7 @@ import VendorReviews from './components/VendorReviews.jsx';
 import SubscriptionPanel from './components/SubscriptionPanel.jsx';
 import PriorityPanel from './components/PriorityPanel.jsx';
 import AdSlot from './components/AdSlot.jsx';
-import AdvertiseForm from './components/AdvertiseForm.jsx';
+import AdvertisingSection from './components/AdvertisingSection.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
@@ -300,7 +300,7 @@ export default function VendorApp() {
       </section>
 
       <section style={{ marginTop: 20, textAlign: 'center' }}>
-        <AdvertiseForm />
+        <AdvertisingSection />
       </section>
     </div>
   );

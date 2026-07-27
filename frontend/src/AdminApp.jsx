@@ -20,6 +20,7 @@ export default function AdminApp() {
   const [prioritySubmissions, setPrioritySubmissions] = useState([]);
   const [pendingAds, setPendingAds] = useState([]);
   const [activeAds, setActiveAds] = useState([]);
+  const [expiredAds, setExpiredAds] = useState([]);
 
   const loadAll = useCallback(async () => {
     try {
@@ -31,6 +32,7 @@ export default function AdminApp() {
         { data: prioritySubsData },
         { data: pendingAdsData },
         { data: activeAdsData },
+        { data: expiredAdsData },
       ] = await Promise.all([
         api.get('/admin/settings'),
         api.get('/admin/vendors'),
@@ -39,6 +41,7 @@ export default function AdminApp() {
         api.get('/admin/priority-submissions', { params: { status: 'pending' } }),
         api.get('/admin/ads', { params: { status: 'pending' } }),
         api.get('/admin/ads', { params: { status: 'active' } }),
+        api.get('/admin/ads', { params: { status: 'expired' } }),
       ]);
       setSettings(settingsData);
       setVendors(vendorsData);
@@ -47,6 +50,7 @@ export default function AdminApp() {
       setPrioritySubmissions(prioritySubsData);
       setPendingAds(pendingAdsData);
       setActiveAds(activeAdsData);
+      setExpiredAds(expiredAdsData);
       setAuthed(true);
     } catch {
       setAuthed(false);
@@ -155,8 +159,10 @@ export default function AdminApp() {
         <AdminAds
           pendingAds={pendingAds}
           activeAds={activeAds}
+          expiredAds={expiredAds}
           onPendingChanged={setPendingAds}
           onActiveChanged={setActiveAds}
+          onExpiredChanged={setExpiredAds}
         />
       </section>
 

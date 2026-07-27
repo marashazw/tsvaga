@@ -63,8 +63,9 @@ function EditAdForm({ ad, onSaved, onCancel }) {
   );
 }
 
-function AdCard({ ad, showApprove, onApprove, onReject, onSaved, onDeleted }) {
+function AdCard({ ad, showApprove, showReactivate, onApprove, onReject, onReactivate, onSaved, onDeleted }) {
   const [editing, setEditing] = useState(false);
+  const [reactivateDays, setReactivateDays] = useState(ad.duration_days || 7);
 
   async function remove() {
     if (!window.confirm(`Delete "${ad.title}" permanently? This can't be undone.`)) return;
@@ -82,6 +83,11 @@ function AdCard({ ad, showApprove, onApprove, onReject, onSaved, onDeleted }) {
         {ad.owner_name} ({ad.owner_phone}) · {ad.ad_type} · {ad.duration_days} days
         {ad.ecocash_reference ? ` · Ref: ${ad.ecocash_reference}` : ''}
       </p>
+      {ad.status === 'expired' && ad.ends_at && (
+        <p className="hint">
+          Expired {new Date(ad.ends_at).toLocaleDateString()} — auto-deleted 15 days after expiry unless re-activated.
+        </p>
+      )}
       {ad.body && <p className="hint">"{ad.body}"</p>}
       {ad.video_url && <p className="hint">Video: {ad.video_url}</p>}
       {ad.link_url && <p className="hint">Link: {ad.link_url}</p>}
@@ -104,6 +110,19 @@ function AdCard({ ad, showApprove, onApprove, onReject, onSaved, onDeleted }) {
               <button className="secondary" onClick={() => onReject(ad.id)}>Reject</button>
             </>
           )}
+          {showReactivate && (
+            <>
+              <input
+                type="number"
+                min="1"
+                value={reactivateDays}
+                onChange={(e) => setReactivateDays(e.target.value)}
+                style={{ width: 70 }}
+                title="Days to run"
+              />
+              <button onClick={() => onReactivate(ad.id, Number(reactivateDays))}>Re-activate / extend</button>
+            </>
+          )}
           <button className="secondary" onClick={() => setEditing(true)}>Edit</button>
           <button className="secondary" onClick={remove}>Delete</button>
         </div>
@@ -112,7 +131,7 @@ function AdCard({ ad, showApprove, onApprove, onReject, onSaved, onDeleted }) {
   );
 }
 
-export default function AdminAds({ pendingAds, activeAds, onPendingChanged, onActiveChanged }) {
+export default function AdminAds({ pendingAds, activeAds, expiredAds, onPendingChanged, onActiveChanged, onExpiredChanged }) {
   async function approve(id) {
     try {
       const { data } = await api.patch(`/admin/ads/${id}/approve`, {});
@@ -126,6 +145,16 @@ export default function AdminAds({ pendingAds, activeAds, onPendingChanged, onAc
   async function reject(id) {
     await api.patch(`/admin/ads/${id}/reject`, {});
     onPendingChanged(pendingAds.filter((a) => a.id !== id));
+  }
+
+  async function reactivate(id, days) {
+    try {
+      const { data } = await api.patch(`/admin/ads/${id}/approve`, { duration_days: days });
+      onExpiredChanged(expiredAds.filter((a) => a.id !== id));
+      onActiveChanged([...activeAds, data]);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to re-activate ad');
+    }
   }
 
   function handleSaved(updated, list, setList) {
@@ -169,6 +198,24 @@ export default function AdminAds({ pendingAds, activeAds, onPendingChanged, onAc
               showApprove={false}
               onSaved={(updated) => handleSaved(updated, activeAds, onActiveChanged)}
               onDeleted={(id) => handleDeleted(id, activeAds, onActiveChanged)}
+            />
+          ))}
+        </ul>
+      )}
+
+      <h2>Expired ads <span className="hint">(kept 15 days, then auto-deleted)</span></h2>
+      {expiredAds.length === 0 ? (
+        <p className="hint">No recently expired ads.</p>
+      ) : (
+        <ul className="order-list">
+          {expiredAds.map((ad) => (
+            <AdCard
+              key={ad.id}
+              ad={ad}
+              showReactivate
+              onReactivate={reactivate}
+              onSaved={(updated) => handleSaved(updated, expiredAds, onExpiredChanged)}
+              onDeleted={(id) => handleDeleted(id, expiredAds, onExpiredChanged)}
             />
           ))}
         </ul>

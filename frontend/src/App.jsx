@@ -6,7 +6,7 @@ import OfferList from './components/OfferList.jsx';
 import OrderTracker from './components/OrderTracker.jsx';
 import RequesterAuth from './components/RequesterAuth.jsx';
 import AdSlot from './components/AdSlot.jsx';
-import AdvertiseForm from './components/AdvertiseForm.jsx';
+import AdvertisingSection from './components/AdvertisingSection.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
@@ -255,7 +255,7 @@ export default function App() {
       </main>
 
       <section style={{ marginTop: 20, textAlign: 'center' }}>
-        <AdvertiseForm />
+        <AdvertisingSection />
       </section>
     </div>
   );

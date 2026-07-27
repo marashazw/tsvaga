@@ -84,6 +84,16 @@ async function runHousekeeping() {
     }
     await pool.query(`UPDATE ads SET status = 'expired' WHERE status = 'active' AND ends_at <= now()`);
 
+    // Keep an expired ad around for 15 days after it lapsed, giving the admin
+    // a window to re-activate/extend it. After that, it's cleaned up rather
+    // than accumulating forever.
+    const deletedExpired = await pool.query(
+      `DELETE FROM ads WHERE status = 'expired' AND ends_at < now() - interval '15 days' RETURNING id`
+    );
+    if (deletedExpired.rows.length) {
+      console.log(`Housekeeping: deleted ${deletedExpired.rows.length} long-expired ad(s) past the 15-day window.`);
+    }
+
     const expiringSoon = await pool.query(
       `SELECT vendor_id, expires_at FROM subscriptions
        WHERE status = 'active' AND notified_expiry_soon = false
