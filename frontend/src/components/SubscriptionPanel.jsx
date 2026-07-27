@@ -28,13 +28,25 @@ export default function SubscriptionPanel({ subscriptionInfo, onSubmitted }) {
   }
 
   if (isPaidUp) {
+    const isTrial = subscription.status === 'active' && subscription.note && subscription.note.toLowerCase().includes('trial');
+    const daysLeft = subscription.expires_at
+      ? Math.max(0, Math.ceil((new Date(subscription.expires_at) - new Date()) / (24 * 60 * 60 * 1000)))
+      : null;
+
     return (
-      <div className="panel subscription-panel paid">
+      <div className={`panel subscription-panel ${isTrial ? 'trial' : 'paid'}`}>
         <strong>
           {subscription.status === 'waived'
             ? 'Subscription waived by admin — unlimited access'
-            : `Subscribed — active until ${new Date(subscription.expires_at).toLocaleDateString()}`}
+            : isTrial
+              ? `🎁 Free trial active — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left (until ${new Date(subscription.expires_at).toLocaleDateString()})`
+              : `Subscribed — active until ${new Date(subscription.expires_at).toLocaleDateString()}`}
         </strong>
+        {isTrial && (
+          <p className="hint" style={{ margin: '4px 0 0' }}>
+            You'll be able to pay to continue once this trial ends — we'll remind you a few days before it expires.
+          </p>
+        )}
       </div>
     );
   }

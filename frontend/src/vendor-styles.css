@@ -129,3 +129,4 @@
 
 .subscription-panel.paid { background: #dff2e6; border: 1px solid #bfe3cd; }
 .subscription-panel.unpaid { background: #fff7e8; border: 1px solid #f0dca8; }
+.subscription-panel.trial { background: #eef1fb; border: 1px solid #c9d2f0; }

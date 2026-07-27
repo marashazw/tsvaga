@@ -27,7 +27,7 @@ CREATE TABLE vendors (
   business_name TEXT NOT NULL,
   location GEOGRAPHY(Point, 4326) NOT NULL,
   address_text TEXT,
-  is_online BOOLEAN NOT NULL DEFAULT false,
+  is_online BOOLEAN NOT NULL DEFAULT true,
   rating_avg NUMERIC(2,1) DEFAULT 5.0,
   -- Paid priority ranking boost (separate from the base subscription that's
   -- required just to respond at all). Effective only while priority_expires_at
@@ -156,7 +156,20 @@ CREATE TABLE subscriptions (
   expires_at TIMESTAMPTZ,
   updated_by UUID REFERENCES users(id),
   note TEXT,
+  -- Reset to false whenever the subscription is (re)activated/extended, so
+  -- the "5 days until expiry" push notification fires once per expiry cycle
+  -- rather than either spamming daily or never firing again after the first time.
+  notified_expiry_soon BOOLEAN NOT NULL DEFAULT false,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Tracks which phone numbers have ever received the automatic new-vendor
+-- trial waiver - kept intentionally separate from the vendors/users tables
+-- (no FK, never cascaded away) so that deleting an account and registering
+-- again with the SAME phone number can't be used to get a second free trial.
+CREATE TABLE vendor_trial_usage (
+  phone TEXT PRIMARY KEY,
+  used_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- A vendor's self-reported EcoCash payment, awaiting admin confirmation.
@@ -182,6 +195,11 @@ CREATE TABLE platform_settings (
   ecocash_number TEXT NOT NULL DEFAULT '0772738126',
   ad_price_per_day NUMERIC(10,2) NOT NULL DEFAULT 2.00,
   max_active_ads INT NOT NULL DEFAULT 5,
+  -- When enabled, a brand-new vendor's subscription is automatically granted
+  -- a free trial for auto_waive_days instead of starting 'inactive'. Each
+  -- phone number can only ever receive this once (see vendor_trial_usage).
+  auto_waive_new_vendors BOOLEAN NOT NULL DEFAULT false,
+  auto_waive_days INT NOT NULL DEFAULT 30,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 INSERT INTO platform_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;

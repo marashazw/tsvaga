@@ -70,7 +70,10 @@ setInterval(() => {
 // - Any 'active' ad whose ends_at has passed gets flipped to 'expired' for
 //   clean admin visibility (GET /api/ads/active already filters these out
 //   regardless, this is just for bookkeeping).
+// - Any vendor whose subscription expires within 5 days gets a one-time push
+//   reminder to renew (notified_expiry_soon stops it firing repeatedly).
 const pool = require('./config/db');
+const { notifyUsersByPush } = require('./utils/pushSender');
 async function runHousekeeping() {
   try {
     const deleted = await pool.query(
@@ -80,6 +83,26 @@ async function runHousekeeping() {
       console.log(`Housekeeping: deleted ${deleted.rows.length} stale pending ad submission(s).`);
     }
     await pool.query(`UPDATE ads SET status = 'expired' WHERE status = 'active' AND ends_at <= now()`);
+
+    const expiringSoon = await pool.query(
+      `SELECT vendor_id, expires_at FROM subscriptions
+       WHERE status = 'active' AND notified_expiry_soon = false
+         AND expires_at > now() AND expires_at <= now() + interval '5 days'`
+    );
+    for (const row of expiringSoon.rows) {
+      const daysLeft = Math.max(1, Math.ceil((new Date(row.expires_at) - new Date()) / (24 * 60 * 60 * 1000)));
+      await notifyUsersByPush([row.vendor_id], {
+        title: 'Your Tsvaga subscription expires soon',
+        body: `${daysLeft} day${daysLeft > 1 ? 's' : ''} left - pay via EcoCash to keep responding to requests.`,
+        url: '/vendor.html',
+      }).catch((err) => console.error('Expiry-warning push failed:', err));
+      await pool.query('UPDATE subscriptions SET notified_expiry_soon = true WHERE vendor_id = $1', [
+        row.vendor_id,
+      ]);
+    }
+    if (expiringSoon.rows.length) {
+      console.log(`Housekeeping: sent ${expiringSoon.rows.length} subscription expiry warning(s).`);
+    }
   } catch (err) {
     console.error('Housekeeping job failed:', err);
   }

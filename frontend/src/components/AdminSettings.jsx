@@ -6,6 +6,8 @@ export default function AdminSettings({ settings, onUpdated }) {
   const [ecocash, setEcocash] = useState(settings.ecocash_number);
   const [adPrice, setAdPrice] = useState(settings.ad_price_per_day);
   const [maxAds, setMaxAds] = useState(settings.max_active_ads);
+  const [autoWaive, setAutoWaive] = useState(settings.auto_waive_new_vendors);
+  const [autoWaiveDays, setAutoWaiveDays] = useState(settings.auto_waive_days);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -19,6 +21,8 @@ export default function AdminSettings({ settings, onUpdated }) {
         ecocash_number: ecocash,
         ad_price_per_day: Number(adPrice),
         max_active_ads: Number(maxAds),
+        auto_waive_new_vendors: autoWaive,
+        auto_waive_days: Number(autoWaiveDays),
       });
       onUpdated(data);
       setSaved(true);
@@ -47,11 +51,27 @@ export default function AdminSettings({ settings, onUpdated }) {
           Max active ads at once
           <input type="number" min="1" value={maxAds} onChange={(e) => setMaxAds(e.target.value)} />
         </label>
+        <label className="radio-label">
+          <input type="checkbox" checked={autoWaive} onChange={(e) => setAutoWaive(e.target.checked)} />
+          Auto-waive new vendors' first subscription
+        </label>
+        {autoWaive && (
+          <label>
+            Free trial length (days)
+            <input type="number" min="1" value={autoWaiveDays} onChange={(e) => setAutoWaiveDays(e.target.value)} />
+          </label>
+        )}
         <button type="submit" disabled={saving}>
           {saving ? 'Saving…' : 'Save settings'}
         </button>
         {saved && <span className="badge status-delivered" style={{ marginLeft: 10 }}>Saved</span>}
       </form>
+      {autoWaive && (
+        <p className="hint" style={{ marginTop: 8 }}>
+          New vendors get {autoWaiveDays} days of free access automatically. Each phone number can only ever receive
+          this once, even if the account is later deleted and re-registered.
+        </p>
+      )}
     </div>
   );
 }

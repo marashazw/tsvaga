@@ -22,9 +22,17 @@ router.get('/settings', async (req, res) => {
   res.json(rows[0]);
 });
 
-// PATCH /api/admin/settings  { subscription_price?, subscription_currency?, ecocash_number?, ad_price_per_day?, max_active_ads? }
+// PATCH /api/admin/settings  { subscription_price?, subscription_currency?, ecocash_number?, ad_price_per_day?, max_active_ads?, auto_waive_new_vendors?, auto_waive_days? }
 router.patch('/settings', async (req, res) => {
-  const { subscription_price, subscription_currency, ecocash_number, ad_price_per_day, max_active_ads } = req.body;
+  const {
+    subscription_price,
+    subscription_currency,
+    ecocash_number,
+    ad_price_per_day,
+    max_active_ads,
+    auto_waive_new_vendors,
+    auto_waive_days,
+  } = req.body;
   try {
     const { rows } = await pool.query(
       `UPDATE platform_settings SET
@@ -33,6 +41,8 @@ router.patch('/settings', async (req, res) => {
          ecocash_number = COALESCE($3, ecocash_number),
          ad_price_per_day = COALESCE($4, ad_price_per_day),
          max_active_ads = COALESCE($5, max_active_ads),
+         auto_waive_new_vendors = COALESCE($6, auto_waive_new_vendors),
+         auto_waive_days = COALESCE($7, auto_waive_days),
          updated_at = now()
        WHERE id = 1
        RETURNING *`,
@@ -42,6 +52,8 @@ router.patch('/settings', async (req, res) => {
         ecocash_number ?? null,
         ad_price_per_day ?? null,
         max_active_ads ?? null,
+        auto_waive_new_vendors ?? null,
+        auto_waive_days ?? null,
       ]
     );
     res.json(rows[0]);
@@ -120,9 +132,9 @@ router.post('/vendors/:vendorId/activate', async (req, res) => {
   try {
     if (waive) {
       const { rows } = await pool.query(
-        `INSERT INTO subscriptions (vendor_id, status, expires_at, updated_by, note)
-         VALUES ($1, 'waived', NULL, $2, $3)
-         ON CONFLICT (vendor_id) DO UPDATE SET status = 'waived', expires_at = NULL, updated_by = $2, note = $3, updated_at = now()
+        `INSERT INTO subscriptions (vendor_id, status, expires_at, updated_by, note, notified_expiry_soon)
+         VALUES ($1, 'waived', NULL, $2, $3, false)
+         ON CONFLICT (vendor_id) DO UPDATE SET status = 'waived', expires_at = NULL, updated_by = $2, note = $3, notified_expiry_soon = false, updated_at = now()
          RETURNING *`,
         [vendorId, req.user.id, note || 'Waived by admin']
       );
@@ -131,13 +143,14 @@ router.post('/vendors/:vendorId/activate', async (req, res) => {
 
     const monthsToAdd = Number(months) > 0 ? Number(months) : 1;
     const { rows } = await pool.query(
-      `INSERT INTO subscriptions (vendor_id, status, expires_at, updated_by, note)
-       VALUES ($1, 'active', now() + ($2 || ' months')::interval, $3, $4)
+      `INSERT INTO subscriptions (vendor_id, status, expires_at, updated_by, note, notified_expiry_soon)
+       VALUES ($1, 'active', now() + ($2 || ' months')::interval, $3, $4, false)
        ON CONFLICT (vendor_id) DO UPDATE SET
          status = 'active',
          expires_at = GREATEST(COALESCE(subscriptions.expires_at, now()), now()) + ($2 || ' months')::interval,
          updated_by = $3,
          note = COALESCE($4, subscriptions.note),
+         notified_expiry_soon = false,
          updated_at = now()
        RETURNING *`,
       [vendorId, monthsToAdd, req.user.id, note || null]
@@ -200,13 +213,14 @@ router.patch('/payment-submissions/:id/approve', async (req, res) => {
     );
 
     const result = await client.query(
-      `INSERT INTO subscriptions (vendor_id, status, expires_at, updated_by, note)
-       VALUES ($1, 'active', now() + ($2 || ' months')::interval, $3, $4)
+      `INSERT INTO subscriptions (vendor_id, status, expires_at, updated_by, note, notified_expiry_soon)
+       VALUES ($1, 'active', now() + ($2 || ' months')::interval, $3, $4, false)
        ON CONFLICT (vendor_id) DO UPDATE SET
          status = 'active',
          expires_at = GREATEST(COALESCE(subscriptions.expires_at, now()), now()) + ($2 || ' months')::interval,
          updated_by = $3,
          note = $4,
+         notified_expiry_soon = false,
          updated_at = now()
        RETURNING *`,
       [submission.vendor_id, monthsToAdd, req.user.id, `Approved payment submission ${submission.id}`]

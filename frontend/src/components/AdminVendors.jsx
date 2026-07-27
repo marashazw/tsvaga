@@ -16,7 +16,8 @@ function isWaived(v) {
 function statusLabel(v) {
   if (v.subscription_status === 'waived') return 'Waived (free access)';
   if (v.subscription_status === 'active' && v.expires_at && new Date(v.expires_at) > new Date()) {
-    return `Active until ${new Date(v.expires_at).toLocaleDateString()}`;
+    const isTrial = v.note && v.note.toLowerCase().includes('trial');
+    return `${isTrial ? 'Free trial' : 'Active'} until ${new Date(v.expires_at).toLocaleDateString()}`;
   }
   return 'Inactive';
 }

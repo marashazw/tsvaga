@@ -68,10 +68,38 @@ router.post('/register', async (req, res) => {
          VALUES ($1, $2, ${point}, $3, true)`,
         [user.id, business_name || name, address_text || null]
       );
-      await client.query(
-        `INSERT INTO subscriptions (vendor_id, status) VALUES ($1, 'inactive') ON CONFLICT (vendor_id) DO NOTHING`,
-        [user.id]
+
+      // Auto-trial: only if enabled by the admin AND this phone number has
+      // never had one before (checked/recorded in vendor_trial_usage, which
+      // survives even if the account itself is later deleted - so deleting
+      // and re-registering with the same phone can't earn a second trial).
+      const settings = await client.query(
+        'SELECT auto_waive_new_vendors, auto_waive_days FROM platform_settings WHERE id = 1'
       );
+      const { auto_waive_new_vendors, auto_waive_days } = settings.rows[0];
+
+      let grantedTrial = false;
+      if (auto_waive_new_vendors) {
+        const alreadyUsed = await client.query('SELECT 1 FROM vendor_trial_usage WHERE phone = $1', [phone]);
+        if (!alreadyUsed.rows.length) {
+          await client.query('INSERT INTO vendor_trial_usage (phone) VALUES ($1)', [phone]);
+          grantedTrial = true;
+        }
+      }
+
+      if (grantedTrial) {
+        await client.query(
+          `INSERT INTO subscriptions (vendor_id, status, expires_at, note)
+           VALUES ($1, 'active', now() + ($2 || ' days')::interval, 'Free trial (auto-granted at registration)')
+           ON CONFLICT (vendor_id) DO NOTHING`,
+          [user.id, auto_waive_days]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO subscriptions (vendor_id, status) VALUES ($1, 'inactive') ON CONFLICT (vendor_id) DO NOTHING`,
+          [user.id]
+        );
+      }
     }
     await client.query('COMMIT');
 
