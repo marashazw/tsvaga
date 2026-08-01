@@ -210,8 +210,8 @@ export default function App() {
 
       <main>
         <section className="map-section">
-          <AddressSearch onFound={handleAddressFound} />
           <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
+          <AddressSearch onFound={handleAddressFound} />
           <AdSlot />
         </section>
 

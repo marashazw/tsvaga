@@ -310,7 +310,7 @@ button.secondary {
 .address-search {
   display: flex;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-top: 10px;
   flex-wrap: wrap;
 }
 .address-search input {
