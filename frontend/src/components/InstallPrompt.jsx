@@ -61,22 +61,15 @@ export default function InstallPrompt({ appName, iconSrc }) {
   return (
     <div className="install-banner">
       <img src={iconSrc} alt="" className="install-banner-icon" />
-      <div className="install-banner-text">
-        <strong>Install {appName}</strong>
-        {showIOSInstructions ? (
-          <span>Tap the Share button, then "Add to Home Screen"</span>
-        ) : (
-          <span>Add it to your home screen for quick, full-screen access</span>
-        )}
-      </div>
-      <div className="install-banner-actions">
-        {!showIOSInstructions && (
-          <button onClick={handleInstall}>Install</button>
-        )}
-        <button className="secondary" onClick={dismiss}>
-          Not now
-        </button>
-      </div>
+      <strong className="install-banner-title">Install {appName}</strong>
+      {showIOSInstructions ? (
+        <span className="install-banner-ios-hint">Share → Add to Home Screen</span>
+      ) : (
+        <button onClick={handleInstall}>Install</button>
+      )}
+      <button className="install-banner-close" onClick={dismiss} aria-label="Dismiss">
+        ✕
+      </button>
     </div>
   );
 }
