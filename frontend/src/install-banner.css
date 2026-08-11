@@ -2,39 +2,42 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 14px auto;
   background: #fffdf7;
   border: 1px solid #ddcda6;
-  border-radius: 10px;
-  padding: 6px 8px;
-  margin-bottom: 12px;
+  border-radius: 20px;
+  padding: 5px 8px 5px 6px;
 }
 .install-banner-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
   flex-shrink: 0;
 }
 .install-banner-title {
-  flex: 1;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 .install-banner button {
-  padding: 5px 12px;
-  font-size: 0.8rem;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border-radius: 14px;
   flex-shrink: 0;
 }
 .install-banner-ios-hint {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #7a6f5c;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 .install-banner-close {
   background: none !important;
   color: #a99 !important;
-  padding: 4px 8px !important;
-  font-size: 0.9rem !important;
+  padding: 2px 6px !important;
+  font-size: 0.85rem !important;
   line-height: 1;
+  flex-shrink: 0;
 }
