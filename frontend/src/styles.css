@@ -24,6 +24,7 @@ body {
   border: 1px solid #ddcda6;
   border-radius: 18px;
   box-shadow: 0 6px 22px rgba(43, 36, 27, 0.10);
+z-index: 0;
 }
 .app-shell {
   position: relative;
