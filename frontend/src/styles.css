@@ -346,3 +346,35 @@ button.secondary {
   text-decoration: none;
 }
 .ad-whatsapp-btn:hover { background: #1ebd5a; }
+.install-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fffdf7;
+  border: 1px solid #ddcda6;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 14px rgba(43, 36, 27, 0.10);
+}
+.install-banner-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.install-banner-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+}
+.install-banner-text span {
+  color: #7a6f5c;
+  font-weight: 400;
+}
+.install-banner-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}

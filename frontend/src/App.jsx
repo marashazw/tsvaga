@@ -5,6 +5,7 @@ import RequestForm from './components/RequestForm.jsx';
 import OfferList from './components/OfferList.jsx';
 import OrderTracker from './components/OrderTracker.jsx';
 import RequesterAuth from './components/RequesterAuth.jsx';
+import InstallPrompt from './components/InstallPrompt.jsx';
 import AdSlot from './components/AdSlot.jsx';
 import AdvertisingSection from './components/AdvertisingSection.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
@@ -165,6 +166,7 @@ export default function App() {
   if (!authed) {
     return (
       <div className="app-shell">
+        <InstallPrompt appName="Tsvaga" iconSrc="/icons/icon-192.png" dismissKey="main" />
         <header>
           <h1>Tsvaga</h1>
           <p className="tagline">Ask for what you want. Nearby stores come to you.</p>
@@ -175,7 +177,8 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+   <div className="app-shell">
+      <InstallPrompt appName="Tsvaga" iconSrc="/icons/icon-192.png" dismissKey="main" />
       <header className="vendor-header">
         <div>
           <h1>Tsvaga</h1>

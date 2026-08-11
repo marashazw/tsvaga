@@ -14,7 +14,7 @@ import OnlineCount from './components/OnlineCount.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications } from './push';
-
+import InstallPrompt from './components/InstallPrompt.jsx';
 const SOCKET_BASE = import.meta.env.VITE_SOCKET_BASE || 'http://localhost:4000';
 
 export default function VendorApp() {
@@ -172,6 +172,7 @@ export default function VendorApp() {
   if (!authed || !vendor) {
     return (
       <div className="app-shell">
+        <InstallPrompt appName="Tsvaga Vendor" iconSrc="/icons/vendor-icon-192.png" dismissKey="vendor" />
         <header>
           <h1>Tsvaga</h1>
           <p className="tagline">Vendor dashboard — manage stock and respond to nearby requests.</p>
@@ -184,7 +185,8 @@ export default function VendorApp() {
   const vendorLocation = vendor.lat && vendor.lng ? { lat: vendor.lat, lng: vendor.lng } : null;
 
   return (
-    <div className="app-shell">
+   <div className="app-shell">
+      <InstallPrompt appName="Tsvaga Vendor" iconSrc="/icons/vendor-icon-192.png" dismissKey="vendor" />
       <header className="vendor-header">
         <div>
           {editingName ? (
