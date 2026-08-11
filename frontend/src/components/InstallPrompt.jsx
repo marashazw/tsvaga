@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 
-const DISMISS_KEY_PREFIX = 'tsvaga_install_dismissed_';
-
 function isIOS() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
@@ -10,14 +8,13 @@ function isStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
-export default function InstallPrompt({ appName, iconSrc, dismissKey }) {
+export default function InstallPrompt({ appName, iconSrc }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [visible, setVisible] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   useEffect(() => {
     if (isStandalone()) return; // already installed - nothing to show
-    if (localStorage.getItem(DISMISS_KEY_PREFIX + dismissKey) === '1') return;
 
     function onBeforeInstallPrompt(e) {
       e.preventDefault(); // stop the browser's own subtle mini-infobar
@@ -43,11 +40,12 @@ export default function InstallPrompt({ appName, iconSrc, dismissKey }) {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
       window.removeEventListener('appinstalled', onInstalled);
     };
-  }, [dismissKey]);
+  }, []);
 
   function dismiss() {
+    // Just hides it for this page view - no permanent memory, so it shows
+    // again on the next visit rather than being gone for good after one tap.
     setVisible(false);
-    localStorage.setItem(DISMISS_KEY_PREFIX + dismissKey, '1');
   }
 
   async function handleInstall() {
