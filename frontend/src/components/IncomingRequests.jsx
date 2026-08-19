@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { api } from '../api';
 import ChatToggleButton from './ChatToggleButton.jsx';
 
-import React, { useState } from 'react';
-
 function buildShareUrl(alert) {
   const lines = [
     `📦 Request via Tsvaga: ${alert.product_text}`,
@@ -58,17 +56,8 @@ function RespondForm({ alert, onSent, onPaywalled }) {
       )}
       <input type="number" placeholder="ETA (min)" value={eta} onChange={(e) => setEta(e.target.value)} required />
       <input type="text" placeholder="Message (optional)" value={message} onChange={(e) => setMessage(e.target.value)} />
-                  <button type="submit" disabled={sending}>{sending ? 'Sending…' : 'Send offer'}</button>
-      
-        href={buildShareUrl(alert)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="secondary"
-        style={{ display: 'inline-block', marginLeft: 8, textAlign: 'center' }}
-      >
-        Share on WhatsApp
-      </a>
-      
+      <button type="submit" disabled={sending}>{sending ? 'Sending…' : 'Send offer'}</button>
+      <a
         href={buildShareUrl(alert)}
         target="_blank"
         rel="noopener noreferrer"
