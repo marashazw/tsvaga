@@ -215,9 +215,7 @@ export default function App() {
         <section className="map-section">
                  <AddressSearch onFound={handleAddressFound} placeholder="Where are you? Type street address / suburb (e.g. Borrowdale, Harare)" />
           <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
-          <AddressSearch onFound={handleAddressFound} />
-          <AdSlot />
-        </section>
+</section>
 
         <section className="panel">
           {!request ? (

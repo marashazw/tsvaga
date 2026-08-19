@@ -263,8 +263,6 @@ export default function VendorApp() {
                    <AddressSearch onFound={handleAddressFound} placeholder="Where's your store? Type street address / suburb (e.g. Borrowdale, Harare)" />
           <MapView requesterLocation={vendorLocation} onPickLocation={handlePickLocation} radiusKm={0} />
           <p className="hint">Tap the map to set or update your store's pin.</p>
-          <AddressSearch onFound={handleAddressFound} />
-          <AdSlot />
         </section>
 
         <section className="panel">
