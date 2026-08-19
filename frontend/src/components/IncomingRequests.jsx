@@ -4,13 +4,13 @@ import ChatToggleButton from './ChatToggleButton.jsx';
 
 function buildShareUrl(alert) {
   const lines = [
-    `📦 Request via Tsvaga: ${alert.product_text}`,
+    `📦 Request via Tsvaga - Wanted: ${alert.product_text}`,
     alert.quantity ? `Qty: ${alert.quantity}` : null,
     alert.fulfillment_type === 'pickup'
       ? "Customer will collect — no delivery needed"
       : `Deliver to: ${alert.delivery_address_text || alert.address_text || "customer's pinned location"}`,
     '',
-    'Want to help fulfil this? Join Tsvaga to contact the requester directly: https://tsvaga.app',
+    'Want to help fulfil this? Join Tsvaga to contact the requester directly OR to post what you are looking for: https://tsvaga.app',
   ].filter((line) => line !== null).join('\n');
   return `https://wa.me/?text=${encodeURIComponent(lines)}`;
 }
