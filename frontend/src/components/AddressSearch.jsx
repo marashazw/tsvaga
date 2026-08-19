@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../api';
 
-export default function AddressSearch({ onFound }) {
+export default function AddressSearch({ onFound, placeholder }) {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -26,7 +26,7 @@ export default function AddressSearch({ onFound }) {
     <form onSubmit={handleSubmit} className="address-search">
       <input
         type="text"
-        placeholder="Or type a street address / suburb (e.g. Borrowdale, Harare)"
+                placeholder={placeholder || "Or type a street address / suburb (e.g. Borrowdale, Harare)"}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />

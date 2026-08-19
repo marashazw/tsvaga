@@ -25,7 +25,7 @@ export default function App() {
   const HARARE_CBD = { lat: -17.8292, lng: 31.0522 };
   const [location, setLocation] = useState(HARARE_CBD);
   const [addressLabel, setAddressLabel] = useState(null);
-  const [radiusKm, setRadiusKm] = useState(5);
+    const [radiusKm, setRadiusKm] = useState(35);
   const [request, setRequest] = useState(null);
   const [offers, setOffers] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -213,6 +213,7 @@ export default function App() {
 
       <main>
         <section className="map-section">
+                 <AddressSearch onFound={handleAddressFound} placeholder="Where are you? Type street address / suburb (e.g. Borrowdale, Harare)" />
           <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
           <AddressSearch onFound={handleAddressFound} />
           <AdSlot />
@@ -260,6 +261,7 @@ export default function App() {
       <section style={{ marginTop: 20, textAlign: 'center' }}>
         <AdvertisingSection />
       </section>
+      <AdSlot />
     </div>
   );
 }

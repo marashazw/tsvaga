@@ -24,7 +24,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
   return (
     <form className="request-form" onSubmit={handleSubmit}>
       <label>
-        What do you want?
+                <span className="primary-label">What are you looking for today?</span>
         <input
           type="text"
           placeholder="e.g. Mealie meal (10kg)"
@@ -35,7 +35,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       </label>
 
       <label>
-        How much?
+                Quantity — how many, or how much of it
         <input
           type="text"
           placeholder="e.g. 2 bags"

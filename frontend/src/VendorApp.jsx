@@ -260,6 +260,7 @@ export default function VendorApp() {
 
       <main>
         <section className="map-section">
+                   <AddressSearch onFound={handleAddressFound} placeholder="Where's your store? Type street address / suburb (e.g. Borrowdale, Harare)" />
           <MapView requesterLocation={vendorLocation} onPickLocation={handlePickLocation} radiusKm={0} />
           <p className="hint">Tap the map to set or update your store's pin.</p>
           <AddressSearch onFound={handleAddressFound} />
@@ -304,6 +305,7 @@ export default function VendorApp() {
       <section style={{ marginTop: 20, textAlign: 'center' }}>
         <AdvertisingSection />
       </section>
+<AdSlot />
     </div>
   );
 }
