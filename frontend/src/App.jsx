@@ -249,7 +249,7 @@ export default function App() {
               <p className="hint">Live offers from nearby stores:</p>
               <OfferList offers={offers} onAccept={handleAcceptOffer} matched={false} socket={socket} currentUserId={user.id} />
               <button className="secondary" onClick={startOver}>
-                Cancel and start over
+                Ask for another item
               </button>
             </div>
           )}
