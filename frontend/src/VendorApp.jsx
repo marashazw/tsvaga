@@ -222,9 +222,11 @@ export default function VendorApp() {
             </a>
           )}
           {pushStatus !== 'granted' && (
-            <button className="secondary" onClick={handleEnablePush}>
-              Enable notifications
-            </button>
+            <span className="notify-glow">
+              <button className="notify-btn" onClick={handleEnablePush}>
+                Enable notifications
+              </button>
+            </span>
           )}
           <button className="secondary" onClick={handleLogout}>Sign out</button>
         </div>
@@ -260,7 +262,7 @@ export default function VendorApp() {
 
       <main>
         <section className="map-section">
-                   <AddressSearch onFound={handleAddressFound} placeholder="Where's your store? Type street address / suburb (e.g. Borrowdale, Harare)" />
+          <AddressSearch onFound={handleAddressFound} placeholder="Where's your store? Type street address / suburb (e.g. Borrowdale, Harare)" />
           <MapView requesterLocation={vendorLocation} onPickLocation={handlePickLocation} radiusKm={0} />
           <p className="hint">Tap the map to set or update your store's pin.</p>
         </section>
@@ -303,7 +305,7 @@ export default function VendorApp() {
       <section style={{ marginTop: 20, textAlign: 'center' }}>
         <AdvertisingSection />
       </section>
-<AdSlot />
+      <AdSlot />
     </div>
   );
 }

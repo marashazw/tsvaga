@@ -25,7 +25,7 @@ export default function App() {
   const HARARE_CBD = { lat: -17.8292, lng: 31.0522 };
   const [location, setLocation] = useState(HARARE_CBD);
   const [addressLabel, setAddressLabel] = useState(null);
-    const [radiusKm, setRadiusKm] = useState(35);
+  const [radiusKm, setRadiusKm] = useState(35);
   const [request, setRequest] = useState(null);
   const [offers, setOffers] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -192,9 +192,11 @@ export default function App() {
             </a>
           )}
           {pushStatus !== 'granted' && (
-            <button className="secondary" onClick={handleEnablePush}>
-              Enable notifications
-            </button>
+            <span className="notify-glow">
+              <button className="notify-btn" onClick={handleEnablePush}>
+                Enable notifications
+              </button>
+            </span>
           )}
           <button className="secondary" onClick={handleLogout}>Sign out</button>
         </div>
@@ -213,9 +215,9 @@ export default function App() {
 
       <main>
         <section className="map-section">
-                 <AddressSearch onFound={handleAddressFound} placeholder="Where are you? Type street address / suburb (e.g. Borrowdale, Harare)" />
+          <AddressSearch onFound={handleAddressFound} placeholder="Where are you? Type street address / suburb (e.g. Borrowdale, Harare)" />
           <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
-</section>
+        </section>
 
         <section className="panel">
           {!request ? (

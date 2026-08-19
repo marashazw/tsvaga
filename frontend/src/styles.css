@@ -410,3 +410,43 @@ button.secondary {
   gap: 6px;
   flex-shrink: 0;
 }
+
+
+.notify-glow {
+  position: relative;
+  display: inline-block;
+  border-radius: 999px;
+  padding: 3px;
+}
+.notify-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    transparent 62%,
+    var(--clay) 76%,
+    #ffd9c2 86%,
+    transparent 96%
+  );
+  animation: notify-glow-spin 7s linear infinite;
+}
+.notify-btn {
+  position: relative;
+  display: block;
+  background: var(--clay);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+@keyframes notify-glow-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notify-glow::before { animation: none; }
+}
