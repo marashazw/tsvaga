@@ -9,8 +9,9 @@ function buildShareUrl(alert) {
     alert.fulfillment_type === 'pickup'
       ? "Customer will collect — no delivery needed"
       : `Deliver to: ${alert.delivery_address_text || alert.address_text || "customer's pinned location"}`,
-    `${Math.round(alert.distance_m / 100) / 10} km away`,
-  ].filter(Boolean).join('\n');
+    '',
+    'Want to help fulfil this? Join Tsvaga to contact the requester directly: https://tsvaga.app',
+  ].filter((line) => line !== null).join('\n');
   return `https://wa.me/?text=${encodeURIComponent(lines)}`;
 }
 
@@ -61,8 +62,13 @@ function RespondForm({ alert, onSent, onPaywalled }) {
         href={buildShareUrl(alert)}
         target="_blank"
         rel="noopener noreferrer"
-        className="secondary"
-        style={{ display: 'inline-block', marginLeft: 8, textAlign: 'center' }}
+        style={{
+          display: 'inline-block',
+          marginLeft: 8,
+          color: 'var(--clay)',
+          textDecoration: 'none',
+          fontWeight: 600,
+        }}
       >
         Share on WhatsApp
       </a>
