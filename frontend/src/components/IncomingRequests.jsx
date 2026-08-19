@@ -2,6 +2,20 @@ import React, { useState } from 'react';
 import { api } from '../api';
 import ChatToggleButton from './ChatToggleButton.jsx';
 
+import React, { useState } from 'react';
+
+function buildShareUrl(alert) {
+  const lines = [
+    `📦 Request via Tsvaga: ${alert.product_text}`,
+    alert.quantity ? `Qty: ${alert.quantity}` : null,
+    alert.fulfillment_type === 'pickup'
+      ? "Customer will collect — no delivery needed"
+      : `Deliver to: ${alert.delivery_address_text || alert.address_text || "customer's pinned location"}`,
+    `${Math.round(alert.distance_m / 100) / 10} km away`,
+  ].filter(Boolean).join('\n');
+  return `https://wa.me/?text=${encodeURIComponent(lines)}`;
+}
+
 function RespondForm({ alert, onSent, onPaywalled }) {
   const [price, setPrice] = useState('');
   const [deliveryFee, setDeliveryFee] = useState('');
@@ -44,7 +58,25 @@ function RespondForm({ alert, onSent, onPaywalled }) {
       )}
       <input type="number" placeholder="ETA (min)" value={eta} onChange={(e) => setEta(e.target.value)} required />
       <input type="text" placeholder="Message (optional)" value={message} onChange={(e) => setMessage(e.target.value)} />
-      <button type="submit" disabled={sending}>{sending ? 'Sending…' : 'Send offer'}</button>
+                  <button type="submit" disabled={sending}>{sending ? 'Sending…' : 'Send offer'}</button>
+      
+        href={buildShareUrl(alert)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="secondary"
+        style={{ display: 'inline-block', marginLeft: 8, textAlign: 'center' }}
+      >
+        Share on WhatsApp
+      </a>
+      
+        href={buildShareUrl(alert)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="secondary"
+        style={{ display: 'inline-block', marginLeft: 8, textAlign: 'center' }}
+      >
+        Share on WhatsApp
+      </a>
     </form>
   );
 }
