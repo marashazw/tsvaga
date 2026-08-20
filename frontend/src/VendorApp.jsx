@@ -35,6 +35,7 @@ export default function VendorApp() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [mapOpenOverride, setMapOpenOverride] = useState(null); // null = use the smart default below
+  const [reviewsOpen, setReviewsOpen] = useState(false);
 
   const loadSubscription = useCallback(async () => {
     const { data } = await api.get('/vendors/me/subscription');
@@ -273,7 +274,7 @@ export default function VendorApp() {
         </div>
       )}
 
-      <main>
+      <main className="vendor-main">
         <section className="map-section">
           <div className="category-accordion">
             <button
@@ -297,7 +298,7 @@ export default function VendorApp() {
           </div>
         </section>
 
-        <section className="panel">
+        <section className="panel vendor-requests-section">
           <div className="alert-main">
             <h2 style={{ margin: 0 }}>Nearby requests</h2>
             <button className="secondary" onClick={() => loadNearbyRequests(vendor)}>
@@ -314,23 +315,33 @@ export default function VendorApp() {
             currentUserId={vendor.id}
           />
         </section>
+
+        <section id="section-orders" className="panel vendor-orders-section">
+          <h2 style={{ marginTop: 0 }}>Orders to fulfill</h2>
+          <VendorOrders orders={orders} onUpdated={handleOrderUpdated} socket={socket} currentUserId={vendor.id} />
+        </section>
+
+        <section className="panel vendor-reviews-section">
+          <div className="category-accordion">
+            <button type="button" className="category-accordion-toggle" onClick={() => setReviewsOpen((o) => !o)}>
+              <span>⭐ Reviews {vendor.rating_avg ? `(${vendor.rating_avg} avg)` : ''}</span>
+              <span>{reviewsOpen ? '▲' : '▼ show'}</span>
+            </button>
+            {reviewsOpen && (
+              <div className="category-accordion-body">
+                <VendorReviews reviews={reviews} ratingAvg={vendor.rating_avg} />
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section id="section-inventory" className="panel vendor-inventory-section">
+          <InventoryManager
+            inventory={vendor.inventory || []}
+            onChange={(inv) => setVendor((v) => ({ ...v, inventory: inv }))}
+          />
+        </section>
       </main>
-
-      <section id="section-orders" className="panel" style={{ marginTop: 20 }}>
-        <h2 style={{ marginTop: 0 }}>Orders to fulfill</h2>
-        <VendorOrders orders={orders} onUpdated={handleOrderUpdated} socket={socket} currentUserId={vendor.id} />
-      </section>
-
-      <section className="panel" style={{ marginTop: 20 }}>
-        <VendorReviews reviews={reviews} ratingAvg={vendor.rating_avg} />
-      </section>
-
-      <section id="section-inventory" className="panel" style={{ marginTop: 20 }}>
-        <InventoryManager
-          inventory={vendor.inventory || []}
-          onChange={(inv) => setVendor((v) => ({ ...v, inventory: inv }))}
-        />
-      </section>
 
       <section style={{ marginTop: 20, textAlign: 'center' }}>
         <AdvertisingSection />
