@@ -44,6 +44,15 @@ CREATE TABLE vendors (
     'groceries','electronics','clothing','hardware','health','automotive',
     'home','beauty','stationery','baby_kids','sports','miscellaneous'
   ],
+  -- How this vendor decides which nearby requests to be alerted about:
+  --   'categories'                - match on notify_categories only (default)
+  --   'categories_and_inventory'  - alerted if EITHER the category matches OR
+  --                                 the request matches something in their
+  --                                 inventory (broadens the net)
+  --   'inventory_only'            - ONLY alerted on an inventory match;
+  --                                 category selection is ignored entirely
+  notify_mode TEXT NOT NULL DEFAULT 'categories'
+    CHECK (notify_mode IN ('categories', 'categories_and_inventory', 'inventory_only')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX vendors_location_gix ON vendors USING GIST (location);

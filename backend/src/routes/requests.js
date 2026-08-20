@@ -73,7 +73,7 @@ module.exports = function buildRequestsRouter(io) {
       // if the product wasn't matched to the catalog). notify_categories comes along
       // so we can filter by category preference just below.
       const matchQuery = product_id
-        ? `SELECT v.id, v.business_name, v.address_text, v.notify_categories,
+        ? `SELECT v.id, v.business_name, v.address_text, v.notify_categories, v.notify_mode,
                   ST_Distance(v.location, ${toGeoPoint(lng, lat)}) AS distance_m
            FROM vendors v
            JOIN vendor_inventory vi ON vi.vendor_id = v.id
@@ -83,7 +83,7 @@ module.exports = function buildRequestsRouter(io) {
              AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $2::numeric * 1000)
            ORDER BY distance_m ASC
            LIMIT 25`
-        : `SELECT v.id, v.business_name, v.address_text, v.notify_categories,
+        : `SELECT v.id, v.business_name, v.address_text, v.notify_categories, v.notify_mode,
                   ST_Distance(v.location, ${toGeoPoint(lng, lat)}) AS distance_m
            FROM vendors v
            WHERE v.is_online = true
@@ -95,17 +95,44 @@ module.exports = function buildRequestsRouter(io) {
       const nearbyVendors = await client.query(matchQuery, matchParams);
 
       // Category filter: a request tagged ONLY 'miscellaneous' (nothing more
-      // specific was assigned) goes to every nearby vendor, since it's
-      // genuinely uncategorized and could be anything. Otherwise, only
-      // vendors who've opted into at least one of this request's categories
-      // get alerted.
+      // specific was assigned) counts as a category match for everyone,
+      // since it's genuinely uncategorized and could be anything.
+      //
+      // Each vendor's notify_mode decides how they're matched:
+      //   'categories'                - category match only
+      //   'categories_and_inventory'  - category match OR inventory match
+      //   'inventory_only'            - inventory match only, category ignored
       const isGeneralRequest = finalCategories.length === 1 && finalCategories[0] === 'miscellaneous';
+
+      const needsInventoryCheck = nearbyVendors.rows
+        .filter((v) => v.notify_mode === 'inventory_only' || v.notify_mode === 'categories_and_inventory')
+        .map((v) => v.id);
+      const inventoryMatchedVendorIds = new Set();
+      if (needsInventoryCheck.length) {
+        const invResult = await client.query(
+          `SELECT vi.vendor_id, vi.product_id, p.name
+           FROM vendor_inventory vi JOIN products p ON p.id = vi.product_id
+           WHERE vi.vendor_id = ANY($1::uuid[]) AND vi.in_stock = true`,
+          [needsInventoryCheck]
+        );
+        const lowerProductText = product_text.toLowerCase();
+        invResult.rows.forEach((row) => {
+          const idMatch = product_id && row.product_id === product_id;
+          const nameMatch =
+            row.name &&
+            (lowerProductText.includes(row.name.toLowerCase()) || row.name.toLowerCase().includes(lowerProductText));
+          if (idMatch || nameMatch) inventoryMatchedVendorIds.add(row.vendor_id);
+        });
+      }
+
       const matches = {
-        rows: isGeneralRequest
-          ? nearbyVendors.rows
-          : nearbyVendors.rows.filter((v) =>
-              (v.notify_categories || []).some((c) => finalCategories.includes(c))
-            ),
+        rows: nearbyVendors.rows.filter((v) => {
+          const categoryMatch = isGeneralRequest || (v.notify_categories || []).some((c) => finalCategories.includes(c));
+          const inventoryMatch = inventoryMatchedVendorIds.has(v.id);
+          if (v.notify_mode === 'inventory_only') return inventoryMatch;
+          if (v.notify_mode === 'categories_and_inventory') return categoryMatch || inventoryMatch;
+          return categoryMatch;
+        }),
       };
 
       const paidVendorIds = await getPaidVendorIdSet(matches.rows.map((v) => v.id));

@@ -195,28 +195,37 @@ router.get('/me', requireAuth, async (req, res) => {
 // vendor's current selection, for rendering the preferences accordion.
 router.get('/me/notify-categories', requireAuth, async (req, res) => {
   try {
-    const result = await pool.query('SELECT notify_categories FROM vendors WHERE id = $1', [req.user.id]);
+    const result = await pool.query('SELECT notify_categories, notify_mode FROM vendors WHERE id = $1', [
+      req.user.id,
+    ]);
     if (!result.rows.length) return res.status(404).json({ error: 'Vendor profile not found' });
-    res.json({ all_categories: CATEGORIES, selected: result.rows[0].notify_categories });
+    res.json({
+      all_categories: CATEGORIES,
+      selected: result.rows[0].notify_categories,
+      mode: result.rows[0].notify_mode,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch notification categories' });
   }
 });
 
-// PATCH /api/vendors/me/notify-categories  { categories: string[] }
+// PATCH /api/vendors/me/notify-categories  { categories: string[], mode?: 'categories'|'categories_and_inventory'|'inventory_only' }
 router.patch('/me/notify-categories', requireAuth, async (req, res) => {
   const safeCategories = sanitizeCategories(req.body.categories);
+  const allowedModes = ['categories', 'categories_and_inventory', 'inventory_only'];
+  const mode = allowedModes.includes(req.body.mode) ? req.body.mode : 'categories';
   if (!safeCategories.length) {
     return res.status(400).json({ error: 'Select at least one category' });
   }
   try {
     const result = await pool.query(
-      `UPDATE vendors SET notify_categories = $2 WHERE id = $1 RETURNING notify_categories`,
-      [req.user.id, safeCategories]
+      `UPDATE vendors SET notify_categories = $2, notify_mode = $3 WHERE id = $1
+       RETURNING notify_categories, notify_mode`,
+      [req.user.id, safeCategories, mode]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Vendor profile not found' });
-    res.json({ selected: result.rows[0].notify_categories });
+    res.json({ selected: result.rows[0].notify_categories, mode: result.rows[0].notify_mode });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update notification categories' });

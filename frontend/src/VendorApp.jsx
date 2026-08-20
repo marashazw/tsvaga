@@ -300,7 +300,7 @@ export default function VendorApp() {
         <VendorReviews reviews={reviews} ratingAvg={vendor.rating_avg} />
       </section>
 
-      <section className="panel" style={{ marginTop: 20 }}>
+      <section id="section-inventory" className="panel" style={{ marginTop: 20 }}>
         <InventoryManager
           inventory={vendor.inventory || []}
           onChange={(inv) => setVendor((v) => ({ ...v, inventory: inv }))}

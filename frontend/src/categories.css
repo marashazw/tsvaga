@@ -41,3 +41,5 @@
   margin: 0;
   accent-color: var(--forest);
 }
+
+html { scroll-behavior: smooth; }
