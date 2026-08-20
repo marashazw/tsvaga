@@ -84,7 +84,7 @@ export default function VendorCategoryPreferences() {
             : `${selected.length} of ${CATEGORIES.length} categories`;
 
   return (
-    <div className="panel">
+    <div className="panel" style={{ maxWidth: 480, margin: '0 auto' }}>
       <button type="button" className="category-accordion-toggle" onClick={() => setOpen((o) => !o)}>
         <span>🔔 Notify me about: {summary}</span>
         <span>{open ? '▲' : '▼ edit'}</span>
