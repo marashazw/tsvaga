@@ -33,6 +33,7 @@ export default function VendorApp() {
   const [loading, setLoading] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
+  const [mapOpenOverride, setMapOpenOverride] = useState(null); // null = use the smart default below
 
   const loadSubscription = useCallback(async () => {
     const { data } = await api.get('/vendors/me/subscription');
@@ -184,6 +185,10 @@ export default function VendorApp() {
   }
 
   const vendorLocation = vendor.lat && vendor.lng ? { lat: vendor.lat, lng: vendor.lng } : null;
+  // Collapsed by default once a location is already set (saves space) - open
+  // by default for a brand-new vendor who still needs to drop their first
+  // pin. Either way, the vendor can freely toggle it themselves afterward.
+  const mapOpen = mapOpenOverride !== null ? mapOpenOverride : !vendorLocation;
 
   return (
    <div className="app-shell">
@@ -267,9 +272,26 @@ export default function VendorApp() {
 
       <main>
         <section className="map-section">
-          <AddressSearch onFound={handleAddressFound} placeholder="Where's your store? Type street address / suburb (e.g. Borrowdale, Harare)" />
-          <MapView requesterLocation={vendorLocation} onPickLocation={handlePickLocation} radiusKm={0} />
-          <p className="hint">Tap the map to set or update your store's pin.</p>
+          <div className="category-accordion">
+            <button
+              type="button"
+              className="category-accordion-toggle"
+              onClick={() => setMapOpenOverride(!mapOpen)}
+            >
+              <span>📍 {vendorLocation ? vendor.address_text || 'Store location set' : 'Set your store location'}</span>
+              <span>{mapOpen ? '▲ hide map' : '▼ adjust pin'}</span>
+            </button>
+            {mapOpen && (
+              <div className="category-accordion-body">
+                <AddressSearch
+                  onFound={handleAddressFound}
+                  placeholder="Where's your store? Type street address / suburb (e.g. Borrowdale, Harare)"
+                />
+                <MapView requesterLocation={vendorLocation} onPickLocation={handlePickLocation} radiusKm={0} />
+                <p className="hint">Tap the map to set or update your store's pin.</p>
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="panel">
