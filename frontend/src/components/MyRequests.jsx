@@ -25,6 +25,8 @@ function daysLeft(visibleUntil) {
   return Math.max(0, Math.ceil((new Date(visibleUntil) - new Date()) / (24 * 60 * 60 * 1000)));
 }
 
+const compactBtnStyle = { padding: '4px 10px', fontSize: '0.78rem' };
+
 function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
   const [editing, setEditing] = useState(false);
   const [productText, setProductText] = useState(r.product_text);
@@ -81,10 +83,10 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
               type="text"
               value={productText}
               onChange={(e) => setProductText(e.target.value)}
-              style={{ flex: 1 }}
+              style={{ flex: 1, fontSize: '0.9rem' }}
             />
           ) : (
-            <strong>{r.product_text}</strong>
+            <strong style={{ fontSize: '0.9rem', fontWeight: 600 }}>{r.product_text}</strong>
           )}
         </label>
         <span className={`badge ${statusClass(r.status)}`}>{statusLabel(r.status)}</span>
@@ -99,10 +101,10 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
             onChange={(e) => setQuantity(e.target.value)}
             style={{ marginRight: 8 }}
           />
-          <button type="button" onClick={save} disabled={saving}>
+          <button type="button" onClick={save} disabled={saving} style={compactBtnStyle}>
             {saving ? 'Saving…' : 'Save'}
           </button>
-          <button type="button" className="secondary" onClick={() => setEditing(false)} style={{ marginLeft: 8 }}>
+          <button type="button" className="secondary" onClick={() => setEditing(false)} style={{ ...compactBtnStyle, marginLeft: 8 }}>
             Cancel
           </button>
         </div>
@@ -115,15 +117,21 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
           <p className="hint" style={{ margin: '2px 0 6px' }}>
             {left <= 1 ? 'Expires from this list today' : `Visible for ${left} more day${left === 1 ? '' : 's'}`} unless renewed
           </p>
-          <div className="admin-actions">
-            {r.status === 'open' && (
-              <button type="button" className="secondary" onClick={() => setEditing(true)}>Edit</button>
-            )}
-            <button type="button" className="secondary" onClick={renew} disabled={renewing}>
-              {renewing ? 'Renewing…' : 'Renew (+5 days)'}
-            </button>
-            <button type="button" className="secondary" onClick={remove}>Delete</button>
-          </div>
+          {checked && (
+            <div className="admin-actions">
+              {r.status === 'open' && (
+                <button type="button" className="secondary" onClick={() => setEditing(true)} style={compactBtnStyle}>
+                  Edit
+                </button>
+              )}
+              <button type="button" className="secondary" onClick={renew} disabled={renewing} style={compactBtnStyle}>
+                {renewing ? 'Renewing…' : 'Renew (+5 days)'}
+              </button>
+              <button type="button" className="secondary" onClick={remove} style={compactBtnStyle}>
+                Delete
+              </button>
+            </div>
+          )}
         </>
       )}
       {error && <p className="error">{error}</p>}
@@ -212,7 +220,7 @@ export default function MyRequests() {
   return (
     <div className="panel" style={{ marginTop: 12, marginBottom: 16 }}>
       <div className="alert-main">
-        <h2 style={{ margin: 0, color: 'var(--clay)' }}>My requests</h2>
+        <h2 style={{ margin: 0, color: 'var(--clay)', fontSize: '1.1rem', fontWeight: 800 }}>My requests</h2>
         {selectedIds.size > 0 && (
           <button type="button" className="secondary" onClick={deleteSelected}>
             Delete {selectedIds.size} selected
