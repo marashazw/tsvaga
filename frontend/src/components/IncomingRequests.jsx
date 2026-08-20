@@ -157,7 +157,6 @@ export default function IncomingRequests({ alerts, respondedIds, offerIdsByReque
                     type="button"
                     className={visibleCount === n ? undefined : 'secondary'}
                     onClick={() => setVisibleCount(n)}
-                    disabled={n !== 10 && n > alerts.length}
                   >
                     {n}
                   </button>
