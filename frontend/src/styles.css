@@ -77,7 +77,7 @@ header h1 {
   gap: 10px;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   width: 100%;
 }
 
@@ -99,27 +99,40 @@ main {
 .my-requests-area { grid-area: myrequests; }
 .request-form-section { grid-area: form; }
 
-/* Vendor dashboard has its own distinct grid (map/orders/reviews/inventory
-   stacked in the left column, nearby requests spanning the right column) -
-   kept as a separate selector so it never collides with the requester app's
-   plain "main" rule above, since both apps share this stylesheet. */
+/* Vendor dashboard has its own distinct grid, kept as a separate selector so
+   it never collides with the requester app's plain "main" rule above, since
+   both apps share this stylesheet.
+
+   The left column (map/orders/inventory/reviews) is grouped into ONE flex
+   stack rather than 4 separate grid rows - if each stayed a separate grid
+   row while "Nearby requests" spans across all of them in the next column,
+   CSS Grid's auto-row-sizing stretches whichever row has the LEAST content
+   (the collapsed map bar) to help make room for the tall spanning item,
+   producing a large, wrong-looking gap under the map. Grouping them into
+   one flex box sidesteps that entirely - its height is just its own content,
+   nothing forced from the other column.
+
+   On mobile, .vendor-left-stack "dissolves" (display: contents) so its four
+   children become direct items of the single-column grid again, letting
+   `order` place "Nearby requests" between the map and the rest. */
 .vendor-main {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
-  grid-template-areas:
-    "map requests"
-    "orders requests"
-    "inventory requests"
-    "reviews requests";
   column-gap: 20px;
-  row-gap: 8px;
+  align-items: start;
   margin-top: 20px;
 }
-.vendor-main .map-section { grid-area: map; }
-.vendor-requests-section { grid-area: requests; }
-.vendor-orders-section { grid-area: orders; }
-.vendor-reviews-section { grid-area: reviews; }
-.vendor-inventory-section { grid-area: inventory; }
+.vendor-left-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  grid-column: 1;
+  grid-row: 1;
+}
+.vendor-requests-section {
+  grid-column: 2;
+  grid-row: 1;
+}
 
 @media (max-width: 780px) {
   main {
@@ -131,13 +144,15 @@ main {
   }
   .vendor-main {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      "map"
-      "requests"
-      "orders"
-      "inventory"
-      "reviews";
   }
+  .vendor-left-stack {
+    display: contents;
+  }
+  .vendor-main .map-section { order: 1; }
+  .vendor-requests-section { grid-column: auto; grid-row: auto; order: 2; }
+  .vendor-orders-section { order: 3; }
+  .vendor-inventory-section { order: 4; }
+  .vendor-reviews-section { order: 5; }
   body { padding: 8px 0; }
   .app-shell { padding: 12px; margin: 0 8px; border-radius: 14px; }
   header h1 { font-size: 1.7rem; }

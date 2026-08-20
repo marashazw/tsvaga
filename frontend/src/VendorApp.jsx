@@ -275,28 +275,56 @@ export default function VendorApp() {
       )}
 
       <main className="vendor-main">
-        <section className="map-section">
-          <div className="category-accordion">
-            <button
-              type="button"
-              className="category-accordion-toggle"
-              onClick={() => setMapOpenOverride(!mapOpen)}
-            >
-              <span>📍 {vendorLocation ? vendor.address_text || 'Store location set' : 'Set your store location'}</span>
-              <span>{mapOpen ? '▲ hide map' : '▼ adjust pin'}</span>
-            </button>
-            {mapOpen && (
-              <div className="category-accordion-body">
-                <AddressSearch
-                  onFound={handleAddressFound}
-                  placeholder="Where's your store? Type street address / suburb (e.g. Borrowdale, Harare)"
-                />
-                <MapView requesterLocation={vendorLocation} onPickLocation={handlePickLocation} radiusKm={0} />
-                <p className="hint">Tap the map to set or update your store's pin.</p>
-              </div>
-            )}
-          </div>
-        </section>
+        <div className="vendor-left-stack">
+          <section className="map-section">
+            <div className="category-accordion">
+              <button
+                type="button"
+                className="category-accordion-toggle"
+                onClick={() => setMapOpenOverride(!mapOpen)}
+              >
+                <span>📍 {vendorLocation ? vendor.address_text || 'Store location set' : 'Set your store location'}</span>
+                <span>{mapOpen ? '▲ hide map' : '▼ adjust pin'}</span>
+              </button>
+              {mapOpen && (
+                <div className="category-accordion-body">
+                  <AddressSearch
+                    onFound={handleAddressFound}
+                    placeholder="Where's your store? Type street address / suburb (e.g. Borrowdale, Harare)"
+                  />
+                  <MapView requesterLocation={vendorLocation} onPickLocation={handlePickLocation} radiusKm={0} />
+                  <p className="hint">Tap the map to set or update your store's pin.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section id="section-orders" className="panel vendor-orders-section">
+            <h2 style={{ marginTop: 0 }}>Orders to fulfill</h2>
+            <VendorOrders orders={orders} onUpdated={handleOrderUpdated} socket={socket} currentUserId={vendor.id} />
+          </section>
+
+          <section id="section-inventory" className="panel vendor-inventory-section">
+            <InventoryManager
+              inventory={vendor.inventory || []}
+              onChange={(inv) => setVendor((v) => ({ ...v, inventory: inv }))}
+            />
+          </section>
+
+          <section className="panel vendor-reviews-section">
+            <div className="category-accordion">
+              <button type="button" className="category-accordion-toggle" onClick={() => setReviewsOpen((o) => !o)}>
+                <span>⭐ Reviews {vendor.rating_avg ? `(${vendor.rating_avg} avg)` : ''}</span>
+                <span>{reviewsOpen ? '▲' : '▼ show'}</span>
+              </button>
+              {reviewsOpen && (
+                <div className="category-accordion-body">
+                  <VendorReviews reviews={reviews} ratingAvg={vendor.rating_avg} />
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
 
         <section className="panel vendor-requests-section">
           <div className="alert-main">
@@ -313,32 +341,6 @@ export default function VendorApp() {
             onPaywalled={handlePaywalled}
             socket={socket}
             currentUserId={vendor.id}
-          />
-        </section>
-
-        <section id="section-orders" className="panel vendor-orders-section">
-          <h2 style={{ marginTop: 0 }}>Orders to fulfill</h2>
-          <VendorOrders orders={orders} onUpdated={handleOrderUpdated} socket={socket} currentUserId={vendor.id} />
-        </section>
-
-        <section className="panel vendor-reviews-section">
-          <div className="category-accordion">
-            <button type="button" className="category-accordion-toggle" onClick={() => setReviewsOpen((o) => !o)}>
-              <span>⭐ Reviews {vendor.rating_avg ? `(${vendor.rating_avg} avg)` : ''}</span>
-              <span>{reviewsOpen ? '▲' : '▼ show'}</span>
-            </button>
-            {reviewsOpen && (
-              <div className="category-accordion-body">
-                <VendorReviews reviews={reviews} ratingAvg={vendor.rating_avg} />
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section id="section-inventory" className="panel vendor-inventory-section">
-          <InventoryManager
-            inventory={vendor.inventory || []}
-            onChange={(inv) => setVendor((v) => ({ ...v, inventory: inv }))}
           />
         </section>
       </main>
