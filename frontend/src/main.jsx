@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './styles.css';
 import './install-banner.css';
+import './categories.css';
 import { registerServiceWorker } from './registerServiceWorker.js';
 
 registerServiceWorker();

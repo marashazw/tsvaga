@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import VendorApp from './VendorApp.jsx';
 import './styles.css';
 import './install-banner.css';
+import './categories.css';
 import './vendor-styles.css';
 import { registerServiceWorker } from './registerServiceWorker.js';
 

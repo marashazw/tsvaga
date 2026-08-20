@@ -1,0 +1,43 @@
+
+.category-accordion {
+  margin: 4px 0 14px;
+  border: 1px solid #ddcda6;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.category-accordion-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: #fffdf7;
+  border: none;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+.category-accordion-body {
+  padding: 10px 12px 14px;
+  border-top: 1px solid #ecdfc0;
+  background: #fffefb;
+}
+.category-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 0.9rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+.category-checkbox input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--forest);
+}
