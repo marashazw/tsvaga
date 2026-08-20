@@ -21,10 +21,121 @@ function statusClass(status) {
   }[status] || '';
 }
 
+function daysLeft(visibleUntil) {
+  return Math.max(0, Math.ceil((new Date(visibleUntil) - new Date()) / (24 * 60 * 60 * 1000)));
+}
+
+function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
+  const [editing, setEditing] = useState(false);
+  const [productText, setProductText] = useState(r.product_text);
+  const [quantity, setQuantity] = useState(r.quantity || '');
+  const [saving, setSaving] = useState(false);
+  const [renewing, setRenewing] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      const { data } = await api.patch(`/requests/${r.id}`, { product_text: productText, quantity });
+      onChanged({ ...r, ...data });
+      setEditing(false);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function renew() {
+    setRenewing(true);
+    try {
+      const { data } = await api.post(`/requests/${r.id}/renew`, {});
+      onChanged({ ...r, visible_until: data.visible_until });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to renew');
+    } finally {
+      setRenewing(false);
+    }
+  }
+
+  async function remove() {
+    if (!window.confirm(`Delete "${r.product_text}"? This can't be undone.`)) return;
+    try {
+      await api.delete(`/requests/${r.id}`);
+      onDeleted(r.id);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete');
+    }
+  }
+
+  const left = daysLeft(r.visible_until);
+
+  return (
+    <li className="order-card">
+      <div className="alert-main">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+          <input type="checkbox" checked={checked} onChange={onCheckToggle} />
+          {editing ? (
+            <input
+              type="text"
+              value={productText}
+              onChange={(e) => setProductText(e.target.value)}
+              style={{ flex: 1 }}
+            />
+          ) : (
+            <strong>{r.product_text}</strong>
+          )}
+        </label>
+        <span className={`badge ${statusClass(r.status)}`}>{statusLabel(r.status)}</span>
+      </div>
+
+      {editing ? (
+        <div style={{ marginTop: 6 }}>
+          <input
+            type="text"
+            placeholder="Quantity"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            style={{ marginRight: 8 }}
+          />
+          <button type="button" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button type="button" className="secondary" onClick={() => setEditing(false)} style={{ marginLeft: 8 }}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="hint" style={{ margin: '2px 0 0' }}>
+            {r.quantity && `Qty: ${r.quantity} · `}
+            {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} · {new Date(r.created_at).toLocaleDateString()}
+          </p>
+          <p className="hint" style={{ margin: '2px 0 6px' }}>
+            {left <= 1 ? 'Expires from this list today' : `Visible for ${left} more day${left === 1 ? '' : 's'}`} unless renewed
+          </p>
+          <div className="admin-actions">
+            {r.status === 'open' && (
+              <button type="button" className="secondary" onClick={() => setEditing(true)}>Edit</button>
+            )}
+            <button type="button" className="secondary" onClick={renew} disabled={renewing}>
+              {renewing ? 'Renewing…' : 'Renew (+5 days)'}
+            </button>
+            <button type="button" className="secondary" onClick={remove}>Delete</button>
+          </div>
+        </>
+      )}
+      {error && <p className="error">{error}</p>}
+    </li>
+  );
+}
+
 export default function MyRequests() {
   const [requests, setRequests] = useState(null); // null = still loading
   const [visibleCount, setVisibleCount] = useState(3);
   const [expanded, setExpanded] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   useEffect(() => {
     api
@@ -37,22 +148,93 @@ export default function MyRequests() {
   if (!requests.length) return null;
 
   const visible = requests.slice(0, visibleCount);
+  const allVisibleSelected = visible.length > 0 && visible.every((r) => selectedIds.has(r.id));
+
+  function toggleOne(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    setSelectedIds((prev) => {
+      if (allVisibleSelected) {
+        const next = new Set(prev);
+        visible.forEach((r) => next.delete(r.id));
+        return next;
+      }
+      const next = new Set(prev);
+      visible.forEach((r) => next.add(r.id));
+      return next;
+    });
+  }
+
+  function handleChanged(updated) {
+    setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+  }
+
+  function handleDeleted(id) {
+    setRequests((prev) => prev.filter((r) => r.id !== id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  async function deleteSelected() {
+    if (!selectedIds.size) return;
+    if (!window.confirm(`Delete ${selectedIds.size} selected request${selectedIds.size > 1 ? 's' : ''}? This can't be undone.`)) {
+      return;
+    }
+    const ids = [...selectedIds];
+    const failures = [];
+    for (const id of ids) {
+      try {
+        await api.delete(`/requests/${id}`);
+      } catch (err) {
+        failures.push(err.response?.data?.error || 'Failed to delete one request');
+      }
+    }
+    setRequests((prev) => prev.filter((r) => !ids.includes(r.id) || failures.length));
+    // Refetch to get an accurate list if anything failed (e.g. had an order on it)
+    if (failures.length) {
+      alert(`${failures.length} request(s) couldn't be deleted (likely already has an order on them).`);
+      const { data } = await api.get('/requests/me');
+      setRequests(data);
+    }
+    setSelectedIds(new Set());
+  }
 
   return (
     <div className="panel" style={{ marginTop: 12, marginBottom: 16 }}>
-      <h2 style={{ marginTop: 0, marginBottom: 8, color: 'var(--clay)' }}>My requests</h2>
+      <div className="alert-main">
+        <h2 style={{ margin: 0, color: 'var(--clay)' }}>My requests</h2>
+        {selectedIds.size > 0 && (
+          <button type="button" className="secondary" onClick={deleteSelected}>
+            Delete {selectedIds.size} selected
+          </button>
+        )}
+      </div>
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
+        <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} />
+        <span className="hint">Select all shown</span>
+      </label>
+
       <ul className="order-list">
         {visible.map((r) => (
-          <li key={r.id} className="order-card">
-            <div className="alert-main">
-              <strong>{r.product_text}</strong>
-              <span className={`badge ${statusClass(r.status)}`}>{statusLabel(r.status)}</span>
-            </div>
-            <p className="hint" style={{ margin: '2px 0 0' }}>
-              {r.quantity && `Qty: ${r.quantity} · `}
-              {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} · {new Date(r.created_at).toLocaleDateString()}
-            </p>
-          </li>
+          <RequestCard
+            key={r.id}
+            r={r}
+            checked={selectedIds.has(r.id)}
+            onCheckToggle={() => toggleOne(r.id)}
+            onChanged={handleChanged}
+            onDeleted={handleDeleted}
+          />
         ))}
       </ul>
 

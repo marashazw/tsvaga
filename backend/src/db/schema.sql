@@ -103,6 +103,12 @@ CREATE TABLE requests (
   -- specific was assigned, which is what triggers a broadcast-to-everyone
   -- match rather than a category-filtered one.
   categories TEXT[] NOT NULL DEFAULT ARRAY['miscellaneous'],
+  -- Separate from expires_at above (that one governs the short vendor-matching
+  -- window). This one controls how long a request stays visible in the
+  -- requester's own "My requests" history - hidden from that list once past,
+  -- unless the requester renews it (pushing this out another 5 days) before
+  -- then. Does not affect matching/offers at all, purely a history-view thing.
+  visible_until TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '5 days'),
   status request_status NOT NULL DEFAULT 'open',
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '30 minutes'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()

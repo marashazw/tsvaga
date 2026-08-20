@@ -191,13 +191,15 @@ module.exports = function buildRequestsRouter(io) {
   // GET /api/requests/me - the signed-in requester's own request history,
   // newest first. Placed BEFORE /:id below - otherwise Express would treat
   // "me" as if it were a request id and this would never be reached.
+  // Requests past their visible_until (5 days, unless renewed) are simply
+  // excluded here - they still exist in the database, just no longer shown.
   router.get('/me', requireAuth, async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT id, product_text, quantity, status, fulfillment_type, created_at,
+        `SELECT id, product_text, quantity, status, fulfillment_type, created_at, visible_until,
                 (SELECT COUNT(*) FROM offers WHERE offers.request_id = requests.id) AS offer_count
          FROM requests
-         WHERE requester_id = $1
+         WHERE requester_id = $1 AND visible_until > now()
          ORDER BY created_at DESC
          LIMIT 100`,
         [req.user.id]
@@ -206,6 +208,75 @@ module.exports = function buildRequestsRouter(io) {
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Failed to fetch your requests' });
+    }
+  });
+
+  // POST /api/requests/:id/renew - pushes visible_until out another 5 days
+  // from now, keeping it in "My requests". Only the requester who owns it
+  // can renew it.
+  router.post('/:id/renew', requireAuth, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `UPDATE requests SET visible_until = now() + interval '5 days'
+         WHERE id = $1 AND requester_id = $2
+         RETURNING id, visible_until`,
+        [req.params.id, req.user.id]
+      );
+      if (!result.rows.length) return res.status(404).json({ error: 'Request not found' });
+      res.json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to renew request' });
+    }
+  });
+
+  // PATCH /api/requests/:id  { product_text?, quantity? }
+  // Only while still 'open' - once a vendor's been matched/an order exists,
+  // changing what was actually asked for would be confusing/unsafe.
+  router.patch('/:id', requireAuth, async (req, res) => {
+    const { product_text, quantity } = req.body;
+    try {
+      const existing = await pool.query('SELECT requester_id, status FROM requests WHERE id = $1', [req.params.id]);
+      if (!existing.rows.length) return res.status(404).json({ error: 'Request not found' });
+      if (existing.rows[0].requester_id !== req.user.id) {
+        return res.status(403).json({ error: 'Not authorized to edit this request' });
+      }
+      if (existing.rows[0].status !== 'open') {
+        return res.status(409).json({ error: 'Only an open request (not yet matched) can be edited' });
+      }
+      const result = await pool.query(
+        `UPDATE requests SET product_text = COALESCE($2, product_text), quantity = COALESCE($3, quantity)
+         WHERE id = $1 RETURNING id, product_text, quantity`,
+        [req.params.id, product_text || null, quantity || null]
+      );
+      res.json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to update request' });
+    }
+  });
+
+  // DELETE /api/requests/:id
+  // Blocked if a real order exists against it (matched/completed with actual
+  // fulfillment history) - deleting that would break the order's own
+  // reference to this request. A still-open or otherwise order-less request
+  // can be deleted freely (cascades to its offers/messages).
+  router.delete('/:id', requireAuth, async (req, res) => {
+    try {
+      const existing = await pool.query('SELECT requester_id FROM requests WHERE id = $1', [req.params.id]);
+      if (!existing.rows.length) return res.status(404).json({ error: 'Request not found' });
+      if (existing.rows[0].requester_id !== req.user.id) {
+        return res.status(403).json({ error: 'Not authorized to delete this request' });
+      }
+      const hasOrder = await pool.query('SELECT 1 FROM orders WHERE request_id = $1', [req.params.id]);
+      if (hasOrder.rows.length) {
+        return res.status(409).json({ error: 'This request has an order on it and cannot be deleted' });
+      }
+      await pool.query('DELETE FROM requests WHERE id = $1', [req.params.id]);
+      res.json({ deleted: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to delete request' });
     }
   });
 
