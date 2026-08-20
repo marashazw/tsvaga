@@ -12,6 +12,9 @@ export default function InventoryManager({ inventory, onChange }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [showAll, setShowAll] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [editingId, setEditingId] = useState(null);
+  const [editPrice, setEditPrice] = useState('');
 
   // File import state
   const [importHeaders, setImportHeaders] = useState([]);
@@ -59,6 +62,66 @@ export default function InventoryManager({ inventory, onChange }) {
       typical_price: item.typical_price,
     });
     onChange(inventory.map((i) => (i.product_id === item.product_id ? { ...i, in_stock: data.in_stock } : i)));
+  }
+
+  function startEdit(item) {
+    setEditingId(item.product_id);
+    setEditPrice(item.typical_price ?? '');
+  }
+
+  async function saveEdit(item) {
+    try {
+      const { data } = await api.post('/vendors/me/inventory', {
+        product_id: item.product_id,
+        in_stock: item.in_stock,
+        typical_price: editPrice ? Number(editPrice) : null,
+      });
+      onChange(inventory.map((i) => (i.product_id === item.product_id ? { ...i, typical_price: data.typical_price } : i)));
+      setEditingId(null);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save price');
+    }
+  }
+
+  async function deleteItem(item) {
+    if (!window.confirm(`Remove "${item.name}" from your inventory?`)) return;
+    try {
+      await api.delete(`/vendors/me/inventory/${item.product_id}`);
+      onChange(inventory.filter((i) => i.product_id !== item.product_id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.product_id);
+        return next;
+      });
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete item');
+    }
+  }
+
+  function toggleSelect(productId) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  }
+
+  async function deleteSelected() {
+    if (!selectedIds.size) return;
+    if (!window.confirm(`Remove ${selectedIds.size} selected item${selectedIds.size > 1 ? 's' : ''} from your inventory?`)) {
+      return;
+    }
+    const ids = [...selectedIds];
+    for (const id of ids) {
+      try {
+        await api.delete(`/vendors/me/inventory/${id}`);
+      } catch (err) {
+        // continue removing the rest even if one fails
+      }
+    }
+    onChange(inventory.filter((i) => !ids.includes(i.product_id)));
+    setSelectedIds(new Set());
   }
 
   function resetImport() {
@@ -162,19 +225,97 @@ export default function InventoryManager({ inventory, onChange }) {
   }
 
   const visibleInventory = showAll ? inventory : inventory.slice(0, 5);
+  const allVisibleSelected = visibleInventory.length > 0 && visibleInventory.every((i) => selectedIds.has(i.product_id));
+
+  function toggleSelectAllVisible() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        visibleInventory.forEach((i) => next.delete(i.product_id));
+      } else {
+        visibleInventory.forEach((i) => next.add(i.product_id));
+      }
+      return next;
+    });
+  }
 
   return (
     <div className="inventory">
-      <h3>Your inventory</h3>
+      <div className="alert-main">
+        <h3 style={{ margin: 0 }}>Your inventory</h3>
+        {selectedIds.size > 0 && (
+          <button type="button" className="secondary" onClick={deleteSelected}>
+            Delete {selectedIds.size} selected
+          </button>
+        )}
+      </div>
       {inventory.length === 0 && <p className="hint">No products added yet — add your first one below.</p>}
+      {inventory.length > 0 && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
+          <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} />
+          <span className="hint">Select all shown</span>
+        </label>
+      )}
       <ul className="inventory-list">
         {visibleInventory.map((item) => (
           <li key={item.product_id} className="inventory-item">
-            <span>{item.name}</span>
-            <span className="price">{item.typical_price ? `$${Number(item.typical_price).toFixed(2)}` : '—'}</span>
-            <button className={item.in_stock ? 'stock-btn in' : 'stock-btn out'} onClick={() => toggleStock(item)}>
-              {item.in_stock ? 'In stock' : 'Out of stock'}
-            </button>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+              <input
+                type="checkbox"
+                checked={selectedIds.has(item.product_id)}
+                onChange={() => toggleSelect(item.product_id)}
+              />
+              <span>{item.name}</span>
+            </label>
+            {editingId === item.product_id ? (
+              <>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  style={{ width: 80 }}
+                />
+                <button type="button" onClick={() => saveEdit(item)} style={{ padding: '4px 10px', fontSize: '0.78rem' }}>
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setEditingId(null)}
+                  style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="price">{item.typical_price ? `$${Number(item.typical_price).toFixed(2)}` : '—'}</span>
+                <button className={item.in_stock ? 'stock-btn in' : 'stock-btn out'} onClick={() => toggleStock(item)}>
+                  {item.in_stock ? 'In stock' : 'Out of stock'}
+                </button>
+                {selectedIds.has(item.product_id) && (
+                  <>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => startEdit(item)}
+                      style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                    >
+                      Edit price
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => deleteItem(item)}
+                      style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </li>
         ))}
       </ul>

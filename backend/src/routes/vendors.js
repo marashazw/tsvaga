@@ -311,4 +311,21 @@ router.post('/me/inventory', requireAuth, async (req, res) => {
   }
 });
 
+// DELETE /api/vendors/me/inventory/:productId - removes the item from this
+// vendor's inventory entirely (the shared product record itself is
+// untouched, since other vendors may also stock it).
+router.delete('/me/inventory/:productId', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM vendor_inventory WHERE vendor_id = $1 AND product_id = $2 RETURNING id',
+      [req.user.id, req.params.productId]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Item not found in your inventory' });
+    res.json({ deleted: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete inventory item' });
+  }
+});
+
 module.exports = router;
