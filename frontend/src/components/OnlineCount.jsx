@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 export default function OnlineCount({ socket }) {
-  const [count, setCount] = useState(null);
+  const [count, setCount] = useState(20);
 
   useEffect(() => {
     if (!socket) return;
@@ -11,8 +11,6 @@ export default function OnlineCount({ socket }) {
     socket.on('presence:count', onCount);
     return () => socket.off('presence:count', onCount);
   }, [socket]);
-
-  if (count === null) return null;
 
   return (
     <span className="online-count">
