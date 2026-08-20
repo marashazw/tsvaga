@@ -51,9 +51,15 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
 
   async function renew() {
     setRenewing(true);
+    setError(null);
     try {
       const { data } = await api.post(`/requests/${r.id}/renew`, {});
-      onChanged({ ...r, visible_until: data.visible_until });
+      onChanged({ ...r, ...data.request });
+      alert(
+        data.alerted_vendors > 0
+          ? `Re-sent to ${data.alerted_vendors} nearby vendor${data.alerted_vendors === 1 ? '' : 's'}.`
+          : 'Renewed, but no matching vendors are online nearby right now.'
+      );
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to renew');
     } finally {
@@ -124,9 +130,11 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
                   Edit
                 </button>
               )}
-              <button type="button" className="secondary" onClick={renew} disabled={renewing} style={compactBtnStyle}>
-                {renewing ? 'Renewing…' : 'Renew (+5 days)'}
-              </button>
+              {r.status !== 'matched' && r.status !== 'completed' && (
+                <button type="button" className="secondary" onClick={renew} disabled={renewing} style={compactBtnStyle}>
+                  {renewing ? 'Re-posting…' : 'Renew — re-post to vendors'}
+                </button>
+              )}
               <button type="button" className="secondary" onClick={remove} style={compactBtnStyle}>
                 Delete
               </button>

@@ -9,6 +9,126 @@ const { sanitizeCategories } = require('../constants/categories');
 module.exports = function buildRequestsRouter(io) {
   const router = express.Router();
 
+  // Shared by both request creation AND renewal - finds nearby vendors,
+  // filters by category/inventory preference, and fans out the live socket
+  // alert + push notification to each match. `request` needs: id, lng, lat,
+  // product_id, product_text, quantity, address_text, radius_km,
+  // fulfillment_type, delivery_address_text, recipient_name, recipient_phone,
+  // categories, expires_at. Returns the number of vendors alerted.
+  async function matchAndNotifyVendors({ client, request }) {
+    const { lng, lat, product_id, product_text, categories } = request;
+    const finalCategories = categories && categories.length ? categories : ['miscellaneous'];
+
+    const matchQuery = product_id
+      ? `SELECT v.id, v.business_name, v.address_text, v.notify_categories, v.notify_mode,
+                ST_Distance(v.location, ${toGeoPoint(lng, lat)}) AS distance_m
+         FROM vendors v
+         JOIN vendor_inventory vi ON vi.vendor_id = v.id
+         WHERE vi.product_id = $1
+           AND vi.in_stock = true
+           AND v.is_online = true
+           AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $2::numeric * 1000)
+         ORDER BY distance_m ASC
+         LIMIT 25`
+      : `SELECT v.id, v.business_name, v.address_text, v.notify_categories, v.notify_mode,
+                ST_Distance(v.location, ${toGeoPoint(lng, lat)}) AS distance_m
+         FROM vendors v
+         WHERE v.is_online = true
+           AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $1::numeric * 1000)
+         ORDER BY distance_m ASC
+         LIMIT 25`;
+
+    const matchParams = product_id ? [product_id, request.radius_km] : [request.radius_km];
+    const nearbyVendors = await client.query(matchQuery, matchParams);
+
+    // Category filter: a request tagged ONLY 'miscellaneous' (nothing more
+    // specific was assigned) counts as a category match for everyone, since
+    // it's genuinely uncategorized and could be anything.
+    //
+    // Each vendor's notify_mode decides how they're matched:
+    //   'categories'                - category match only
+    //   'categories_and_inventory'  - category match OR inventory match
+    //   'inventory_only'            - inventory match only, category ignored
+    const isGeneralRequest = finalCategories.length === 1 && finalCategories[0] === 'miscellaneous';
+
+    const needsInventoryCheck = nearbyVendors.rows
+      .filter((v) => v.notify_mode === 'inventory_only' || v.notify_mode === 'categories_and_inventory')
+      .map((v) => v.id);
+    const inventoryMatchedVendorIds = new Set();
+    if (needsInventoryCheck.length) {
+      const invResult = await client.query(
+        `SELECT vi.vendor_id, vi.product_id, p.name
+         FROM vendor_inventory vi JOIN products p ON p.id = vi.product_id
+         WHERE vi.vendor_id = ANY($1::uuid[]) AND vi.in_stock = true`,
+        [needsInventoryCheck]
+      );
+      const lowerProductText = product_text.toLowerCase();
+      invResult.rows.forEach((row) => {
+        const idMatch = product_id && row.product_id === product_id;
+        const nameMatch =
+          row.name &&
+          (lowerProductText.includes(row.name.toLowerCase()) || row.name.toLowerCase().includes(lowerProductText));
+        if (idMatch || nameMatch) inventoryMatchedVendorIds.add(row.vendor_id);
+      });
+    }
+
+    const matches = {
+      rows: nearbyVendors.rows.filter((v) => {
+        const categoryMatch = isGeneralRequest || (v.notify_categories || []).some((c) => finalCategories.includes(c));
+        const inventoryMatch = inventoryMatchedVendorIds.has(v.id);
+        if (v.notify_mode === 'inventory_only') return inventoryMatch;
+        if (v.notify_mode === 'categories_and_inventory') return categoryMatch || inventoryMatch;
+        return categoryMatch;
+      }),
+    };
+
+    const paidVendorIds = await getPaidVendorIdSet(matches.rows.map((v) => v.id));
+
+    // Fan out real-time alerts to each matched vendor's room. Vendors without
+    // an active subscription get a teaser (distance only, no product/address)
+    // so they know something's nearby but must subscribe to see and respond.
+    matches.rows.forEach((vendor) => {
+      const paidUp = paidVendorIds.has(vendor.id);
+      io.to(`vendor:${vendor.id}`).emit('request:new', {
+        request_id: request.id,
+        product_text: paidUp ? request.product_text : null,
+        quantity: paidUp ? request.quantity : null,
+        address_text: paidUp ? request.address_text : null,
+        fulfillment_type: request.fulfillment_type,
+        delivery_address_text: paidUp ? request.delivery_address_text : null,
+        recipient_name: paidUp ? request.recipient_name : null,
+        recipient_phone: paidUp ? request.recipient_phone : null,
+        distance_m: Math.round(vendor.distance_m),
+        expires_at: request.expires_at,
+        subscription_required: !paidUp,
+      });
+    });
+
+    // Push notifications reach vendors whose dashboard tab/app isn't open right
+    // now (as long as they've enabled push once) - socket.io alerts above only
+    // reach an actively open tab, so this is the "vendor is offline" fallback.
+    // Same redaction applies: unpaid vendors get a generic teaser, not the
+    // actual product/address.
+    const paidVendorList = matches.rows.filter((v) => paidVendorIds.has(v.id)).map((v) => v.id);
+    const unpaidVendorList = matches.rows.filter((v) => !paidVendorIds.has(v.id)).map((v) => v.id);
+
+    notifyUsersByPush(paidVendorList, {
+      title: `Someone nearby wants: ${request.product_text}`,
+      body: request.address_text ? `Near ${request.address_text}` : 'Tap to view and send an offer',
+      request_id: request.id,
+      url: '/vendor.html',
+    }).catch((err) => console.error('Push notification batch failed:', err));
+
+    notifyUsersByPush(unpaidVendorList, {
+      title: 'A nearby request just came in',
+      body: 'Subscribe to see the details and respond',
+      request_id: request.id,
+      url: '/vendor.html',
+    }).catch((err) => console.error('Push notification batch failed:', err));
+
+    return matches.rows.length;
+  }
+
   // POST /api/requests  { product_text, product_id?, quantity, lng, lat, address_text, radius_km,
   //                        fulfillment_type?: 'delivery'|'pickup', delivery_address_text?,
   //                        recipient_name?, recipient_phone?, categories? }
@@ -69,117 +189,9 @@ module.exports = function buildRequestsRouter(io) {
       );
       const request = insertResult.rows[0];
 
-      // Find nearby, online, in-stock vendors (falls back to "all online vendors nearby"
-      // if the product wasn't matched to the catalog). notify_categories comes along
-      // so we can filter by category preference just below.
-      const matchQuery = product_id
-        ? `SELECT v.id, v.business_name, v.address_text, v.notify_categories, v.notify_mode,
-                  ST_Distance(v.location, ${toGeoPoint(lng, lat)}) AS distance_m
-           FROM vendors v
-           JOIN vendor_inventory vi ON vi.vendor_id = v.id
-           WHERE vi.product_id = $1
-             AND vi.in_stock = true
-             AND v.is_online = true
-             AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $2::numeric * 1000)
-           ORDER BY distance_m ASC
-           LIMIT 25`
-        : `SELECT v.id, v.business_name, v.address_text, v.notify_categories, v.notify_mode,
-                  ST_Distance(v.location, ${toGeoPoint(lng, lat)}) AS distance_m
-           FROM vendors v
-           WHERE v.is_online = true
-             AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $1::numeric * 1000)
-           ORDER BY distance_m ASC
-           LIMIT 25`;
+      const alertedCount = await matchAndNotifyVendors({ client, request: { ...request, lng, lat } });
 
-      const matchParams = product_id ? [product_id, request.radius_km] : [request.radius_km];
-      const nearbyVendors = await client.query(matchQuery, matchParams);
-
-      // Category filter: a request tagged ONLY 'miscellaneous' (nothing more
-      // specific was assigned) counts as a category match for everyone,
-      // since it's genuinely uncategorized and could be anything.
-      //
-      // Each vendor's notify_mode decides how they're matched:
-      //   'categories'                - category match only
-      //   'categories_and_inventory'  - category match OR inventory match
-      //   'inventory_only'            - inventory match only, category ignored
-      const isGeneralRequest = finalCategories.length === 1 && finalCategories[0] === 'miscellaneous';
-
-      const needsInventoryCheck = nearbyVendors.rows
-        .filter((v) => v.notify_mode === 'inventory_only' || v.notify_mode === 'categories_and_inventory')
-        .map((v) => v.id);
-      const inventoryMatchedVendorIds = new Set();
-      if (needsInventoryCheck.length) {
-        const invResult = await client.query(
-          `SELECT vi.vendor_id, vi.product_id, p.name
-           FROM vendor_inventory vi JOIN products p ON p.id = vi.product_id
-           WHERE vi.vendor_id = ANY($1::uuid[]) AND vi.in_stock = true`,
-          [needsInventoryCheck]
-        );
-        const lowerProductText = product_text.toLowerCase();
-        invResult.rows.forEach((row) => {
-          const idMatch = product_id && row.product_id === product_id;
-          const nameMatch =
-            row.name &&
-            (lowerProductText.includes(row.name.toLowerCase()) || row.name.toLowerCase().includes(lowerProductText));
-          if (idMatch || nameMatch) inventoryMatchedVendorIds.add(row.vendor_id);
-        });
-      }
-
-      const matches = {
-        rows: nearbyVendors.rows.filter((v) => {
-          const categoryMatch = isGeneralRequest || (v.notify_categories || []).some((c) => finalCategories.includes(c));
-          const inventoryMatch = inventoryMatchedVendorIds.has(v.id);
-          if (v.notify_mode === 'inventory_only') return inventoryMatch;
-          if (v.notify_mode === 'categories_and_inventory') return categoryMatch || inventoryMatch;
-          return categoryMatch;
-        }),
-      };
-
-      const paidVendorIds = await getPaidVendorIdSet(matches.rows.map((v) => v.id));
-
-      // Fan out real-time alerts to each matched vendor's room. Vendors without
-      // an active subscription get a teaser (distance only, no product/address)
-      // so they know something's nearby but must subscribe to see and respond.
-      matches.rows.forEach((vendor) => {
-        const paidUp = paidVendorIds.has(vendor.id);
-        io.to(`vendor:${vendor.id}`).emit('request:new', {
-          request_id: request.id,
-          product_text: paidUp ? request.product_text : null,
-          quantity: paidUp ? request.quantity : null,
-          address_text: paidUp ? request.address_text : null,
-          fulfillment_type: request.fulfillment_type,
-          delivery_address_text: paidUp ? request.delivery_address_text : null,
-          recipient_name: paidUp ? request.recipient_name : null,
-          recipient_phone: paidUp ? request.recipient_phone : null,
-          distance_m: Math.round(vendor.distance_m),
-          expires_at: request.expires_at,
-          subscription_required: !paidUp,
-        });
-      });
-
-      // Push notifications reach vendors whose dashboard tab/app isn't open right
-      // now (as long as they've enabled push once) - socket.io alerts above only
-      // reach an actively open tab, so this is the "vendor is offline" fallback.
-      // Same redaction applies: unpaid vendors get a generic teaser, not the
-      // actual product/address.
-      const paidVendorList = matches.rows.filter((v) => paidVendorIds.has(v.id)).map((v) => v.id);
-      const unpaidVendorList = matches.rows.filter((v) => !paidVendorIds.has(v.id)).map((v) => v.id);
-
-      notifyUsersByPush(paidVendorList, {
-        title: `Someone nearby wants: ${request.product_text}`,
-        body: request.address_text ? `Near ${request.address_text}` : 'Tap to view and send an offer',
-        request_id: request.id,
-        url: '/vendor.html',
-      }).catch((err) => console.error('Push notification batch failed:', err));
-
-      notifyUsersByPush(unpaidVendorList, {
-        title: 'A nearby request just came in',
-        body: 'Subscribe to see the details and respond',
-        request_id: request.id,
-        url: '/vendor.html',
-      }).catch((err) => console.error('Push notification batch failed:', err));
-
-      res.status(201).json({ request, alerted_vendors: matches.rows.length });
+      res.status(201).json({ request, alerted_vendors: alertedCount });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Failed to create request' });
@@ -211,22 +223,54 @@ module.exports = function buildRequestsRouter(io) {
     }
   });
 
-  // POST /api/requests/:id/renew - pushes visible_until out another 5 days
-  // from now, keeping it in "My requests". Only the requester who owns it
-  // can renew it.
+  // POST /api/requests/:id/renew
+  // Re-broadcasts this request to nearby vendors right now, exactly like a
+  // fresh request - not just a timestamp bump. Resets status to 'open',
+  // gives it a new 30-minute vendor-response window, extends its 5-day
+  // My Requests visibility, and re-runs the same matching/notification
+  // pipeline used at creation. Blocked once a vendor's already been matched
+  // or the order completed - re-broadcasting at that point wouldn't make sense.
   router.post('/:id/renew', requireAuth, async (req, res) => {
+    let client;
     try {
-      const result = await pool.query(
-        `UPDATE requests SET visible_until = now() + interval '5 days'
-         WHERE id = $1 AND requester_id = $2
-         RETURNING id, visible_until`,
-        [req.params.id, req.user.id]
+      client = await pool.connect();
+      const existing = await client.query(
+        `SELECT id, requester_id, product_id, product_text, quantity, address_text, radius_km,
+                fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories, status,
+                ST_X(location::geometry) AS lng, ST_Y(location::geometry) AS lat
+         FROM requests WHERE id = $1`,
+        [req.params.id]
       );
-      if (!result.rows.length) return res.status(404).json({ error: 'Request not found' });
-      res.json(result.rows[0]);
+      if (!existing.rows.length) {
+        return res.status(404).json({ error: 'Request not found' });
+      }
+      const current = existing.rows[0];
+      if (current.requester_id !== req.user.id) {
+        return res.status(403).json({ error: 'Not authorized to renew this request' });
+      }
+      if (current.status === 'matched' || current.status === 'completed') {
+        return res.status(409).json({ error: "This request has already been matched and can't be renewed" });
+      }
+
+      await client.query('BEGIN');
+      const updated = await client.query(
+        `UPDATE requests SET status = 'open', expires_at = now() + interval '30 minutes',
+                visible_until = now() + interval '5 days'
+         WHERE id = $1 RETURNING *`,
+        [current.id]
+      );
+      const freshRequest = { ...updated.rows[0], lng: current.lng, lat: current.lat };
+
+      const alertedCount = await matchAndNotifyVendors({ client, request: freshRequest });
+
+      await client.query('COMMIT');
+      res.json({ request: updated.rows[0], alerted_vendors: alertedCount });
     } catch (err) {
+      if (client) await client.query('ROLLBACK').catch(() => {});
       console.error(err);
       res.status(500).json({ error: 'Failed to renew request' });
+    } finally {
+      if (client) client.release();
     }
   });
 
