@@ -196,7 +196,7 @@ export default function VendorApp() {
    <div className="app-shell">
       <InstallPrompt appName="Tsvaga Vendor" iconSrc="/icons/vendor-icon-192.png" dismissKey="vendor" />
       <header className="vendor-header">
-        <div>
+        <div className="vendor-name-block">
           {editingName ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
               <input

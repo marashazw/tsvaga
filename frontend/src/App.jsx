@@ -190,7 +190,7 @@ export default function App() {
    <div className="app-shell">
       <InstallPrompt appName="Tsvaga" iconSrc="/icons/icon-192.png" dismissKey="main" />
       <header className="vendor-header">
-        <div>
+        <div className="vendor-name-block">
           <h1>Tsvaga</h1>
           <p className="tagline">Hi {user.name} — ask for what you want. Nearby stores come to you.</p>
           <OnlineCount socket={socket} />
