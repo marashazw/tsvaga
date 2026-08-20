@@ -224,30 +224,32 @@ export default function App() {
       )}
 
       <main>
-        <section className="map-section">
-          <div className="category-accordion">
-            <button
-              type="button"
-              className="category-accordion-toggle"
-              onClick={() => setMapOpenOverride(!mapOpen)}
-            >
-              <span>📍 {addressLabel || 'Set your location'}</span>
-              <span>{mapOpen ? '▲ hide map' : '▼ adjust pin'}</span>
-            </button>
-            {mapOpen && (
-              <div className="category-accordion-body">
-                <AddressSearch
-                  onFound={handleAddressFound}
-                  placeholder="Where are you? Type street address / suburb (e.g. Borrowdale, Harare)"
-                />
-                <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
-              </div>
-            )}
-          </div>
-        </section>
+        <div className="requester-left-stack">
+          <section className="map-section">
+            <div className="category-accordion">
+              <button
+                type="button"
+                className="category-accordion-toggle"
+                onClick={() => setMapOpenOverride(!mapOpen)}
+              >
+                <span>📍 {addressLabel || 'Set your location'}</span>
+                <span>{mapOpen ? '▲ hide map' : '▼ adjust pin'}</span>
+              </button>
+              {mapOpen && (
+                <div className="category-accordion-body">
+                  <AddressSearch
+                    onFound={handleAddressFound}
+                    placeholder="Where are you? Type street address / suburb (e.g. Borrowdale, Harare)"
+                  />
+                  <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
+                </div>
+              )}
+            </div>
+          </section>
 
-        <div className="my-requests-area">
-          <MyRequests />
+          <div className="my-requests-area">
+            <MyRequests />
+          </div>
         </div>
 
         <section className="panel request-form-section">

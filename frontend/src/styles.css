@@ -87,18 +87,32 @@ header h1 {
   color: #6b5f4f;
 }
 
+/* Map and My Requests are grouped into ONE flex stack rather than 2 separate
+   grid rows - if kept as separate rows while the request-form spans across
+   both of them in the next column, CSS Grid's auto-row-sizing stretches
+   whichever row has the least content (the collapsed map bar) to help make
+   room for the tall spanning form, producing a large, wrong-looking gap
+   under the map. Grouping them sidesteps that entirely (same fix as the
+   vendor dashboard's layout). On mobile the stack "dissolves" (display:
+   contents) so its two children become individually orderable again. */
 main {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
-  grid-template-areas:
-    "map form"
-    "myrequests form";
-  gap: 20px;
+  column-gap: 20px;
+  align-items: start;
   margin-top: 20px;
 }
-.map-section { grid-area: map; }
-.my-requests-area { grid-area: myrequests; }
-.request-form-section { grid-area: form; }
+.requester-left-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  grid-column: 1;
+  grid-row: 1;
+}
+.request-form-section {
+  grid-column: 2;
+  grid-row: 1;
+}
 
 /* Vendor dashboard has its own distinct grid, kept as a separate selector so
    it never collides with the requester app's plain "main" rule above, since
@@ -138,11 +152,13 @@ main {
 @media (max-width: 780px) {
   main {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      "map"
-      "form"
-      "myrequests";
   }
+  .requester-left-stack {
+    display: contents;
+  }
+  main .map-section { order: 1; }
+  .request-form-section { grid-column: auto; grid-row: auto; order: 2; }
+  .my-requests-area { order: 3; }
   .vendor-main {
     grid-template-columns: 1fr;
   }
