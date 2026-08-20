@@ -23,7 +23,7 @@ function statusClass(status) {
 
 export default function MyRequests() {
   const [requests, setRequests] = useState(null); // null = still loading
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [visibleCount, setVisibleCount] = useState(3);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -39,8 +39,8 @@ export default function MyRequests() {
   const visible = requests.slice(0, visibleCount);
 
   return (
-    <div className="panel" style={{ marginTop: 20 }}>
-      <h2 style={{ marginTop: 0 }}>My requests</h2>
+    <div className="panel" style={{ marginTop: 12, marginBottom: 16 }}>
+      <h2 style={{ marginTop: 0, marginBottom: 8, color: 'var(--clay)' }}>My requests</h2>
       <ul className="order-list">
         {visible.map((r) => (
           <li key={r.id} className="order-card">
@@ -56,8 +56,8 @@ export default function MyRequests() {
         ))}
       </ul>
 
-      {requests.length > 10 && (
-        <div className="category-accordion" style={{ marginTop: 10 }}>
+      {requests.length > 3 && (
+        <div className="category-accordion" style={{ marginTop: 8 }}>
           <button type="button" className="category-accordion-toggle" onClick={() => setExpanded((e) => !e)}>
             <span>Showing {Math.min(visibleCount, requests.length)} of {requests.length} requests</span>
             <span>{expanded ? '▲' : '▼ show more'}</span>

@@ -244,6 +244,7 @@ export default function App() {
               </div>
             )}
           </div>
+          <MyRequests />
         </section>
 
         <section className="panel">
@@ -284,8 +285,6 @@ export default function App() {
           )}
         </section>
       </main>
-
-      <MyRequests />
 
       <section style={{ marginTop: 20, textAlign: 'center' }}>
         <AdvertisingSection />
