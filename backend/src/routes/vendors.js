@@ -3,6 +3,7 @@ const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { toGeoPoint, isWithinZimbabwe } = require('../utils/geo');
 const { getSettings, isVendorPaidUp } = require('../utils/subscription');
+const { CATEGORIES, sanitizeCategories } = require('../constants/categories');
 
 const router = express.Router();
 
@@ -161,7 +162,7 @@ router.get('/me/orders', requireAuth, async (req, res) => {
 router.get('/me', requireAuth, async (req, res) => {
   try {
     const vendor = await pool.query(
-      `SELECT v.id, v.business_name, v.address_text, v.is_online, v.rating_avg, u.role,
+      `SELECT v.id, v.business_name, v.address_text, v.is_online, v.rating_avg, v.notify_categories, u.role,
               ST_X(v.location::geometry) AS lng, ST_Y(v.location::geometry) AS lat
        FROM vendors v JOIN users u ON u.id = v.id WHERE v.id = $1`,
       [req.user.id]
@@ -187,6 +188,38 @@ router.get('/me', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch vendor profile' });
+  }
+});
+
+// GET /api/vendors/me/notify-categories - the full category list plus this
+// vendor's current selection, for rendering the preferences accordion.
+router.get('/me/notify-categories', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT notify_categories FROM vendors WHERE id = $1', [req.user.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Vendor profile not found' });
+    res.json({ all_categories: CATEGORIES, selected: result.rows[0].notify_categories });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch notification categories' });
+  }
+});
+
+// PATCH /api/vendors/me/notify-categories  { categories: string[] }
+router.patch('/me/notify-categories', requireAuth, async (req, res) => {
+  const safeCategories = sanitizeCategories(req.body.categories);
+  if (!safeCategories.length) {
+    return res.status(400).json({ error: 'Select at least one category' });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE vendors SET notify_categories = $2 WHERE id = $1 RETURNING notify_categories`,
+      [req.user.id, safeCategories]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Vendor profile not found' });
+    res.json({ selected: result.rows[0].notify_categories });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update notification categories' });
   }
 });
 

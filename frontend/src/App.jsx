@@ -119,6 +119,7 @@ export default function App() {
     delivery_address_text,
     recipient_name,
     recipient_phone,
+    categories,
   }) {
     setSubmitting(true);
     try {
@@ -133,6 +134,7 @@ export default function App() {
         delivery_address_text,
         recipient_name,
         recipient_phone,
+        categories,
       });
       setRequest(data.request);
       setOffers([]);

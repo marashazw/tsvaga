@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { toGeoPoint } = require('../utils/geo');
+const { CATEGORIES } = require('../constants/categories');
 
 const router = express.Router();
 
@@ -63,10 +64,13 @@ router.post('/register', async (req, res) => {
         typeof lng === 'number' ? lng : ZW_CENTER.lng,
         typeof lat === 'number' ? lat : ZW_CENTER.lat
       );
+      // Explicitly pass the full category list at registration (rather than
+      // relying solely on the column's DB-level default) so this stays true
+      // even if the default ever changes for future signups only.
       await client.query(
-        `INSERT INTO vendors (id, business_name, location, address_text, is_online)
-         VALUES ($1, $2, ${point}, $3, true)`,
-        [user.id, business_name || name, address_text || null]
+        `INSERT INTO vendors (id, business_name, location, address_text, is_online, notify_categories)
+         VALUES ($1, $2, ${point}, $3, true, $4)`,
+        [user.id, business_name || name, address_text || null, CATEGORIES]
       );
 
       // Auto-trial: only if enabled by the admin AND this phone number has

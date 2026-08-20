@@ -8,6 +8,7 @@ import VendorOrders from './components/VendorOrders.jsx';
 import VendorReviews from './components/VendorReviews.jsx';
 import SubscriptionPanel from './components/SubscriptionPanel.jsx';
 import PriorityPanel from './components/PriorityPanel.jsx';
+import VendorCategoryPreferences from './components/VendorCategoryPreferences.jsx';
 import AdSlot from './components/AdSlot.jsx';
 import AdvertisingSection from './components/AdvertisingSection.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
@@ -248,6 +249,10 @@ export default function VendorApp() {
 
       <section style={{ marginBottom: 20 }}>
         <PriorityPanel subscriptionInfo={subscriptionInfo} />
+      </section>
+
+      <section style={{ marginBottom: 20 }}>
+        <VendorCategoryPreferences />
       </section>
 
       {paywallNotice && (

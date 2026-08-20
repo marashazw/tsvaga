@@ -35,6 +35,15 @@ CREATE TABLE vendors (
   -- cleanup job.
   priority_score INT NOT NULL DEFAULT 0,
   priority_expires_at TIMESTAMPTZ,
+  -- Which categories of request this vendor wants to be alerted about. Defaults
+  -- to every category (set explicitly at registration time) so nothing changes
+  -- for a vendor who never touches this setting. A request tagged only
+  -- 'miscellaneous' (i.e. the requester didn't pick/match a specific category)
+  -- is broadcast to every nearby vendor regardless of this list.
+  notify_categories TEXT[] NOT NULL DEFAULT ARRAY[
+    'groceries','electronics','clothing','hardware','health','automotive',
+    'home','beauty','stationery','baby_kids','sports','miscellaneous'
+  ],
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX vendors_location_gix ON vendors USING GIST (location);
@@ -79,6 +88,12 @@ CREATE TABLE requests (
   -- fall back to contacting the requester's account phone directly.
   recipient_name TEXT,
   recipient_phone TEXT,
+  -- One or more category tags for this request, chosen (or overridden) by the
+  -- requester, auto-suggested client-side from product_text. Always has at
+  -- least one entry - defaults to just ['miscellaneous'] when nothing more
+  -- specific was assigned, which is what triggers a broadcast-to-everyone
+  -- match rather than a category-filtered one.
+  categories TEXT[] NOT NULL DEFAULT ARRAY['miscellaneous'],
   status request_status NOT NULL DEFAULT 'open',
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '30 minutes'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()

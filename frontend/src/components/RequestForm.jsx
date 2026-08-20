@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { CATEGORIES, suggestCategories } from '../categories.js';
 
 export default function RequestForm({ location, addressLabel, radiusKm, onRadiusChange, onSubmit, submitting }) {
   const [productText, setProductText] = useState('');
@@ -7,6 +8,25 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
+
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [categoriesTouched, setCategoriesTouched] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+
+  // Auto-suggest as they type, but only until the requester manually adjusts
+  // the selection themselves - once touched, typing more shouldn't silently
+  // override a choice they already made.
+  useEffect(() => {
+    if (categoriesTouched) return;
+    setSelectedCategories(suggestCategories(productText));
+  }, [productText, categoriesTouched]);
+
+  function toggleCategory(slug) {
+    setCategoriesTouched(true);
+    setSelectedCategories((prev) =>
+      prev.includes(slug) ? prev.filter((c) => c !== slug) : [...prev, slug]
+    );
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -18,13 +38,18 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       delivery_address_text: fulfillmentType === 'delivery' ? deliveryAddress : undefined,
       recipient_name: recipientName || undefined,
       recipient_phone: recipientPhone || undefined,
+      categories: selectedCategories.length ? selectedCategories : ['miscellaneous'],
     });
   }
+
+  const summaryLabels = selectedCategories.length
+    ? selectedCategories.map((slug) => CATEGORIES.find((c) => c.slug === slug)?.label || slug).join(', ')
+    : 'Miscellaneous / General (default)';
 
   return (
     <form className="request-form" onSubmit={handleSubmit}>
       <label>
-                <span className="primary-label">What are you looking for today?</span>
+        <span className="primary-label">What are you looking for today?</span>
         <input
           type="text"
           placeholder="e.g. Mealie meal (10kg)"
@@ -35,7 +60,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       </label>
 
       <label>
-                Quantity — how many, or how much of it
+        Quantity — how many, or how much of it
         <input
           type="text"
           placeholder="e.g. 2 bags"
@@ -43,6 +68,35 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
           onChange={(e) => setQuantity(e.target.value)}
         />
       </label>
+
+      <div className="category-accordion">
+        <button
+          type="button"
+          className="category-accordion-toggle"
+          onClick={() => setCategoriesOpen((o) => !o)}
+        >
+          <span>Category: {summaryLabels}</span>
+          <span>{categoriesOpen ? '▲' : '▼ edit'}</span>
+        </button>
+        {categoriesOpen && (
+          <div className="category-accordion-body">
+            <p className="hint" style={{ marginTop: 0 }}>
+              We guessed based on what you typed — tick or untick any that fit. Leave everything unticked to be
+              seen as a general request.
+            </p>
+            {CATEGORIES.map((c) => (
+              <label key={c.slug} className="category-checkbox">
+                <input
+                  type="checkbox"
+                  checked={selectedCategories.includes(c.slug)}
+                  onChange={() => toggleCategory(c.slug)}
+                />
+                {c.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
 
       <label>
         Search radius: {radiusKm} km

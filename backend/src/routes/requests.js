@@ -4,13 +4,14 @@ const { requireAuth } = require('../middleware/auth');
 const { toGeoPoint, isWithinZimbabwe } = require('../utils/geo');
 const { notifyUsersByPush } = require('../utils/pushSender');
 const { isVendorPaidUp, getPaidVendorIdSet } = require('../utils/subscription');
+const { sanitizeCategories } = require('../constants/categories');
 
 module.exports = function buildRequestsRouter(io) {
   const router = express.Router();
 
   // POST /api/requests  { product_text, product_id?, quantity, lng, lat, address_text, radius_km,
   //                        fulfillment_type?: 'delivery'|'pickup', delivery_address_text?,
-  //                        recipient_name?, recipient_phone? }
+  //                        recipient_name?, recipient_phone?, categories? }
   router.post('/', requireAuth, async (req, res) => {
     const {
       product_text,
@@ -24,6 +25,7 @@ module.exports = function buildRequestsRouter(io) {
       delivery_address_text,
       recipient_name,
       recipient_phone,
+      categories,
     } = req.body;
 
     if (!product_text || typeof lng !== 'number' || typeof lat !== 'number') {
@@ -37,12 +39,19 @@ module.exports = function buildRequestsRouter(io) {
     // rather than storing something that would never be read.
     const safeDeliveryAddress = safeFulfillment === 'delivery' ? delivery_address_text || null : null;
 
+    // A request always has at least one valid category - if the requester
+    // (or the client's auto-suggestion) didn't assign anything usable, it
+    // falls back to 'miscellaneous', which is what makes it broadcast to
+    // every nearby vendor regardless of their individual preferences below.
+    const safeCategories = sanitizeCategories(categories);
+    const finalCategories = safeCategories.length ? safeCategories : ['miscellaneous'];
+
     let client;
     try {
       client = await pool.connect();
       const insertResult = await client.query(
-        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text, recipient_name, recipient_phone)
-         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5), $7, $8, $9, $10)
+        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories)
+         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5), $7, $8, $9, $10, $11)
          RETURNING *`,
         [
           req.user.id,
@@ -55,14 +64,16 @@ module.exports = function buildRequestsRouter(io) {
           safeDeliveryAddress,
           recipient_name || null,
           recipient_phone || null,
+          finalCategories,
         ]
       );
       const request = insertResult.rows[0];
 
       // Find nearby, online, in-stock vendors (falls back to "all online vendors nearby"
-      // if the product wasn't matched to the catalog).
+      // if the product wasn't matched to the catalog). notify_categories comes along
+      // so we can filter by category preference just below.
       const matchQuery = product_id
-        ? `SELECT v.id, v.business_name, v.address_text,
+        ? `SELECT v.id, v.business_name, v.address_text, v.notify_categories,
                   ST_Distance(v.location, ${toGeoPoint(lng, lat)}) AS distance_m
            FROM vendors v
            JOIN vendor_inventory vi ON vi.vendor_id = v.id
@@ -72,7 +83,7 @@ module.exports = function buildRequestsRouter(io) {
              AND ST_DWithin(v.location, ${toGeoPoint(lng, lat)}, $2::numeric * 1000)
            ORDER BY distance_m ASC
            LIMIT 25`
-        : `SELECT v.id, v.business_name, v.address_text,
+        : `SELECT v.id, v.business_name, v.address_text, v.notify_categories,
                   ST_Distance(v.location, ${toGeoPoint(lng, lat)}) AS distance_m
            FROM vendors v
            WHERE v.is_online = true
@@ -81,7 +92,22 @@ module.exports = function buildRequestsRouter(io) {
            LIMIT 25`;
 
       const matchParams = product_id ? [product_id, request.radius_km] : [request.radius_km];
-      const matches = await client.query(matchQuery, matchParams);
+      const nearbyVendors = await client.query(matchQuery, matchParams);
+
+      // Category filter: a request tagged ONLY 'miscellaneous' (nothing more
+      // specific was assigned) goes to every nearby vendor, since it's
+      // genuinely uncategorized and could be anything. Otherwise, only
+      // vendors who've opted into at least one of this request's categories
+      // get alerted.
+      const isGeneralRequest = finalCategories.length === 1 && finalCategories[0] === 'miscellaneous';
+      const matches = {
+        rows: isGeneralRequest
+          ? nearbyVendors.rows
+          : nearbyVendors.rows.filter((v) =>
+              (v.notify_categories || []).some((c) => finalCategories.includes(c))
+            ),
+      };
+
       const paidVendorIds = await getPaidVendorIdSet(matches.rows.map((v) => v.id));
 
       // Fan out real-time alerts to each matched vendor's room. Vendors without
