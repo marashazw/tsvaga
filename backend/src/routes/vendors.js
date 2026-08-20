@@ -170,9 +170,9 @@ router.get('/me', requireAuth, async (req, res) => {
     if (!vendor.rows.length) return res.status(404).json({ error: 'No vendor profile for this account' });
 
     const inventory = await pool.query(
-      `SELECT vi.id, vi.product_id, vi.in_stock, vi.typical_price, p.name, p.category
+      `SELECT vi.id, vi.product_id, vi.in_stock, vi.typical_price, vi.updated_at, p.name, p.category
        FROM vendor_inventory vi JOIN products p ON p.id = vi.product_id
-       WHERE vi.vendor_id = $1 ORDER BY p.name`,
+       WHERE vi.vendor_id = $1 ORDER BY vi.updated_at DESC`,
       [req.user.id]
     );
 
