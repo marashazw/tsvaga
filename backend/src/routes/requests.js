@@ -188,6 +188,27 @@ module.exports = function buildRequestsRouter(io) {
     }
   });
 
+  // GET /api/requests/me - the signed-in requester's own request history,
+  // newest first. Placed BEFORE /:id below - otherwise Express would treat
+  // "me" as if it were a request id and this would never be reached.
+  router.get('/me', requireAuth, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT id, product_text, quantity, status, fulfillment_type, created_at,
+                (SELECT COUNT(*) FROM offers WHERE offers.request_id = requests.id) AS offer_count
+         FROM requests
+         WHERE requester_id = $1
+         ORDER BY created_at DESC
+         LIMIT 100`,
+        [req.user.id]
+      );
+      res.json(result.rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch your requests' });
+    }
+  });
+
   // GET /api/requests/:id  - request detail + offers so far
   router.get('/:id', requireAuth, async (req, res) => {
     try {

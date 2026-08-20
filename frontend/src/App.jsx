@@ -8,6 +8,7 @@ import RequesterAuth from './components/RequesterAuth.jsx';
 import InstallPrompt from './components/InstallPrompt.jsx';
 import AdSlot from './components/AdSlot.jsx';
 import AdvertisingSection from './components/AdvertisingSection.jsx';
+import MyRequests from './components/MyRequests.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
 import AddressSearch from './components/AddressSearch.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
@@ -283,6 +284,8 @@ export default function App() {
           )}
         </section>
       </main>
+
+      <MyRequests />
 
       <section style={{ marginTop: 20, textAlign: 'center' }}>
         <AdvertisingSection />
