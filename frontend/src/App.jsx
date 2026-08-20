@@ -244,10 +244,13 @@ export default function App() {
               </div>
             )}
           </div>
-          <MyRequests />
         </section>
 
-        <section className="panel">
+        <div className="my-requests-area">
+          <MyRequests />
+        </div>
+
+        <section className="panel request-form-section">
           {!request ? (
             <RequestForm
               location={location}

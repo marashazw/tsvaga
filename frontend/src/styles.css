@@ -79,12 +79,24 @@ header h1 {
 main {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
+  grid-template-areas:
+    "map form"
+    "myrequests form";
   gap: 20px;
   margin-top: 20px;
 }
+.map-section { grid-area: map; }
+.my-requests-area { grid-area: myrequests; }
+.request-form-section { grid-area: form; }
 
 @media (max-width: 780px) {
-  main { grid-template-columns: 1fr; }
+  main {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "map"
+      "form"
+      "myrequests";
+  }
   body { padding: 8px 0; }
   .app-shell { padding: 12px; margin: 0 8px; border-radius: 14px; }
   header h1 { font-size: 1.7rem; }
