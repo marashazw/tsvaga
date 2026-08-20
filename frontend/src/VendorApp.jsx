@@ -5,6 +5,7 @@ import VendorAuth from './components/VendorAuth.jsx';
 import InventoryManager from './components/InventoryManager.jsx';
 import IncomingRequests from './components/IncomingRequests.jsx';
 import VendorOrders from './components/VendorOrders.jsx';
+import VendorTodoList from './components/VendorTodoList.jsx';
 import VendorReviews from './components/VendorReviews.jsx';
 import SubscriptionPanel from './components/SubscriptionPanel.jsx';
 import PriorityPanel from './components/PriorityPanel.jsx';
@@ -238,6 +239,8 @@ export default function VendorApp() {
         </div>
       </header>
 
+      <VendorTodoList orders={orders} />
+
       {pushStatus === 'granted' && (
         <p className="hint">Push notifications on — you'll be alerted even if this tab is closed.</p>
       )}
@@ -313,7 +316,7 @@ export default function VendorApp() {
         </section>
       </main>
 
-      <section className="panel" style={{ marginTop: 20 }}>
+      <section id="section-orders" className="panel" style={{ marginTop: 20 }}>
         <h2 style={{ marginTop: 0 }}>Orders to fulfill</h2>
         <VendorOrders orders={orders} onUpdated={handleOrderUpdated} socket={socket} currentUserId={vendor.id} />
       </section>

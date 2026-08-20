@@ -43,3 +43,21 @@
 }
 
 html { scroll-behavior: smooth; }
+
+.vendor-todo-sticky {
+  position: sticky;
+  top: 8px;
+  z-index: 50;
+  margin-bottom: 14px;
+  background: #fff3d6;
+  border: 1px solid #f0c96a;
+  border-radius: 10px;
+  padding: 10px 14px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(43, 36, 27, 0.10);
+}
+.vendor-todo-sticky a {
+  color: #7a4a00;
+  font-weight: 700;
+  text-decoration: none;
+}
