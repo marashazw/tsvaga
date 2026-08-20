@@ -86,54 +86,87 @@ function SentOfferChat({ offerId, socket, currentUserId }) {
 }
 
 export default function IncomingRequests({ alerts, respondedIds, offerIdsByRequest, onResponded, onPaywalled, socket, currentUserId }) {
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [expanded, setExpanded] = useState(false);
+
   if (!alerts.length) {
     return <p className="hint">You're online — new nearby requests will show up here instantly.</p>;
   }
 
+  const visible = alerts.slice(0, visibleCount);
+
   return (
-    <ul className="alert-list">
-      {alerts.map((a) => (
-        <li key={a.request_id} className="alert-card">
-          {a.subscription_required ? (
-            <>
-              <div className="alert-main">
-                <strong>🔒 A nearby request came in</strong>
-                <span className="hint">{Math.round(a.distance_m / 100) / 10} km away</span>
-              </div>
-              <p className="hint">Subscribe to see what's wanted and respond with an offer.</p>
-            </>
-          ) : (
-            <>
-              <div className="alert-main">
-                <strong>{a.product_text}</strong>
-                <span className="hint">{Math.round(a.distance_m / 100) / 10} km away</span>
-              </div>
-              {a.quantity && <p className="hint">Qty: {a.quantity}</p>}
-              <p className="hint">
-                {a.fulfillment_type === 'pickup'
-                  ? '🚶 Customer will collect'
-                  : a.delivery_address_text
-                    ? `🚚 Deliver to: ${a.delivery_address_text}`
-                    : '🚚 Deliver to their pinned location'}
-              </p>
-              {(a.recipient_name || a.recipient_phone) && (
+    <>
+      <ul className="alert-list">
+        {visible.map((a) => (
+          <li key={a.request_id} className="alert-card">
+            {a.subscription_required ? (
+              <>
+                <div className="alert-main">
+                  <strong>🔒 A nearby request came in</strong>
+                  <span className="hint">{Math.round(a.distance_m / 100) / 10} km away</span>
+                </div>
+                <p className="hint">Subscribe to see what's wanted and respond with an offer.</p>
+              </>
+            ) : (
+              <>
+                <div className="alert-main">
+                  <strong>{a.product_text}</strong>
+                  <span className="hint">{Math.round(a.distance_m / 100) / 10} km away</span>
+                </div>
+                {a.quantity && <p className="hint">Qty: {a.quantity}</p>}
                 <p className="hint">
-                  📞 {a.recipient_name || 'Contact'}{a.recipient_phone ? `: ${a.recipient_phone}` : ''}
+                  {a.fulfillment_type === 'pickup'
+                    ? '🚶 Customer will collect'
+                    : a.delivery_address_text
+                      ? `🚚 Deliver to: ${a.delivery_address_text}`
+                      : '🚚 Deliver to their pinned location'}
                 </p>
-              )}
-              {respondedIds.has(a.request_id) ? (
-                <SentOfferChat
-                  offerId={offerIdsByRequest[a.request_id]}
-                  socket={socket}
-                  currentUserId={currentUserId}
-                />
-              ) : (
-                <RespondForm alert={a} onSent={onResponded} onPaywalled={onPaywalled} />
-              )}
-            </>
+                {(a.recipient_name || a.recipient_phone) && (
+                  <p className="hint">
+                    📞 {a.recipient_name || 'Contact'}{a.recipient_phone ? `: ${a.recipient_phone}` : ''}
+                  </p>
+                )}
+                {respondedIds.has(a.request_id) ? (
+                  <SentOfferChat
+                    offerId={offerIdsByRequest[a.request_id]}
+                    socket={socket}
+                    currentUserId={currentUserId}
+                  />
+                ) : (
+                  <RespondForm alert={a} onSent={onResponded} onPaywalled={onPaywalled} />
+                )}
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {alerts.length > 10 && (
+        <div className="category-accordion" style={{ marginTop: 10 }}>
+          <button type="button" className="category-accordion-toggle" onClick={() => setExpanded((e) => !e)}>
+            <span>Showing {Math.min(visibleCount, alerts.length)} of {alerts.length} requests</span>
+            <span>{expanded ? '▲' : '▼ show more'}</span>
+          </button>
+          {expanded && (
+            <div className="category-accordion-body">
+              <div className="admin-actions">
+                {[10, 20, 50, 100].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={visibleCount === n ? undefined : 'secondary'}
+                    onClick={() => setVisibleCount(n)}
+                    disabled={n !== 10 && n > alerts.length}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-        </li>
-      ))}
-    </ul>
+        </div>
+      )}
+    </>
   );
 }

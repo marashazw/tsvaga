@@ -246,7 +246,8 @@ module.exports = function buildRequestsRouter(io) {
          FROM requests
          WHERE status = 'open'
            AND ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1::numeric * 1000)
-         ORDER BY created_at DESC`,
+         ORDER BY created_at DESC
+         LIMIT 100`,
         [radius_km || 5]
       );
 

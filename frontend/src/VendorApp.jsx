@@ -97,7 +97,7 @@ export default function VendorApp() {
     const token = localStorage.getItem('tsvaga_token');
     const s = io(SOCKET_BASE, { auth: { token } });
     s.on('connect', () => s.emit('vendor:subscribe', vendor.id));
-    s.on('request:new', (alert) => setAlerts((prev) => [alert, ...prev].slice(0, 20)));
+    s.on('request:new', (alert) => setAlerts((prev) => [alert, ...prev].slice(0, 100)));
     s.on('order:new', (order) =>
       setOrders((prev) => (prev.some((o) => o.id === order.id) ? prev : [order, ...prev]))
     );
