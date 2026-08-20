@@ -32,6 +32,7 @@ export default function App() {
   const [order, setOrder] = useState(null);
   const [socket, setSocket] = useState(null);
   const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured'
+  const [mapOpenOverride, setMapOpenOverride] = useState(null); // null = use the smart default below
 
   // On load, if there's a stored token, verify it actually belongs to a real
   // account (rather than just assuming any token present means "logged in") -
@@ -178,6 +179,12 @@ export default function App() {
     );
   }
 
+  // Collapsed by default once a specific address has been confirmed (via
+  // search) or a request is already active - saves space once the pin no
+  // longer needs adjusting. Open by default for a fresh visit still sitting
+  // on the default pin. Always freely toggleable afterward either way.
+  const mapOpen = mapOpenOverride !== null ? mapOpenOverride : !(addressLabel || request);
+
   return (
    <div className="app-shell">
       <InstallPrompt appName="Tsvaga" iconSrc="/icons/icon-192.png" dismissKey="main" />
@@ -217,8 +224,25 @@ export default function App() {
 
       <main>
         <section className="map-section">
-          <AddressSearch onFound={handleAddressFound} placeholder="Where are you? Type street address / suburb (e.g. Borrowdale, Harare)" />
-          <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
+          <div className="category-accordion">
+            <button
+              type="button"
+              className="category-accordion-toggle"
+              onClick={() => setMapOpenOverride(!mapOpen)}
+            >
+              <span>📍 {addressLabel || 'Set your location'}</span>
+              <span>{mapOpen ? '▲ hide map' : '▼ adjust pin'}</span>
+            </button>
+            {mapOpen && (
+              <div className="category-accordion-body">
+                <AddressSearch
+                  onFound={handleAddressFound}
+                  placeholder="Where are you? Type street address / suburb (e.g. Borrowdale, Harare)"
+                />
+                <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="panel">
