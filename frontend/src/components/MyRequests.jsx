@@ -121,7 +121,7 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
             {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} · {new Date(r.created_at).toLocaleDateString()}
           </p>
           <p className="hint" style={{ margin: '2px 0 6px' }}>
-            {left <= 1 ? 'Expires from this list today' : `Visible for ${left} more day${left === 1 ? '' : 's'}`} unless renewed
+            {left <= 1 ? 'Leaves your history log today' : `On your history log for ${left} more day${left === 1 ? '' : 's'}`} unless renewed
           </p>
           {checked && (
             <div className="admin-actions">
