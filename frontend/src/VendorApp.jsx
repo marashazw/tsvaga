@@ -13,7 +13,6 @@ import VendorCategoryPreferences from './components/VendorCategoryPreferences.js
 import AdSlot from './components/AdSlot.jsx';
 import AdvertisingSection from './components/AdvertisingSection.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
-import AddressSearch from './components/AddressSearch.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications } from './push';
 import InstallPrompt from './components/InstallPrompt.jsx';
@@ -288,11 +287,12 @@ export default function VendorApp() {
               </button>
               {mapOpen && (
                 <div className="category-accordion-body">
-                  <AddressSearch
-                    onFound={handleAddressFound}
-                    placeholder="Where's your store? Type street address / suburb (e.g. Borrowdale, Harare)"
+                  <MapView
+                    requesterLocation={vendorLocation}
+                    onPickLocation={handlePickLocation}
+                    radiusKm={0}
+                    onAddressFound={handleAddressFound}
                   />
-                  <MapView requesterLocation={vendorLocation} onPickLocation={handlePickLocation} radiusKm={0} />
                   <p className="hint">Tap the map to set or update your store's pin.</p>
                 </div>
               )}

@@ -10,7 +10,6 @@ import AdSlot from './components/AdSlot.jsx';
 import AdvertisingSection from './components/AdvertisingSection.jsx';
 import MyRequests from './components/MyRequests.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
-import AddressSearch from './components/AddressSearch.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications } from './push';
 
@@ -237,11 +236,12 @@ export default function App() {
               </button>
               {mapOpen && (
                 <div className="category-accordion-body">
-                  <AddressSearch
-                    onFound={handleAddressFound}
-                    placeholder="Where are you? Type street address / suburb (e.g. Borrowdale, Harare)"
+                  <MapView
+                    requesterLocation={location}
+                    onPickLocation={handlePickLocation}
+                    radiusKm={radiusKm}
+                    onAddressFound={handleAddressFound}
                   />
-                  <MapView requesterLocation={location} onPickLocation={handlePickLocation} radiusKm={radiusKm} />
                 </div>
               )}
             </div>
