@@ -580,35 +580,44 @@ button.secondary {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* "You are here" marker - a blue GPS dot (Google Maps style) with a small
-   person badge above it, instead of Leaflet's generic default pin. */
-.user-location-marker { position: relative; }
-.user-location-dot {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 18px;
-  height: 18px;
-  background: #1a73e8;
-  border: 3px solid white;
-  border-radius: 50%;
-  box-shadow: 0 0 0 5px rgba(26, 115, 232, 0.25);
-}
+/* "You are here" marker - a dark badge with a person icon, floating above
+   the actual point via a thin stem, with a blue GPS dot (Google Maps style)
+   marking the real location - instead of Leaflet's generic default pin. */
+.user-location-marker { position: relative; width: 40px; height: 58px; }
 .user-location-badge {
   position: absolute;
-  top: -24px;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 16px;
-  background: white;
+  width: 28px;
+  height: 28px;
+  background: #1a1a2e;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.user-location-stem {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 14px;
+  background: #1a1a2e;
+}
+.user-location-dot {
+  position: absolute;
+  top: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  background: #1a73e8;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.25);
 }
 
 .install-banner-wrap {

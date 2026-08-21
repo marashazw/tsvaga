@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, ZoomControl, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { api, ZIMBABWE_CENTER } from '../api';
 
@@ -13,14 +13,19 @@ function ClickToSetLocation({ onPick }) {
   return null;
 }
 
-// A "you are here" style marker - a blue GPS dot with a small person badge
-// above it, instead of Leaflet's generic default pin.
+// A "you are here" style marker matching a dark badge with a person icon,
+// floating above the actual point via a thin stem, with a blue GPS dot at
+// the real location - instead of Leaflet's generic default pin.
+const personSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="white">
+  <circle cx="12" cy="7" r="4"/>
+  <path d="M12 13c-4.418 0-8 2.239-8 5v2h16v-2c0-2.761-3.582-5-8-5z"/>
+</svg>`;
 const userLocationIcon = L.divIcon({
   className: 'user-location-marker',
-  html: `<div class="user-location-dot"></div><div class="user-location-badge">🧍</div>`,
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-  popupAnchor: [0, -20],
+  html: `<div class="user-location-badge">${personSvg}</div><div class="user-location-stem"></div><div class="user-location-dot"></div>`,
+  iconSize: [40, 58],
+  iconAnchor: [20, 51],
+  popupAnchor: [0, -52],
 });
 
 export default function MapView({ requesterLocation, onPickLocation, radiusKm, vendors = [], onAddressFound }) {
@@ -96,8 +101,10 @@ export default function MapView({ requesterLocation, onPickLocation, radiusKm, v
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={requesterLocation ? 13 : 6}
+        zoomControl={false}
         style={{ height: '420px', width: '100%', borderRadius: '12px' }}
       >
+        <ZoomControl position="bottomright" />
         <TileLayer
           attribution='&copy; OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
