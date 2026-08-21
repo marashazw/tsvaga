@@ -114,8 +114,18 @@ export default function MapView({ requesterLocation, onPickLocation, radiusKm, v
 
         {requesterLocation && (
           <>
-            <Marker position={[requesterLocation.lat, requesterLocation.lng]} icon={userLocationIcon}>
-              <Popup>Your request location</Popup>
+            <Marker
+              position={[requesterLocation.lat, requesterLocation.lng]}
+              icon={userLocationIcon}
+              draggable={true}
+              eventHandlers={{
+                dragend: (e) => {
+                  const pos = e.target.getLatLng();
+                  onPickLocation({ lat: pos.lat, lng: pos.lng });
+                },
+              }}
+            >
+              <Popup>Drag me, or tap the map, to move your location</Popup>
             </Marker>
             <Circle
               center={[requesterLocation.lat, requesterLocation.lng]}

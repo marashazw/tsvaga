@@ -85,7 +85,13 @@ export default function App() {
 
   const handlePickLocation = useCallback((loc) => {
     setLocation(loc);
-    setAddressLabel(null); // a manual pin drop no longer matches any previously found address
+    // Auto-fill the address label from the new pin position, rather than
+    // leaving it blank until the person happens to type a search - this
+    // covers dragging the marker, tapping the map, or using GPS locate.
+    api
+      .get('/geocode/reverse', { params: { lat: loc.lat, lng: loc.lng } })
+      .then(({ data }) => setAddressLabel(data.display_name))
+      .catch(() => setAddressLabel(null)); // fine to just fall back to no label if the lookup fails
   }, []);
 
   function handleAddressFound({ lat, lng, label }) {

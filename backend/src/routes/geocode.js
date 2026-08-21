@@ -32,4 +32,33 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/geocode/reverse?lat=&lng=
+// The opposite direction: coordinates -> a human-readable address. Used to
+// auto-fill the address label whenever the pin is moved (drag, tap, or GPS)
+// instead of leaving it blank until someone types a search. Same
+// server-side-proxy reasoning as above.
+router.get('/reverse', async (req, res) => {
+  const { lat, lng } = req.query;
+  if (lat === undefined || lng === undefined) {
+    return res.status(400).json({ error: 'lat and lng are required' });
+  }
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(
+      lat
+    )}&lon=${encodeURIComponent(lng)}`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Tsvaga/1.0 (Zimbabwe local marketplace app)' },
+    });
+    if (!response.ok) throw new Error(`Nominatim responded with ${response.status}`);
+    const result = await response.json();
+    if (!result || result.error || !result.display_name) {
+      return res.status(404).json({ error: 'No address found for this location' });
+    }
+    res.json({ display_name: result.display_name });
+  } catch (err) {
+    console.error('Reverse geocode lookup failed:', err);
+    res.status(502).json({ error: 'Could not look up an address for this location' });
+  }
+});
+
 module.exports = router;

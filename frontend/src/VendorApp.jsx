@@ -135,8 +135,20 @@ export default function VendorApp() {
   }
 
   async function handlePickLocation(loc, addressLabel) {
-    await api.post('/vendors/me/location', { lng: loc.lng, lat: loc.lat, address_text: addressLabel || undefined });
-    setVendor((v) => ({ ...v, lng: loc.lng, lat: loc.lat, address_text: addressLabel || v.address_text }));
+    let label = addressLabel;
+    if (!label) {
+      // Came from a map click/drag rather than the search bar - look up a
+      // human-readable address for the new spot instead of leaving the old
+      // one stale (or blank for a brand-new vendor).
+      try {
+        const { data } = await api.get('/geocode/reverse', { params: { lat: loc.lat, lng: loc.lng } });
+        label = data.display_name;
+      } catch {
+        label = undefined; // fine to just keep whatever address was already saved
+      }
+    }
+    await api.post('/vendors/me/location', { lng: loc.lng, lat: loc.lat, address_text: label || undefined });
+    setVendor((v) => ({ ...v, lng: loc.lng, lat: loc.lat, address_text: label || v.address_text }));
     loadNearbyRequests({ lng: loc.lng, lat: loc.lat });
   }
 
