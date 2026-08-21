@@ -2,5 +2,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "tsvaga-sigma.vercel.app" }],
+      "destination": "https://tsvaga.app/$1",
+      "permanent": true
+    }
+  ]
 }
