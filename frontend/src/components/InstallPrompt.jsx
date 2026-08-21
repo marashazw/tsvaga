@@ -59,17 +59,25 @@ export default function InstallPrompt({ appName, iconSrc }) {
   if (!visible) return null;
 
   return (
-    <div className="install-banner">
-      <img src={iconSrc} alt="" className="install-banner-icon" />
-      <strong className="install-banner-title">Install {appName}</strong>
-      {showIOSInstructions ? (
-        <span className="install-banner-ios-hint">Share → Add to Home Screen</span>
-      ) : (
-        <button onClick={handleInstall}>Install</button>
+    <div className="install-banner-wrap">
+      <div className="install-banner">
+        <img src={iconSrc} alt="" className="install-banner-icon" />
+        <strong className="install-banner-title">Install {appName}</strong>
+        {showIOSInstructions ? (
+          <span className="install-banner-ios-hint">Share → Add to Home Screen</span>
+        ) : (
+          <button onClick={handleInstall}>Install</button>
+        )}
+        <button className="install-banner-close" onClick={dismiss} aria-label="Dismiss">
+          ✕
+        </button>
+      </div>
+      {!showIOSInstructions && (
+        <p className="install-banner-note">
+          If you see a security warning, tap "More details", "Install anyway" — the app is safe, just not on
+          Play Store yet.
+        </p>
       )}
-      <button className="install-banner-close" onClick={dismiss} aria-label="Dismiss">
-        ✕
-      </button>
     </div>
   );
 }
