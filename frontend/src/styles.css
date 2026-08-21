@@ -173,6 +173,16 @@ main {
   body { padding: 8px 0; }
   .app-shell { padding: 12px; margin: 0 8px; border-radius: 14px; }
   header h1 { font-size: 1.7rem; }
+  .header-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .header-actions button {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
   .map-section .leaflet-container { height: 260px !important; }
 }
 
