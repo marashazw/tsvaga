@@ -1,10 +1,8 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "REPLACE_WITH_YOUR_PACKAGE_NAME",
-      "sha256_cert_fingerprints": ["REPLACE_WITH_YOUR_SHA256_FINGERPRINT"]
-    }
-  }
-]
+   [{
+         "relation": ["delegate_permission/common.handle_all_urls"],
+         "target": {
+           "namespace": "android_app",
+           "package_name": "app.tsvaga.twa",
+           "sha256_cert_fingerprints": ["64:C0:69:E5:33:C6:CE:3B:FC:CD:AF:F2:CA:B0:15:65:0C:64:6F:A9:2D:0B:E8:59:48:BB:11:FA:D9:06:A2:4C"]
+         }
+       }]
