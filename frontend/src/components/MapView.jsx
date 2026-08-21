@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, ZoomControl, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, Circle, ZoomControl, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { api, ZIMBABWE_CENTER } from '../api';
 
@@ -78,7 +78,7 @@ export default function MapView({ requesterLocation, onPickLocation, radiusKm, v
         <form onSubmit={handleSearch} className="map-search-bar">
           <input
             type="text"
-            placeholder="Type a street address / suburb…"
+            placeholder="Drag pin on map or Type street address…"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
@@ -125,6 +125,7 @@ export default function MapView({ requesterLocation, onPickLocation, radiusKm, v
                 },
               }}
             >
+              <Tooltip direction="top" offset={[0, -30]}>Drag to your location</Tooltip>
               <Popup>Drag me, or tap the map, to move your location</Popup>
             </Marker>
             <Circle
