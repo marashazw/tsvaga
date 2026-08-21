@@ -1,6 +1,15 @@
 const express = require('express');
 const router = express.Router();
 
+// Nominatim's display_name is a full chain like "6 Drummond Road, Greendale,
+// Harare, Harare Province, Zimbabwe" - most of that (suburb/town/province/
+// country) isn't useful in a short location label, so we just keep the
+// first, most specific segment (the street-level part).
+function shortenAddress(displayName) {
+  if (!displayName) return displayName;
+  return displayName.split(',')[0].trim();
+}
+
 // GET /api/geocode?q=<address text>
 // Thin server-side proxy to OpenStreetMap's free Nominatim geocoder,
 // restricted to Zimbabwe. Kept on the backend (rather than called directly
@@ -25,7 +34,7 @@ router.get('/', async (req, res) => {
       return res.status(404).json({ error: "Couldn't find that address in Zimbabwe - try a nearby landmark or suburb, or drop the pin manually." });
     }
     const top = results[0];
-    res.json({ lat: parseFloat(top.lat), lng: parseFloat(top.lon), display_name: top.display_name });
+    res.json({ lat: parseFloat(top.lat), lng: parseFloat(top.lon), display_name: shortenAddress(top.display_name) });
   } catch (err) {
     console.error('Geocode lookup failed:', err);
     res.status(502).json({ error: 'Address lookup failed - try again, or drop the pin manually.' });
@@ -54,7 +63,7 @@ router.get('/reverse', async (req, res) => {
     if (!result || result.error || !result.display_name) {
       return res.status(404).json({ error: 'No address found for this location' });
     }
-    res.json({ display_name: result.display_name });
+    res.json({ display_name: shortenAddress(result.display_name) });
   } catch (err) {
     console.error('Reverse geocode lookup failed:', err);
     res.status(502).json({ error: 'Could not look up an address for this location' });
