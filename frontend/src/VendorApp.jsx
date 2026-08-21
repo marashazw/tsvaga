@@ -13,6 +13,7 @@ import VendorCategoryPreferences from './components/VendorCategoryPreferences.js
 import AdSlot from './components/AdSlot.jsx';
 import AdvertisingSection from './components/AdvertisingSection.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
+import DeleteAccountLink from './components/DeleteAccountLink.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications } from './push';
 import InstallPrompt from './components/InstallPrompt.jsx';
@@ -249,6 +250,7 @@ export default function VendorApp() {
           )}
           <button className="secondary" onClick={handleLogout}>Sign out</button>
         </div>
+        <DeleteAccountLink onDeleted={handleLogout} />
       </header>
 
       <VendorTodoList orders={orders} />

@@ -10,6 +10,7 @@ import AdSlot from './components/AdSlot.jsx';
 import AdvertisingSection from './components/AdvertisingSection.jsx';
 import MyRequests from './components/MyRequests.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
+import DeleteAccountLink from './components/DeleteAccountLink.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications } from './push';
 
@@ -215,6 +216,7 @@ export default function App() {
           )}
           <button className="secondary" onClick={handleLogout}>Sign out</button>
         </div>
+        <DeleteAccountLink onDeleted={handleLogout} />
       </header>
 
       {pushStatus === 'granted' && (

@@ -160,4 +160,104 @@ router.get('/me', require('../middleware/auth').requireAuth, async (req, res) =>
   }
 });
 
+// Shared by both deletion endpoints below - scrubs identity beyond recovery
+// rather than a literal row delete (see the longer explanation on the public
+// endpoint further down for why).
+async function anonymizeAccount(client, user) {
+  if (user.role === 'vendor' || user.role === 'both') {
+    await client.query(
+      `UPDATE vendors SET business_name = 'Deleted vendor', is_online = false WHERE id = $1`,
+      [user.id]
+    );
+  }
+  const deadPasswordHash = await bcrypt.hash(require('crypto').randomUUID(), 10);
+  await client.query(
+    `UPDATE users SET name = 'Deleted user', phone = $2, password_hash = $3 WHERE id = $1`,
+    [user.id, `deleted-${user.id}`, deadPasswordHash]
+  );
+  await client.query('DELETE FROM push_subscriptions WHERE user_id = $1', [user.id]);
+}
+
+// DELETE /api/auth/me  { password }
+// The in-app "Delete my account" flow - already signed in, just re-confirms
+// the password as a safety check before doing something irreversible.
+router.delete('/me', require('../middleware/auth').requireAuth, async (req, res) => {
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: 'Please enter your password to confirm' });
+  let client;
+  try {
+    client = await pool.connect();
+    const result = await client.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'Account not found' });
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Incorrect password' });
+    if (user.role === 'admin') {
+      return res.status(403).json({ error: 'Admin accounts cannot be self-deleted - contact support' });
+    }
+
+    await client.query('BEGIN');
+    await anonymizeAccount(client, user);
+    await client.query('COMMIT');
+    res.json({ deleted: true });
+  } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete account - please try again' });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+// POST /api/auth/delete-account  { phone, password }
+//
+// Public (no auth token required) so someone can delete their account from a
+// plain web page even without the app installed or being logged in -
+// satisfying Google Play's account deletion requirement (in-app path + web
+// path). Identity is verified the same way as login: phone + password.
+//
+// This ANONYMIZES rather than hard-deletes the row. A literal DELETE would
+// violate foreign key constraints the moment this person has any order or
+// review history (orders.request_id has no ON DELETE CASCADE, deliberately -
+// see the schema notes), and just as importantly, the other party to a past
+// order has a legitimate interest in that transaction record still existing.
+// Instead: name/phone/password are scrubbed beyond recovery (phone is
+// replaced with a unique dead value, password with an unguessable hash, so
+// the account can never be logged into or matched by phone again), any
+// vendor profile is taken offline and its business name scrubbed too, and
+// all push subscriptions are removed outright. This is disclosed in the
+// privacy policy as the retention approach for historical transaction data.
+router.post('/delete-account', async (req, res) => {
+  const { phone, password } = req.body;
+  if (!phone || !password) {
+    return res.status(400).json({ error: 'phone and password are required' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    const result = await client.query('SELECT * FROM users WHERE phone = $1', [phone]);
+    const user = result.rows[0];
+    if (!user) return res.status(401).json({ error: 'Invalid phone number or password' });
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid phone number or password' });
+
+    if (user.role === 'admin') {
+      return res.status(403).json({ error: 'Admin accounts cannot be self-deleted - contact support' });
+    }
+
+    await client.query('BEGIN');
+    await anonymizeAccount(client, user);
+    await client.query('COMMIT');
+    res.json({ deleted: true });
+  } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete account - please try again' });
+  } finally {
+    if (client) client.release();
+  }
+});
+
 module.exports = router;

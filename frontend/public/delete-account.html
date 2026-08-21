@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Delete your Tsvaga account</title>
+<style>
+  :root { --clay: #b5562f; --forest: #2f6f4f; --ink: #2b241b; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #e7dbc2;
+    color: var(--ink);
+  }
+  .card {
+    max-width: 420px;
+    margin: 40px auto;
+    background: #fffdf7;
+    border: 1px solid #ddcda6;
+    border-radius: 18px;
+    padding: 28px 24px;
+    box-shadow: 0 6px 22px rgba(43, 36, 27, 0.10);
+  }
+  h1 { color: var(--forest); font-size: 1.5rem; margin-top: 0; }
+  p { color: #6b5f4f; line-height: 1.5; }
+  label { display: block; margin-bottom: 14px; font-size: 0.9rem; font-weight: 600; }
+  input {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px 12px;
+    border: 1px solid #d8cdb9;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+  button {
+    background: var(--clay);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 6px;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .warning {
+    background: #fdf0ea;
+    border: 1px solid #f0c9b0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    margin-bottom: 18px;
+  }
+  .result { margin-top: 16px; font-size: 0.9rem; }
+  .result.success { color: var(--forest); }
+  .result.error { color: #a03c3c; }
+  .confirm-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 16px; font-size: 0.85rem; }
+  .confirm-row input { width: auto; margin: 2px 0 0; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Delete your Tsvaga account</h1>
+    <p>Enter the phone number and password for the account you want to delete. This works even if you no longer have the app installed.</p>
+    <div class="warning">
+      This permanently removes your name, phone number, and password from Tsvaga - you will never be able to log in again, and this cannot be undone. Past orders and reviews stay on record (with your details removed) since the other party has a legitimate need to keep that history, exactly as described in our
+      <a href="/privacy.html">privacy policy</a>.
+    </div>
+    <form id="deleteForm">
+      <label>
+        Phone number
+        <input type="text" id="phone" placeholder="+263 7..." required />
+      </label>
+      <label>
+        Password
+        <input type="password" id="password" required />
+      </label>
+      <div class="confirm-row">
+        <input type="checkbox" id="confirmCheck" required />
+        <label for="confirmCheck" style="margin:0; font-weight:400;">I understand this is permanent and cannot be undone.</label>
+      </div>
+      <button type="submit" id="submitBtn">Delete my account</button>
+    </form>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.hostname === 'localhost'
+      ? 'http://localhost:4000/api'
+      : 'https://tsvaga-production.up.railway.app/api';
+
+    const form = document.getElementById('deleteForm');
+    const resultEl = document.getElementById('result');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const phone = document.getElementById('phone').value.trim();
+      const password = document.getElementById('password').value;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Deleting…';
+      resultEl.textContent = '';
+      resultEl.className = 'result';
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/delete-account`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Something went wrong');
+
+        resultEl.textContent = 'Your account has been deleted. You can close this page.';
+        resultEl.className = 'result success';
+        form.style.display = 'none';
+      } catch (err) {
+        resultEl.textContent = err.message || 'Failed to delete account - please try again.';
+        resultEl.className = 'result error';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Delete my account';
+      }
+    });
+  </script>
+</body>
+</html>
