@@ -1,31 +1,14 @@
-import React, { useState } from 'react';
-import { api } from '../api';
+import React from 'react';
+import { HELP_CENTER_URL } from '../helpCenter.js';
 
-export default function SubscriptionPanel({ subscriptionInfo, onSubmitted }) {
-  const [amount, setAmount] = useState(subscriptionInfo?.price || '');
-  const [reference, setReference] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-
+// No payment form lives here anymore - see helpCenter.js for why. This
+// component only ever shows STATUS (paid up or not) and links out to the
+// separate Help Center site to actually pay/manage the subscription.
+export default function SubscriptionPanel({ subscriptionInfo }) {
   if (!subscriptionInfo) return null;
-  const { subscription, price, currency, ecocash_number } = subscriptionInfo;
+  const { subscription, price, currency } = subscriptionInfo;
   const isPaidUp = subscription.status === 'waived' ||
     (subscription.status === 'active' && subscription.expires_at && new Date(subscription.expires_at) > new Date());
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      await api.post('/vendors/me/payment-submissions', {
-        amount: Number(amount),
-        ecocash_reference: reference || undefined,
-      });
-      setSubmitted(true);
-      onSubmitted?.();
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   if (isPaidUp) {
     const isTrial = subscription.status === 'active' && subscription.note && subscription.note.toLowerCase().includes('trial');
@@ -47,6 +30,9 @@ export default function SubscriptionPanel({ subscriptionInfo, onSubmitted }) {
             You'll be able to pay to continue once this trial ends — we'll remind you a few days before it expires.
           </p>
         )}
+        <p className="hint" style={{ margin: '8px 0 0' }}>
+          <a href={HELP_CENTER_URL} target="_blank" rel="noopener noreferrer">Manage your subscription</a>
+        </p>
       </div>
     );
   }
@@ -55,34 +41,11 @@ export default function SubscriptionPanel({ subscriptionInfo, onSubmitted }) {
     <div className="panel subscription-panel unpaid">
       <h3 style={{ marginTop: 0 }}>Subscribe to respond to requests</h3>
       <p className="hint">
-        A subscription costs <strong>${Number(price).toFixed(2)} {currency}/month</strong>. Send payment via{' '}
-        <strong>EcoCash to {ecocash_number}</strong>, then confirm below — an admin will activate your account
-        once they've verified it.
+        A subscription costs <strong>${Number(price).toFixed(2)} {currency}/month</strong>.
       </p>
-
-      {submitted ? (
-        <p className="badge status-confirmed">Payment submitted — awaiting admin approval.</p>
-      ) : (
-        <form onSubmit={handleSubmit} className="inventory-form">
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Amount paid ($)"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
-          <input
-            type="text"
-            placeholder="EcoCash reference (optional)"
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-          />
-          <button type="submit" disabled={submitting}>
-            {submitting ? 'Submitting…' : "I've paid — confirm"}
-          </button>
-        </form>
-      )}
+      <a href={HELP_CENTER_URL} target="_blank" rel="noopener noreferrer">
+        <button type="button">Manage subscription on our website</button>
+      </a>
     </div>
   );
 }

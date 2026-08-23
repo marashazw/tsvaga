@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
-import AdvertiseForm from './AdvertiseForm.jsx';
+import { HELP_CENTER_URL } from '../helpCenter.js';
 
 function statusInfo(ad) {
   if (ad.status === 'active') {
@@ -18,27 +18,15 @@ function statusInfo(ad) {
   return { label: ad.status, cls: '' };
 }
 
+// The actual ad-purchase form has moved to the separate Help Center site -
+// see helpCenter.js for why. This just shows the status of any existing ads
+// and links out for creating/renewing one.
 export default function AdvertisingSection() {
   const [myAds, setMyAds] = useState([]);
-  const [renewingAd, setRenewingAd] = useState(null);
-
-  async function loadMyAds() {
-    try {
-      const { data } = await api.get('/ads/me');
-      setMyAds(data);
-    } catch {
-      // not a big deal if this fails silently - the "Advertise with us" button still works
-    }
-  }
 
   useEffect(() => {
-    loadMyAds();
+    api.get('/ads/me').then(({ data }) => setMyAds(data)).catch(() => {});
   }, []);
-
-  function handleRenewed() {
-    setRenewingAd(null);
-    loadMyAds();
-  }
 
   return (
     <div>
@@ -54,24 +42,15 @@ export default function AdvertisingSection() {
                     <strong>{ad.title}</strong>
                     <span className={`badge ${info.cls}`}>{info.label}</span>
                   </div>
-                  {ad.status === 'expired' && (
-                    <>
-                      <p className="hint">This ad has expired. Pay to renew and keep it running.</p>
-                      <button onClick={() => setRenewingAd(ad)}>Renew this ad</button>
-                    </>
-                  )}
                 </li>
               );
             })}
           </ul>
         </div>
       )}
-
-      {renewingAd ? (
-        <AdvertiseForm key={renewingAd.id} prefill={renewingAd} onSubmitted={handleRenewed} />
-      ) : (
-        <AdvertiseForm onSubmitted={loadMyAds} />
-      )}
+      <a href={HELP_CENTER_URL} target="_blank" rel="noopener noreferrer" className="link-btn">
+        📢 Advertise with us
+      </a>
     </div>
   );
 }
