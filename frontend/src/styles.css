@@ -339,6 +339,18 @@ button.secondary {
 .review-summary { padding: 10px; background: #f7f1e3; border-radius: 8px; }
 .error { color: #a03c3c; font-size: 0.9rem; }
 
+.billing-status-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 780px) {
+  .billing-status-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .auth-panel { max-width: 420px; margin: 40px auto 0; }
 @media (max-width: 780px) {
   .auth-panel { margin-top: 16px; }

@@ -36,6 +36,8 @@ export default function VendorApp() {
   const [nameInput, setNameInput] = useState('');
   const [mapOpenOverride, setMapOpenOverride] = useState(null); // null = use the smart default below
   const [reviewsOpen, setReviewsOpen] = useState(false);
+  const [subOpen, setSubOpen] = useState(false);
+  const [priorityOpen, setPriorityOpen] = useState(false);
 
   const loadSubscription = useCallback(async () => {
     const { data } = await api.get('/vendors/me/subscription');
@@ -263,13 +265,38 @@ export default function VendorApp() {
         <p className="hint">Push isn't configured on this server yet (missing VAPID keys).</p>
       )}
 
-      <section style={{ marginBottom: 20 }}>
-        <SubscriptionPanel subscriptionInfo={subscriptionInfo} onSubmitted={loadSubscription} />
-      </section>
+      <div className="billing-status-row">
+        <div className="category-accordion">
+          <button type="button" className="category-accordion-toggle" onClick={() => setSubOpen((o) => !o)}>
+            <span>💳 {(() => {
+              if (!subscriptionInfo) return 'Subscription';
+              const sub = subscriptionInfo.subscription;
+              const paidUp = sub.status === 'waived' ||
+                (sub.status === 'active' && sub.expires_at && new Date(sub.expires_at) > new Date());
+              if (!paidUp) return 'Not subscribed';
+              return sub.status === 'waived' ? 'Waived' : `Active until ${new Date(sub.expires_at).toLocaleDateString()}`;
+            })()}</span>
+            <span>{subOpen ? '▲' : '▼'}</span>
+          </button>
+          {subOpen && (
+            <div className="category-accordion-body">
+              <SubscriptionPanel subscriptionInfo={subscriptionInfo} onSubmitted={loadSubscription} />
+            </div>
+          )}
+        </div>
 
-      <section style={{ marginBottom: 20 }}>
-        <PriorityPanel subscriptionInfo={subscriptionInfo} />
-      </section>
+        <div className="category-accordion">
+          <button type="button" className="category-accordion-toggle" onClick={() => setPriorityOpen((o) => !o)}>
+            <span>⭐ Priority ranking</span>
+            <span>{priorityOpen ? '▲' : '▼'}</span>
+          </button>
+          {priorityOpen && (
+            <div className="category-accordion-body">
+              <PriorityPanel subscriptionInfo={subscriptionInfo} />
+            </div>
+          )}
+        </div>
+      </div>
 
       <section style={{ marginBottom: 20 }}>
         <VendorCategoryPreferences />
