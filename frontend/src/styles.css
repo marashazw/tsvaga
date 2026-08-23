@@ -342,6 +342,7 @@ button.secondary {
 .billing-status-row {
   display: flex;
   justify-content: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 20px;
