@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tsvaga Help Center — Manage your account</title>
+<style>
+  :root { --clay: #b5562f; --forest: #2f6f4f; --ink: #2b241b; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 60px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #e7dbc2;
+    color: var(--ink);
+  }
+  .wrap { max-width: 480px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 20px; }
+  header h1 { color: var(--forest); font-size: 1.6rem; margin-bottom: 4px; }
+  header p { color: #6b5f4f; font-size: 0.9rem; margin-top: 0; }
+  .panel {
+    background: #fffdf7;
+    border: 1px solid #ddcda6;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 14px rgba(43, 36, 27, 0.08);
+  }
+  .panel h2 { margin-top: 0; font-size: 1.1rem; color: var(--ink); }
+  label { display: block; margin-bottom: 14px; font-size: 0.9rem; font-weight: 600; }
+  input, select {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px 12px;
+    border: 1px solid #d8cdb9;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+  }
+  button {
+    background: var(--clay);
+    color: white;
+    border: none;
+    padding: 11px 18px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary { background: transparent; color: var(--forest); border: 1px solid var(--forest); }
+  .hint { color: #7a6f5c; font-size: 0.85rem; line-height: 1.5; }
+  .error { color: #a03c3c; font-size: 0.9rem; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
+  .badge.ok { background: #dff2e6; color: var(--forest); }
+  .badge.pending { background: #fff2df; color: #a6721c; }
+  .badge.off { background: #f2e0e0; color: #8a3b3b; }
+  .top-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  .hidden { display: none; }
+  .ad-list-item { border: 1px solid #e7ddc9; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Tsvaga Help Center</h1>
+    <p>Manage your subscription, priority ranking, and ads here — separately from the app.</p>
+  </header>
+
+  <!-- LOGIN -->
+  <div id="loginPanel" class="panel">
+    <h2>Sign in</h2>
+    <form id="loginForm">
+      <label>
+        Phone number
+        <input type="text" id="loginPhone" placeholder="+263 7..." required />
+      </label>
+      <label>
+        Password
+        <input type="password" id="loginPassword" required />
+      </label>
+      <div id="loginError" class="error"></div>
+      <button type="submit" id="loginBtn">Sign in</button>
+    </form>
+  </div>
+
+  <!-- DASHBOARD (hidden until logged in) -->
+  <div id="dashboard" class="hidden">
+    <div class="top-bar">
+      <button class="secondary" id="logoutBtn">Sign out</button>
+    </div>
+
+    <div class="panel">
+      <h2>💳 Subscription</h2>
+      <div id="subStatus" class="hint">Loading…</div>
+      <div id="subFormWrap"></div>
+    </div>
+
+    <div class="panel">
+      <h2>⭐ Priority ranking</h2>
+      <div id="priorityStatus" class="hint">Loading…</div>
+      <div id="priorityFormWrap"></div>
+    </div>
+
+    <div class="panel">
+      <h2>📢 Advertise</h2>
+      <div id="myAdsWrap"></div>
+      <div id="adFormWrap"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:4000/api'
+  : 'https://tsvaga-production.up.railway.app/api';
+
+const TOKEN_KEY = 'tsvaga_help_token';
+
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
+function clearToken() { localStorage.removeItem(TOKEN_KEY); }
+
+async function api(path, options = {}) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Something went wrong');
+  return data;
+}
+
+// ---------- LOGIN ----------
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const phone = document.getElementById('loginPhone').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  try {
+    const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ phone, password }) });
+    setToken(data.token);
+    showDashboard();
+  } catch (err) {
+    errEl.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  clearToken();
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('loginPanel').classList.remove('hidden');
+});
+
+function showDashboard() {
+  document.getElementById('loginPanel').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  loadSubscription();
+  loadPriority();
+  loadAds();
+}
+
+// ---------- SUBSCRIPTION ----------
+async function loadSubscription() {
+  const statusEl = document.getElementById('subStatus');
+  const formWrap = document.getElementById('subFormWrap');
+  try {
+    const data = await api('/vendors/me/subscription');
+    const { subscription, price, currency, ecocash_number } = data;
+    const isPaidUp = subscription.status === 'waived' ||
+      (subscription.status === 'active' && subscription.expires_at && new Date(subscription.expires_at) > new Date());
+
+    if (isPaidUp) {
+      const label = subscription.status === 'waived'
+        ? 'Waived by admin — unlimited access'
+        : `Active until ${new Date(subscription.expires_at).toLocaleDateString()}`;
+      statusEl.innerHTML = `<span class="badge ok">${label}</span>`;
+      formWrap.innerHTML = '';
+      return;
+    }
+
+    statusEl.innerHTML = `<span class="badge off">Not subscribed</span>`;
+    formWrap.innerHTML = `
+      <p class="hint">A subscription costs <strong>$${Number(price).toFixed(2)} ${currency}/month</strong>.
+      Send payment via <strong>EcoCash to ${ecocash_number}</strong>, then confirm below.</p>
+      <form id="subForm">
+        <label>Amount paid ($)
+          <input type="number" step="0.01" id="subAmount" value="${price}" required />
+        </label>
+        <label>EcoCash reference (optional)
+          <input type="text" id="subReference" />
+        </label>
+        <div class="error" id="subError"></div>
+        <button type="submit" id="subSubmitBtn">I've paid — confirm</button>
+      </form>
+    `;
+    document.getElementById('subForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('subSubmitBtn');
+      const errEl = document.getElementById('subError');
+      btn.disabled = true;
+      btn.textContent = 'Submitting…';
+      try {
+        await api('/vendors/me/payment-submissions', {
+          method: 'POST',
+          body: JSON.stringify({
+            amount: Number(document.getElementById('subAmount').value),
+            ecocash_reference: document.getElementById('subReference').value || undefined,
+          }),
+        });
+        formWrap.innerHTML = '<p class="badge pending">Payment submitted — awaiting admin approval.</p>';
+      } catch (err) {
+        errEl.textContent = err.message;
+        btn.disabled = false;
+        btn.textContent = "I've paid — confirm";
+      }
+    });
+  } catch (err) {
+    statusEl.innerHTML = `<span class="error">${err.message}</span>`;
+  }
+}
+
+// ---------- PRIORITY ----------
+async function loadPriority() {
+  const statusEl = document.getElementById('priorityStatus');
+  const formWrap = document.getElementById('priorityFormWrap');
+  try {
+    const sub = await api('/vendors/me/subscription');
+    const hasActiveSubscription = sub.subscription.status === 'waived' ||
+      (sub.subscription.status === 'active' && sub.subscription.expires_at && new Date(sub.subscription.expires_at) > new Date());
+
+    const info = await api('/vendors/me/priority');
+    const { current, packages, ecocash_number } = info;
+    const isBoosted = current.priority_score > 0 && current.priority_expires_at && new Date(current.priority_expires_at) > new Date();
+
+    statusEl.innerHTML = isBoosted
+      ? `<span class="badge ok">Boosted until ${new Date(current.priority_expires_at).toLocaleDateString()}</span>`
+      : `<span class="hint">Your offers currently rank by price alone.</span>`;
+
+    if (!hasActiveSubscription) {
+      formWrap.innerHTML = '<p class="badge off">Subscribe first before buying a priority boost.</p>';
+      return;
+    }
+
+    const options = packages.map((p) => `<option value="${p.id}" data-price="${p.price}">${p.name} — $${Number(p.price).toFixed(2)} / ${p.duration_days} days</option>`).join('');
+    formWrap.innerHTML = `
+      <form id="priorityForm">
+        <label>Choose a package
+          <select id="prioritySelect" required>
+            <option value="">Choose a package…</option>
+            ${options}
+          </select>
+        </label>
+        <p class="hint" id="priorityPriceHint"></p>
+        <label>EcoCash reference (optional)
+          <input type="text" id="priorityReference" />
+        </label>
+        <div class="error" id="priorityError"></div>
+        <button type="submit" id="prioritySubmitBtn">I've paid — confirm</button>
+      </form>
+    `;
+    const select = document.getElementById('prioritySelect');
+    select.addEventListener('change', () => {
+      const opt = select.options[select.selectedIndex];
+      const price = opt.dataset.price;
+      document.getElementById('priorityPriceHint').textContent = price
+        ? `Send $${Number(price).toFixed(2)} via EcoCash to ${ecocash_number}, then submit below.`
+        : '';
+    });
+    document.getElementById('priorityForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const opt = select.options[select.selectedIndex];
+      const btn = document.getElementById('prioritySubmitBtn');
+      const errEl = document.getElementById('priorityError');
+      if (!opt.value) return;
+      btn.disabled = true;
+      btn.textContent = 'Submitting…';
+      try {
+        await api('/vendors/me/priority-submissions', {
+          method: 'POST',
+          body: JSON.stringify({
+            package_id: opt.value,
+            amount: Number(opt.dataset.price),
+            ecocash_reference: document.getElementById('priorityReference').value || undefined,
+          }),
+        });
+        formWrap.innerHTML = '<p class="badge pending">Payment submitted — awaiting admin approval.</p>';
+      } catch (err) {
+        errEl.textContent = err.message;
+        btn.disabled = false;
+        btn.textContent = "I've paid — confirm";
+      }
+    });
+  } catch (err) {
+    statusEl.innerHTML = `<span class="error">${err.message}</span>`;
+  }
+}
+
+// ---------- ADS ----------
+async function loadAds() {
+  const myAdsWrap = document.getElementById('myAdsWrap');
+  const adFormWrap = document.getElementById('adFormWrap');
+  try {
+    const myAds = await api('/ads/me');
+    if (myAds.length) {
+      myAdsWrap.innerHTML = '<h3 style="font-size:0.95rem;">My ads</h3>' + myAds.map((ad) => {
+        const label = ad.status === 'active' ? `Running until ${new Date(ad.ends_at).toLocaleDateString()}`
+          : ad.status === 'pending' ? 'Awaiting admin approval'
+          : ad.status === 'rejected' ? 'Rejected'
+          : ad.status === 'expired' ? `Expired ${new Date(ad.ends_at).toLocaleDateString()}`
+          : ad.status;
+        const cls = ad.status === 'active' ? 'ok' : ad.status === 'pending' ? 'pending' : 'off';
+        return `<div class="ad-list-item"><strong>${ad.title}</strong><br/><span class="badge ${cls}">${label}</span></div>`;
+      }).join('');
+    }
+
+    const pricing = await api('/ads/pricing');
+    renderAdForm(adFormWrap, pricing);
+  } catch (err) {
+    adFormWrap.innerHTML = `<span class="error">${err.message}</span>`;
+  }
+}
+
+function renderAdForm(container, pricing) {
+  container.innerHTML = `
+    <form id="adForm">
+      <label>Ad type
+        <select id="adType">
+          <option value="text">Text / image</option>
+          <option value="video">Video (you host the file/link)</option>
+        </select>
+      </label>
+      <label>Title
+        <input type="text" id="adTitle" maxlength="100" required />
+      </label>
+      <label>Description (optional)
+        <input type="text" id="adBody" maxlength="300" />
+      </label>
+      <label id="adImageWrap">Image URL (optional)
+        <input type="text" id="adImageUrl" maxlength="500" />
+      </label>
+      <label id="adVideoWrap" class="hidden">Video URL (direct file link)
+        <input type="text" id="adVideoUrl" maxlength="500" />
+      </label>
+      <label>Click-through link (optional)
+        <input type="text" id="adLinkUrl" placeholder="https://..." maxlength="500" />
+      </label>
+      <label>WhatsApp contact number (optional)
+        <input type="text" id="adWhatsapp" placeholder="+263 7..." maxlength="20" />
+      </label>
+      <label>Run for how many days?
+        <input type="number" id="adDuration" min="1" value="7" required />
+      </label>
+      <p class="hint" id="adPriceHint"></p>
+      <label>EcoCash reference (optional)
+        <input type="text" id="adReference" />
+      </label>
+      <div class="error" id="adError"></div>
+      <button type="submit" id="adSubmitBtn">I've paid — submit ad</button>
+    </form>
+  `;
+
+  function updatePriceHint() {
+    const days = Number(document.getElementById('adDuration').value || 0);
+    const cost = (Number(pricing.ad_price_per_day) * days).toFixed(2);
+    document.getElementById('adPriceHint').textContent =
+      `$${pricing.ad_price_per_day}/day × ${days} days = $${cost}. Send via EcoCash to ${pricing.ecocash_number}, then submit below.`;
+  }
+  document.getElementById('adDuration').addEventListener('input', updatePriceHint);
+  updatePriceHint();
+
+  document.getElementById('adType').addEventListener('change', (e) => {
+    const isVideo = e.target.value === 'video';
+    document.getElementById('adVideoWrap').classList.toggle('hidden', !isVideo);
+    document.getElementById('adImageWrap').classList.toggle('hidden', isVideo);
+  });
+
+  document.getElementById('adForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('adSubmitBtn');
+    const errEl = document.getElementById('adError');
+    const adType = document.getElementById('adType').value;
+    const days = Number(document.getElementById('adDuration').value);
+    const cost = (Number(pricing.ad_price_per_day) * days).toFixed(2);
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+    try {
+      await api('/ads', {
+        method: 'POST',
+        body: JSON.stringify({
+          ad_type: adType,
+          title: document.getElementById('adTitle').value,
+          body: document.getElementById('adBody').value || undefined,
+          video_url: adType === 'video' ? document.getElementById('adVideoUrl').value : undefined,
+          image_url: adType === 'text' ? document.getElementById('adImageUrl').value || undefined : undefined,
+          link_url: document.getElementById('adLinkUrl').value || undefined,
+          whatsapp_number: document.getElementById('adWhatsapp').value || undefined,
+          duration_days: days,
+          amount: Number(cost),
+          ecocash_reference: document.getElementById('adReference').value || undefined,
+        }),
+      });
+      container.innerHTML = '<p class="badge pending">Ad submitted — awaiting admin approval.</p>';
+    } catch (err) {
+      errEl.textContent = err.message;
+      btn.disabled = false;
+      btn.textContent = "I've paid — submit ad";
+    }
+  });
+}
+
+// ---------- INIT ----------
+if (getToken()) {
+  showDashboard();
+}
+</script>
+</body>
+</html>
