@@ -268,7 +268,15 @@ export default function VendorApp() {
       <div className="billing-status-row">
         <div className="category-accordion">
           <button type="button" className="category-accordion-toggle" onClick={() => setSubOpen((o) => !o)}>
-            <span>💳 View subscription status</span>
+            <span>💳 {(() => {
+              if (!subscriptionInfo) return 'View subscription status';
+              const sub = subscriptionInfo.subscription;
+              if (sub.status !== 'active' || !sub.expires_at) return 'View subscription status';
+              const daysLeft = Math.ceil((new Date(sub.expires_at) - new Date()) / (24 * 60 * 60 * 1000));
+              if (daysLeft <= 0) return 'Subscription has expired';
+              if (daysLeft <= 7) return 'Subscription expiring soon';
+              return 'View subscription status';
+            })()}</span>
           </button>
           {subOpen && (
             <div className="category-accordion-body">
