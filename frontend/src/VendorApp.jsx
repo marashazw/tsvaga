@@ -268,15 +268,7 @@ export default function VendorApp() {
       <div className="billing-status-row">
         <div className="category-accordion">
           <button type="button" className="category-accordion-toggle" onClick={() => setSubOpen((o) => !o)}>
-            <span>💳 {(() => {
-              if (!subscriptionInfo) return 'Subscription';
-              const sub = subscriptionInfo.subscription;
-              const paidUp = sub.status === 'waived' ||
-                (sub.status === 'active' && sub.expires_at && new Date(sub.expires_at) > new Date());
-              if (!paidUp) return 'Not subscribed';
-              return sub.status === 'waived' ? 'Waived' : `Active until ${new Date(sub.expires_at).toLocaleDateString()}`;
-            })()}</span>
-            <span>{subOpen ? '▲' : '▼'}</span>
+            <span>💳 View subscription status</span>
           </button>
           {subOpen && (
             <div className="category-accordion-body">
@@ -287,8 +279,7 @@ export default function VendorApp() {
 
         <div className="category-accordion">
           <button type="button" className="category-accordion-toggle" onClick={() => setPriorityOpen((o) => !o)}>
-            <span>⭐ Priority ranking</span>
-            <span>{priorityOpen ? '▲' : '▼'}</span>
+            <span>⭐ Become priority</span>
           </button>
           {priorityOpen && (
             <div className="category-accordion-body">

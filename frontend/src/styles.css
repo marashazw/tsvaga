@@ -340,15 +340,14 @@ button.secondary {
 .error { color: #a03c3c; font-size: 0.9rem; }
 
 .billing-status-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 20px;
 }
-@media (max-width: 780px) {
-  .billing-status-row {
-    grid-template-columns: 1fr;
-  }
+.billing-status-row .category-accordion {
+  flex: 0 1 220px;
 }
 
 .auth-panel { max-width: 420px; margin: 40px auto 0; }
