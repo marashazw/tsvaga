@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { api } from '../api';
 
 function isIOS() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
@@ -12,6 +13,14 @@ export default function InstallPrompt({ appName, iconSrc }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [visible, setVisible] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+  const [adminEnabled, setAdminEnabled] = useState(true); // assume on until we hear otherwise
+
+  useEffect(() => {
+    api
+      .get('/admin/public-settings')
+      .then(({ data }) => setAdminEnabled(data.install_prompt_enabled !== false))
+      .catch(() => {}); // fail open - keep showing it rather than fail closed on a network hiccup
+  }, []);
 
   useEffect(() => {
     if (isStandalone()) return; // already installed - nothing to show
@@ -56,7 +65,7 @@ export default function InstallPrompt({ appName, iconSrc }) {
     setVisible(false);
   }
 
-  if (!visible) return null;
+  if (!visible || !adminEnabled) return null;
 
   return (
     <div className="install-banner-wrap">

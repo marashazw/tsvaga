@@ -31,6 +31,7 @@ export default function App() {
   const [offers, setOffers] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState(null);
+  const [hasRequestHistory, setHasRequestHistory] = useState(false);
   const [socket, setSocket] = useState(null);
   const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured'
   const [mapOpenOverride, setMapOpenOverride] = useState(null); // null = use the smart default below
@@ -67,6 +68,14 @@ export default function App() {
     const s = io(SOCKET_BASE, { auth: { token } });
     setSocket(s);
     return () => s.disconnect();
+  }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
+    api
+      .get('/requests/me')
+      .then(({ data }) => setHasRequestHistory(data.length > 0))
+      .catch(() => {});
   }, [authed]);
 
   useEffect(() => {
@@ -253,21 +262,31 @@ export default function App() {
             </div>
           </section>
 
-          <div className="my-requests-area">
+          <div className="my-requests-area" id="my-requests-section">
             <MyRequests />
           </div>
         </div>
 
         <section className="panel request-form-section">
           {!request ? (
-            <RequestForm
-              location={location}
-              addressLabel={addressLabel}
-              radiusKm={radiusKm}
-              onRadiusChange={setRadiusKm}
-              onSubmit={handleSubmitRequest}
-              submitting={submitting}
-            />
+            <>
+              {hasRequestHistory && (
+                <a
+                  href="#my-requests-section"
+                  style={{ display: 'block', marginBottom: 10, color: 'var(--clay)', fontWeight: 600 }}
+                >
+                  View my requests
+                </a>
+              )}
+              <RequestForm
+                location={location}
+                addressLabel={addressLabel}
+                radiusKm={radiusKm}
+                onRadiusChange={setRadiusKm}
+                onSubmit={handleSubmitRequest}
+                submitting={submitting}
+              />
+            </>
           ) : order ? (
             <>
               <OrderTracker order={order} socket={socket} currentUserId={user.id} />

@@ -230,6 +230,11 @@ CREATE TABLE platform_settings (
   -- phone number can only ever receive this once (see vendor_trial_usage).
   auto_waive_new_vendors BOOLEAN NOT NULL DEFAULT false,
   auto_waive_days INT NOT NULL DEFAULT 30,
+  -- Lets an admin hide the "Install Tsvaga" banner (and its security-warning
+  -- explainer note) platform-wide, e.g. once the app is on the Play Store
+  -- and the PWA install prompt is no longer needed, or if it's causing more
+  -- confusion than it's worth for now.
+  install_prompt_enabled BOOLEAN NOT NULL DEFAULT true,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 INSERT INTO platform_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;

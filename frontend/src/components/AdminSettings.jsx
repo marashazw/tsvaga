@@ -8,6 +8,7 @@ export default function AdminSettings({ settings, onUpdated }) {
   const [maxAds, setMaxAds] = useState(settings.max_active_ads);
   const [autoWaive, setAutoWaive] = useState(settings.auto_waive_new_vendors);
   const [autoWaiveDays, setAutoWaiveDays] = useState(settings.auto_waive_days);
+  const [installPromptEnabled, setInstallPromptEnabled] = useState(settings.install_prompt_enabled);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -23,6 +24,7 @@ export default function AdminSettings({ settings, onUpdated }) {
         max_active_ads: Number(maxAds),
         auto_waive_new_vendors: autoWaive,
         auto_waive_days: Number(autoWaiveDays),
+        install_prompt_enabled: installPromptEnabled,
       });
       onUpdated(data);
       setSaved(true);
@@ -61,6 +63,14 @@ export default function AdminSettings({ settings, onUpdated }) {
             <input type="number" min="1" value={autoWaiveDays} onChange={(e) => setAutoWaiveDays(e.target.value)} />
           </label>
         )}
+        <label className="radio-label">
+          <input
+            type="checkbox"
+            checked={installPromptEnabled}
+            onChange={(e) => setInstallPromptEnabled(e.target.checked)}
+          />
+          Show the "Install Tsvaga" banner to users
+        </label>
         <button type="submit" disabled={saving}>
           {saving ? 'Saving…' : 'Save settings'}
         </button>

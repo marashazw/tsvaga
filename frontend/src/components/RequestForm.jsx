@@ -105,7 +105,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
         <input
           type="range"
           min="1"
-          max="25"
+          max="60"
           value={radiusKm}
           onChange={(e) => onRadiusChange(Number(e.target.value))}
         />

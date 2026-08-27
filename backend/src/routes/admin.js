@@ -4,6 +4,22 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { getSettings } = require('../utils/subscription');
 
 const router = express.Router();
+
+// GET /api/admin/public-settings - deliberately placed BEFORE the
+// requireAuth/requireAdmin middleware below, so it's reachable by anyone,
+// including a signed-out visitor on the login screen (that's exactly where
+// the install prompt needs to check this). Only exposes the one flag it's
+// safe for anyone to see - never mix in pricing/EcoCash details here.
+router.get('/public-settings', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT install_prompt_enabled FROM platform_settings WHERE id = 1');
+    res.json(rows[0] || { install_prompt_enabled: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ install_prompt_enabled: true }); // fail open - never block the app over this
+  }
+});
+
 router.use(requireAuth, requireAdmin);
 
 // Same caps as the public ad submission endpoint - an admin editing an ad
@@ -22,7 +38,7 @@ router.get('/settings', async (req, res) => {
   res.json(rows[0]);
 });
 
-// PATCH /api/admin/settings  { subscription_price?, subscription_currency?, ecocash_number?, ad_price_per_day?, max_active_ads?, auto_waive_new_vendors?, auto_waive_days? }
+// PATCH /api/admin/settings  { subscription_price?, subscription_currency?, ecocash_number?, ad_price_per_day?, max_active_ads?, auto_waive_new_vendors?, auto_waive_days?, install_prompt_enabled? }
 router.patch('/settings', async (req, res) => {
   const {
     subscription_price,
@@ -32,6 +48,7 @@ router.patch('/settings', async (req, res) => {
     max_active_ads,
     auto_waive_new_vendors,
     auto_waive_days,
+    install_prompt_enabled,
   } = req.body;
   try {
     const { rows } = await pool.query(
@@ -43,6 +60,7 @@ router.patch('/settings', async (req, res) => {
          max_active_ads = COALESCE($5, max_active_ads),
          auto_waive_new_vendors = COALESCE($6, auto_waive_new_vendors),
          auto_waive_days = COALESCE($7, auto_waive_days),
+         install_prompt_enabled = COALESCE($8, install_prompt_enabled),
          updated_at = now()
        WHERE id = 1
        RETURNING *`,
@@ -54,6 +72,7 @@ router.patch('/settings', async (req, res) => {
         max_active_ads ?? null,
         auto_waive_new_vendors ?? null,
         auto_waive_days ?? null,
+        install_prompt_enabled ?? null,
       ]
     );
     res.json(rows[0]);
