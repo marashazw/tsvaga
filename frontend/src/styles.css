@@ -114,6 +114,10 @@ main {
   gap: 8px;
   grid-column: 1;
   grid-row: 1;
+  min-width: 0;
+}
+.requester-left-stack > * {
+  min-width: 0;
 }
 .request-form-section {
   grid-column: 2;
@@ -162,20 +166,20 @@ main {
   .requester-left-stack {
     display: contents;
   }
-  main .map-section { order: 1; }
-  .request-form-section { grid-column: auto; grid-row: auto; order: 2; }
-  .my-requests-area { order: 3; }
+  main .map-section { order: 1; min-width: 0; }
+  .request-form-section { grid-column: auto; grid-row: auto; order: 2; min-width: 0; }
+  .my-requests-area { order: 3; min-width: 0; }
   .vendor-main {
     grid-template-columns: 1fr;
   }
   .vendor-left-stack {
     display: contents;
   }
-  .vendor-main .map-section { order: 1; }
-  .vendor-requests-section { grid-column: auto; grid-row: auto; order: 2; }
-  .vendor-orders-section { order: 3; }
-  .vendor-inventory-section { order: 4; }
-  .vendor-reviews-section { order: 5; }
+  .vendor-main .map-section { order: 1; min-width: 0; }
+  .vendor-requests-section { grid-column: auto; grid-row: auto; order: 2; min-width: 0; }
+  .vendor-orders-section { order: 3; min-width: 0; }
+  .vendor-inventory-section { order: 4; min-width: 0; }
+  .vendor-reviews-section { order: 5; min-width: 0; }
   body { padding: 8px 0; }
   .app-shell { padding: 12px; margin: 0 8px; border-radius: 14px; }
   header h1 { font-size: 1.7rem; }
