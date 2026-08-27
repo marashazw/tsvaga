@@ -339,18 +339,6 @@ button.secondary {
 .review-summary { padding: 10px; background: #f7f1e3; border-radius: 8px; }
 .error { color: #a03c3c; font-size: 0.9rem; }
 
-.billing-status-row {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.billing-status-row .category-accordion {
-  flex: 0 1 220px;
-}
-
 .auth-panel { max-width: 420px; margin: 40px auto 0; }
 @media (max-width: 780px) {
   .auth-panel { margin-top: 16px; }
@@ -653,4 +641,17 @@ button.secondary {
   text-align: center;
   max-width: 320px;
   margin: 4px 0 14px;
+}
+
+/* Base checkbox contrast improvement, app-wide - clay border makes them
+   visible against the cream background instead of blending in as thin
+   default browser outlines. Anything more specific (like .category-checkbox
+   in categories.css) can still override this per-context. */
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--clay);
+  border-radius: 4px;
+  accent-color: var(--forest);
+  cursor: pointer;
 }

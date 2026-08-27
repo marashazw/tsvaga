@@ -42,7 +42,7 @@ CREATE TABLE vendors (
   -- is broadcast to every nearby vendor regardless of this list.
   notify_categories TEXT[] NOT NULL DEFAULT ARRAY[
     'groceries','electronics','clothing','hardware','health','automotive',
-    'home','beauty','stationery','baby_kids','sports','miscellaneous'
+    'home','beauty','stationery','baby_kids','sports','garden','leisure','miscellaneous'
   ],
   -- How this vendor decides which nearby requests to be alerted about:
   --   'categories'                - match on notify_categories only (default)

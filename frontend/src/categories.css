@@ -20,6 +20,16 @@
   cursor: pointer;
   color: var(--ink);
 }
+.category-accordion-toggle span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.category-accordion-toggle span:last-child {
+  flex-shrink: 0;
+}
 .category-accordion-body {
   padding: 10px 12px 14px;
   border-top: 1px solid #ecdfc0;
@@ -31,15 +41,19 @@
   gap: 8px;
   padding: 5px 0;
   font-size: 0.9rem;
-  font-weight: 400;
+  font-weight: 500;
+  color: var(--ink);
   cursor: pointer;
 }
 .category-checkbox input[type="checkbox"] {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   margin: 0;
   accent-color: var(--forest);
+  border: 2px solid var(--clay);
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 html { scroll-behavior: smooth; }

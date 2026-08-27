@@ -15,6 +15,8 @@ const CATEGORIES = [
   'stationery',
   'baby_kids',
   'sports',
+  'garden',
+  'leisure',
   'miscellaneous',
 ];
 
