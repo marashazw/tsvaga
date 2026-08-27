@@ -7,11 +7,13 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
   const [fulfillmentType, setFulfillmentType] = useState('delivery');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [recipientName, setRecipientName] = useState('');
-  const [recipientPhone, setRecipientPhone] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('+263 ');
 
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categoriesTouched, setCategoriesTouched] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   // Auto-suggest as they type, but only until the requester manually adjusts
   // the selection themselves - once touched, typing more shouldn't silently
@@ -37,7 +39,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       fulfillment_type: fulfillmentType,
       delivery_address_text: fulfillmentType === 'delivery' ? deliveryAddress : undefined,
       recipient_name: recipientName || undefined,
-      recipient_phone: recipientPhone || undefined,
+      recipient_phone: recipientPhone.trim() && recipientPhone.trim() !== '+263' ? recipientPhone.trim() : undefined,
       categories: selectedCategories.length ? selectedCategories : ['miscellaneous'],
     });
   }
@@ -134,44 +136,62 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       </fieldset>
 
       {fulfillmentType === 'delivery' && (
-        <label>
-          Delivery address / landmark (if different from your map pin)
-          <input
-            type="text"
-            placeholder="e.g. 12 Second Street, near the blue gate"
-            value={deliveryAddress}
-            onChange={(e) => setDeliveryAddress(e.target.value)}
-          />
-          <span className="hint" style={{ display: 'block', marginTop: 4 }}>
-            Leave blank to deliver to the pin you dropped on the map.
-          </span>
-        </label>
+        <div className="category-accordion">
+          <button
+            type="button"
+            className="category-accordion-toggle"
+            onClick={() => setDeliveryAddressOpen((o) => !o)}
+          >
+            <span>Delivery address / landmark (if different from your map pin)</span>
+          </button>
+          {deliveryAddressOpen && (
+            <div className="category-accordion-body">
+              <input
+                type="text"
+                placeholder="e.g. 12 Second Street, near the blue gate"
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+              />
+              <span className="hint" style={{ display: 'block', marginTop: 4 }}>
+                Leave blank to deliver to the pin you dropped on the map.
+              </span>
+            </div>
+          )}
+        </div>
       )}
 
-      <fieldset className="fulfillment-choice">
-        <legend>Contact for {fulfillmentType === 'pickup' ? 'collection' : 'delivery'} (optional)</legend>
-        <label>
-          Recipient name (if not you)
-          <input
-            type="text"
-            placeholder="e.g. Tendai (if collecting/receiving on your behalf)"
-            value={recipientName}
-            onChange={(e) => setRecipientName(e.target.value)}
-          />
-        </label>
-        <label>
-          Contact phone (if different from your account)
-          <input
-            type="text"
-            placeholder="+263 7..."
-            value={recipientPhone}
-            onChange={(e) => setRecipientPhone(e.target.value)}
-          />
-        </label>
-        <span className="hint" style={{ display: 'block' }}>
-          Leave blank and the vendor will use your account phone number.
-        </span>
-      </fieldset>
+      {fulfillmentType === 'delivery' && (
+        <div className="category-accordion">
+          <button type="button" className="category-accordion-toggle" onClick={() => setContactOpen((o) => !o)}>
+            <span>Contact for delivery (optional)</span>
+          </button>
+          {contactOpen && (
+            <div className="category-accordion-body">
+              <label>
+                Recipient name (if not you)
+                <input
+                  type="text"
+                  placeholder="e.g. Tendai (if collecting/receiving on your behalf)"
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                />
+              </label>
+              <label>
+                Contact phone (if different from your account)
+                <input
+                  type="text"
+                  placeholder="+263 7..."
+                  value={recipientPhone}
+                  onChange={(e) => setRecipientPhone(e.target.value)}
+                />
+              </label>
+              <span className="hint" style={{ display: 'block' }}>
+                Leave blank and the vendor will use your account phone number.
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <p className="hint">
         {location

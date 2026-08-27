@@ -122,11 +122,6 @@ export default function IncomingRequests({ alerts, respondedIds, offerIdsByReque
                       ? `🚚 Deliver to: ${a.delivery_address_text}`
                       : '🚚 Deliver to their pinned location'}
                 </p>
-                {(a.recipient_name || a.recipient_phone) && (
-                  <p className="hint">
-                    📞 {a.recipient_name || 'Contact'}{a.recipient_phone ? `: ${a.recipient_phone}` : ''}
-                  </p>
-                )}
                 {respondedIds.has(a.request_id) ? (
                   <SentOfferChat
                     offerId={offerIdsByRequest[a.request_id]}

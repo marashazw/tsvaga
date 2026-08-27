@@ -87,6 +87,9 @@ module.exports = function buildRequestsRouter(io) {
     // Fan out real-time alerts to each matched vendor's room. Vendors without
     // an active subscription get a teaser (distance only, no product/address)
     // so they know something's nearby but must subscribe to see and respond.
+    // Recipient contact info is withheld here entirely, even from paid-up
+    // vendors - it's only revealed once their offer is actually accepted,
+    // via GET /vendors/me/orders (which already includes it).
     matches.rows.forEach((vendor) => {
       const paidUp = paidVendorIds.has(vendor.id);
       io.to(`vendor:${vendor.id}`).emit('request:new', {
@@ -96,8 +99,8 @@ module.exports = function buildRequestsRouter(io) {
         address_text: paidUp ? request.address_text : null,
         fulfillment_type: request.fulfillment_type,
         delivery_address_text: paidUp ? request.delivery_address_text : null,
-        recipient_name: paidUp ? request.recipient_name : null,
-        recipient_phone: paidUp ? request.recipient_phone : null,
+        recipient_name: null,
+        recipient_phone: null,
         distance_m: Math.round(vendor.distance_m),
         expires_at: request.expires_at,
         subscription_required: !paidUp,
@@ -363,6 +366,14 @@ module.exports = function buildRequestsRouter(io) {
         });
       }
 
+      // A vendor viewer only sees recipient contact info if THEIR OWN offer
+      // on this request was the one accepted - not just for being paid up.
+      const hasAcceptedOffer = isVendorViewer && offers.rows.some((o) => o.vendor_id === req.user.id && o.status === 'accepted');
+      if (isVendorViewer && !hasAcceptedOffer) {
+        res.json({ request: { ...requestRow, recipient_name: null, recipient_phone: null }, offers: offers.rows });
+        return;
+      }
+
       res.json({ request: requestRow, offers: offers.rows });
     } catch (err) {
       console.error(err);
@@ -388,7 +399,11 @@ module.exports = function buildRequestsRouter(io) {
       );
 
       const paidUp = req.user.role === 'admin' || (await isVendorPaidUp(req.user.id));
-      if (paidUp) return res.json(result.rows);
+      if (paidUp) {
+        // Recipient contact info is withheld even here - only revealed once
+        // an offer is actually accepted, via GET /vendors/me/orders.
+        return res.json(result.rows.map((r) => ({ ...r, recipient_name: null, recipient_phone: null })));
+      }
 
       // Unpaid vendor: teaser only - distance, expiry, and fulfillment type
       // (delivery vs pickup is safe to reveal on its own), no product/address.
