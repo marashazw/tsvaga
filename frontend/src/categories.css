@@ -34,9 +34,18 @@
   padding: 10px 12px 14px;
   border-top: 1px solid #ecdfc0;
   background: #fffefb;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
-.category-checkbox {
-  display: flex;
+.category-accordion-body p {
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+.category-checkbox,
+.request-form .category-checkbox,
+.request-form label.category-checkbox {
+  display: flex !important;
   align-items: center;
   gap: 8px;
   padding: 5px 0;
@@ -44,16 +53,20 @@
   font-weight: 500;
   color: var(--ink);
   cursor: pointer;
+  max-width: 100%;
 }
 .category-checkbox span {
   flex: 1;
   min-width: 0;
+  overflow-wrap: break-word;
 }
-.category-checkbox input[type="checkbox"] {
+.category-checkbox input[type="checkbox"],
+.category-checkbox input[type="radio"] {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
   margin: 0;
+  box-sizing: border-box;
   accent-color: var(--forest);
   border: 2px solid var(--clay);
   border-radius: 4px;
