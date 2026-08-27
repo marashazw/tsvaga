@@ -8,6 +8,11 @@
 
 * { box-sizing: border-box; }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   margin: 0;
   padding: 16px 0;
@@ -18,6 +23,7 @@ body {
 
 .app-shell {
   max-width: 960px;
+  width: 100%;
   margin: 0 auto;
   padding: 18px;
   background: #fffdf7;
@@ -565,6 +571,8 @@ button.secondary {
   border-radius: 0;
   padding: 0 16px;
   margin: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .map-locate-btn {
   background: white;
