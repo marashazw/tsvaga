@@ -12,7 +12,7 @@ import MyRequests from './components/MyRequests.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
 import DeleteAccountLink from './components/DeleteAccountLink.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
-import { enablePushNotifications } from './push';
+import { enablePushNotifications, checkExistingPushStatus } from './push';
 
 const SOCKET_BASE = import.meta.env.VITE_SOCKET_BASE || 'http://localhost:4000';
 
@@ -61,6 +61,12 @@ export default function App() {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    checkExistingPushStatus().then((status) => {
+      if (status) setPushStatus(status);
+    });
+  }, []);
 
   useEffect(() => {
     if (!authed) return;

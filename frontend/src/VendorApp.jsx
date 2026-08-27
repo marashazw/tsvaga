@@ -15,7 +15,7 @@ import AdvertisingSection from './components/AdvertisingSection.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
 import DeleteAccountLink from './components/DeleteAccountLink.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
-import { enablePushNotifications } from './push';
+import { enablePushNotifications, checkExistingPushStatus } from './push';
 import InstallPrompt from './components/InstallPrompt.jsx';
 const SOCKET_BASE = import.meta.env.VITE_SOCKET_BASE || 'http://localhost:4000';
 
@@ -36,8 +36,6 @@ export default function VendorApp() {
   const [nameInput, setNameInput] = useState('');
   const [mapOpenOverride, setMapOpenOverride] = useState(null); // null = use the smart default below
   const [reviewsOpen, setReviewsOpen] = useState(false);
-  const [subOpen, setSubOpen] = useState(false);
-  const [priorityOpen, setPriorityOpen] = useState(false);
 
   const loadSubscription = useCallback(async () => {
     const { data } = await api.get('/vendors/me/subscription');
@@ -95,6 +93,12 @@ export default function VendorApp() {
     if (token) loadProfile();
     else setLoading(false);
   }, [loadProfile]);
+
+  useEffect(() => {
+    checkExistingPushStatus().then((status) => {
+      if (status) setPushStatus(status);
+    });
+  }, []);
 
   // Connect socket once we know who we are, and subscribe to our vendor room.
   useEffect(() => {
@@ -265,37 +269,13 @@ export default function VendorApp() {
         <p className="hint">Push isn't configured on this server yet (missing VAPID keys).</p>
       )}
 
-      <div className="billing-status-row">
-        <div className="category-accordion">
-          <button type="button" className="category-accordion-toggle" onClick={() => setSubOpen((o) => !o)}>
-            <span>💳 {(() => {
-              if (!subscriptionInfo) return 'View subscription status';
-              const sub = subscriptionInfo.subscription;
-              if (sub.status !== 'active' || !sub.expires_at) return 'View subscription status';
-              const daysLeft = Math.ceil((new Date(sub.expires_at) - new Date()) / (24 * 60 * 60 * 1000));
-              if (daysLeft <= 0) return 'Subscription has expired';
-              if (daysLeft <= 7) return 'Subscription expiring soon';
-              return 'View subscription status';
-            })()}</span>
-          </button>
-          {subOpen && (
-            <div className="category-accordion-body">
-              <SubscriptionPanel subscriptionInfo={subscriptionInfo} onSubmitted={loadSubscription} />
-            </div>
-          )}
-        </div>
+      <section style={{ marginBottom: 20 }}>
+        <SubscriptionPanel subscriptionInfo={subscriptionInfo} onSubmitted={loadSubscription} />
+      </section>
 
-        <div className="category-accordion">
-          <button type="button" className="category-accordion-toggle" onClick={() => setPriorityOpen((o) => !o)}>
-            <span>⭐ Become priority</span>
-          </button>
-          {priorityOpen && (
-            <div className="category-accordion-body">
-              <PriorityPanel subscriptionInfo={subscriptionInfo} />
-            </div>
-          )}
-        </div>
-      </div>
+      <section style={{ marginBottom: 20 }}>
+        <PriorityPanel subscriptionInfo={subscriptionInfo} />
+      </section>
 
       <section style={{ marginBottom: 20 }}>
         <VendorCategoryPreferences />
