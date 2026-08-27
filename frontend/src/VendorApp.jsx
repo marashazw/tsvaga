@@ -14,6 +14,7 @@ import AdSlot from './components/AdSlot.jsx';
 import AdvertisingSection from './components/AdvertisingSection.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
 import DeleteAccountLink from './components/DeleteAccountLink.jsx';
+import NotificationPrimer from './components/NotificationPrimer.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications, checkExistingPushStatus } from './push';
 import InstallPrompt from './components/InstallPrompt.jsx';
@@ -29,6 +30,8 @@ export default function VendorApp() {
   const [orders, setOrders] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured'
+  const [showNotificationPrimer, setShowNotificationPrimer] = useState(false);
+  const [primingConfirming, setPrimingConfirming] = useState(false);
   const [paywallNotice, setPaywallNotice] = useState(null);
   const [socket, setSocket] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -178,8 +181,11 @@ export default function VendorApp() {
   }
 
   async function handleEnablePush() {
+    setPrimingConfirming(true);
     const result = await enablePushNotifications();
     setPushStatus(result);
+    setPrimingConfirming(false);
+    setShowNotificationPrimer(false);
   }
 
   function handleLogout() {
@@ -249,7 +255,7 @@ export default function VendorApp() {
           )}
           {pushStatus !== 'granted' && (
             <span className="notify-glow">
-              <button className="notify-btn" onClick={handleEnablePush}>
+              <button className="notify-btn" onClick={() => setShowNotificationPrimer(true)}>
                 Enable notifications
               </button>
             </span>
@@ -258,6 +264,15 @@ export default function VendorApp() {
       </header>
 
       <VendorTodoList orders={orders} />
+
+      {showNotificationPrimer && (
+        <NotificationPrimer
+          message="Get notified the instant a new request comes in nearby — even when the app is closed."
+          onConfirm={handleEnablePush}
+          onDismiss={() => setShowNotificationPrimer(false)}
+          confirming={primingConfirming}
+        />
+      )}
 
       {pushStatus === 'granted' && (
         <p className="hint">Push notifications on — you'll be alerted even if this tab is closed.</p>

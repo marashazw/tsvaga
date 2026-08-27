@@ -11,6 +11,7 @@ import AdvertisingSection from './components/AdvertisingSection.jsx';
 import MyRequests from './components/MyRequests.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
 import DeleteAccountLink from './components/DeleteAccountLink.jsx';
+import NotificationPrimer from './components/NotificationPrimer.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications, checkExistingPushStatus } from './push';
 
@@ -34,6 +35,8 @@ export default function App() {
   const [hasRequestHistory, setHasRequestHistory] = useState(false);
   const [socket, setSocket] = useState(null);
   const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured'
+  const [showNotificationPrimer, setShowNotificationPrimer] = useState(false);
+  const [primingConfirming, setPrimingConfirming] = useState(false);
   const [mapOpenOverride, setMapOpenOverride] = useState(null); // null = use the smart default below
 
   // On load, if there's a stored token, verify it actually belongs to a real
@@ -121,8 +124,11 @@ export default function App() {
   }
 
   async function handleEnablePush() {
+    setPrimingConfirming(true);
     const result = await enablePushNotifications();
     setPushStatus(result);
+    setPrimingConfirming(false);
+    setShowNotificationPrimer(false);
   }
 
   function handleLogout() {
@@ -224,13 +230,22 @@ export default function App() {
           )}
           {pushStatus !== 'granted' && (
             <span className="notify-glow">
-              <button className="notify-btn" onClick={handleEnablePush}>
+              <button className="notify-btn" onClick={() => setShowNotificationPrimer(true)}>
                 Enable notifications
               </button>
             </span>
           )}
         </div>
       </header>
+
+      {showNotificationPrimer && (
+        <NotificationPrimer
+          message="Get notified the instant a nearby vendor responds to your request — even when the app is closed."
+          onConfirm={handleEnablePush}
+          onDismiss={() => setShowNotificationPrimer(false)}
+          confirming={primingConfirming}
+        />
+      )}
 
       {pushStatus === 'granted' && (
         <p className="hint" style={{ textAlign: 'center' }}>
