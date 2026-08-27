@@ -93,7 +93,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
                   checked={selectedCategories.includes(c.slug)}
                   onChange={() => toggleCategory(c.slug)}
                 />
-                {c.label}
+                <span>{c.label}</span>
               </label>
             ))}
           </div>

@@ -100,7 +100,7 @@ export default function VendorCategoryPreferences() {
                 checked={mode === m.value}
                 onChange={() => chooseMode(m.value)}
               />
-              {m.label}
+              <span>{m.label}</span>
             </label>
           ))}
 
@@ -157,7 +157,7 @@ export default function VendorCategoryPreferences() {
                 onChange={() => toggle(c.slug)}
                 disabled={categoriesDisabled}
               />
-              {c.label}
+              <span>{c.label}</span>
             </label>
           ))}
           {error && <p className="error">{error}</p>}

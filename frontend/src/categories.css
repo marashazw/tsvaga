@@ -45,6 +45,10 @@
   color: var(--ink);
   cursor: pointer;
 }
+.category-checkbox span {
+  flex: 1;
+  min-width: 0;
+}
 .category-checkbox input[type="checkbox"] {
   flex-shrink: 0;
   width: 18px;
