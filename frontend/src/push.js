@@ -49,18 +49,21 @@ export async function enablePushNotifications() {
 // Checks whether push is ALREADY enabled from a previous visit, so the app
 // doesn't ask again every time someone opens it. Returns 'granted',
 // 'denied', 'unsupported', or null (genuinely undecided - show the button).
+//
+// Deliberately checks ONLY Notification.permission, not the actual
+// PushManager subscription - looking up the subscription requires waiting
+// on navigator.serviceWorker.ready, which on a plain page refresh may not
+// have finished re-activating yet, causing this check to wrongly report "no
+// subscription" even though one genuinely exists (this was the actual cause
+// of the button reappearing specifically on refresh, but not on a full app
+// close/reopen where the service worker had more time to settle).
+// Notification.permission itself is a plain, synchronous browser property -
+// no such race condition possible.
 export async function checkExistingPushStatus() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return 'unsupported';
   }
   if (Notification.permission === 'denied') return 'denied';
-  if (Notification.permission !== 'granted') return null;
-
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    return subscription ? 'granted' : null;
-  } catch {
-    return null;
-  }
+  if (Notification.permission === 'granted') return 'granted';
+  return null;
 }
