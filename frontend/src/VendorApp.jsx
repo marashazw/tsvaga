@@ -16,7 +16,7 @@ import OnlineCount from './components/OnlineCount.jsx';
 import DeleteAccountLink from './components/DeleteAccountLink.jsx';
 import NotificationPrimer from './components/NotificationPrimer.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
-import { enablePushNotifications, checkExistingPushStatus } from './push';
+import { enablePushNotifications, checkExistingPushStatus, getLastPushErrorMessage } from './push';
 import InstallPrompt from './components/InstallPrompt.jsx';
 const SOCKET_BASE = import.meta.env.VITE_SOCKET_BASE || 'http://localhost:4000';
 
@@ -29,7 +29,8 @@ export default function VendorApp() {
   const [offerIdsByRequest, setOfferIdsByRequest] = useState({});
   const [orders, setOrders] = useState([]);
   const [reviews, setReviews] = useState([]);
-  const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured'
+  const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured' | 'error'
+  const [pushErrorMessage, setPushErrorMessage] = useState(null);
   const [showNotificationPrimer, setShowNotificationPrimer] = useState(false);
   const [primingConfirming, setPrimingConfirming] = useState(false);
   const [paywallNotice, setPaywallNotice] = useState(null);
@@ -210,9 +211,11 @@ export default function VendorApp() {
     try {
       const result = await enablePushNotifications();
       setPushStatus(result);
+      setPushErrorMessage(result === 'error' ? getLastPushErrorMessage() : null);
     } catch (err) {
       console.error('Unexpected error enabling push:', err);
-      setPushStatus('denied');
+      setPushStatus('error');
+      setPushErrorMessage(err?.message || String(err));
     } finally {
       setPrimingConfirming(false);
       setShowNotificationPrimer(false);
@@ -310,6 +313,12 @@ export default function VendorApp() {
       )}
       {pushStatus === 'denied' && (
         <p className="hint">Notifications were blocked in your browser — enable them in browser settings to use this.</p>
+      )}
+      {pushStatus === 'error' && (
+        <p className="hint" style={{ color: '#a03c3c' }}>
+          Something went wrong enabling notifications{pushErrorMessage ? `: ${pushErrorMessage}` : ''} — please try
+          again.
+        </p>
       )}
       {pushStatus === 'not-configured' && (
         <p className="hint">Push isn't configured on this server yet (missing VAPID keys).</p>

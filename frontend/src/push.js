@@ -17,7 +17,17 @@ function urlBase64ToUint8Array(base64String) {
 // prompt appearing twice on some Android browsers, since subscribe() can
 // independently decide to request permission again if it doesn't see the
 // prior grant as fully settled yet. Using subscribe() alone avoids that.
+// If enablePushNotifications() returns 'error', call this right after to
+// get the actual underlying error message - kept separate from the main
+// return value so every existing `pushStatus === 'granted'` style check
+// throughout the app keeps working unchanged (a string, not an object).
+let lastPushErrorMessage = null;
+export function getLastPushErrorMessage() {
+  return lastPushErrorMessage;
+}
+
 export async function enablePushNotifications() {
+  lastPushErrorMessage = null;
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return 'unsupported';
   }
@@ -38,16 +48,16 @@ export async function enablePushNotifications() {
     await api.post('/users/me/push-subscription', subscription.toJSON());
     return 'granted';
   } catch (err) {
-    // Whatever went wrong - the person declining, an already-blocked
-    // permission, a network hiccup fetching the key, a subscribe() failure -
-    // this function must always resolve to a status string, never throw.
-    // An uncaught rejection here would leave the "Enabling…" UI stuck
-    // forever, since nothing downstream would ever get the chance to clear
-    // that state. This was a real bug in the previous version (a bare
-    // `throw err;` for anything other than an outright denial), which is
-    // exactly what caused the primer to get stuck.
     console.error('Failed to enable push notifications:', err);
-    return 'denied';
+    // Only report "denied" if the browser's own permission state genuinely
+    // says so - anything else (a bad VAPID key, a network hiccup, a
+    // subscribe() failure unrelated to permission) is a real technical
+    // error, not the person having blocked notifications. Mislabeling it as
+    // "denied" sends people to check browser settings that are already
+    // correctly set, which is exactly what was happening here.
+    if (Notification.permission === 'denied') return 'denied';
+    lastPushErrorMessage = err?.message || String(err);
+    return 'error';
   }
 }
 

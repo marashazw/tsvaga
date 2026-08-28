@@ -13,7 +13,7 @@ import OnlineCount from './components/OnlineCount.jsx';
 import DeleteAccountLink from './components/DeleteAccountLink.jsx';
 import NotificationPrimer from './components/NotificationPrimer.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
-import { enablePushNotifications, checkExistingPushStatus } from './push';
+import { enablePushNotifications, checkExistingPushStatus, getLastPushErrorMessage } from './push';
 
 const SOCKET_BASE = import.meta.env.VITE_SOCKET_BASE || 'http://localhost:4000';
 
@@ -34,7 +34,8 @@ export default function App() {
   const [order, setOrder] = useState(null);
   const [hasRequestHistory, setHasRequestHistory] = useState(false);
   const [socket, setSocket] = useState(null);
-  const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured'
+  const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured' | 'error'
+  const [pushErrorMessage, setPushErrorMessage] = useState(null);
   const [showNotificationPrimer, setShowNotificationPrimer] = useState(false);
   const [primingConfirming, setPrimingConfirming] = useState(false);
   const [mapOpenOverride, setMapOpenOverride] = useState(null); // null = use the smart default below
@@ -166,9 +167,11 @@ export default function App() {
     try {
       const result = await enablePushNotifications();
       setPushStatus(result);
+      setPushErrorMessage(result === 'error' ? getLastPushErrorMessage() : null);
     } catch (err) {
       console.error('Unexpected error enabling push:', err);
-      setPushStatus('denied');
+      setPushStatus('error');
+      setPushErrorMessage(err?.message || String(err));
     } finally {
       setPrimingConfirming(false);
       setShowNotificationPrimer(false);
@@ -299,6 +302,12 @@ export default function App() {
       {pushStatus === 'denied' && (
         <p className="hint" style={{ textAlign: 'center' }}>
           Notifications were blocked in your browser — enable them in browser settings to use this.
+        </p>
+      )}
+      {pushStatus === 'error' && (
+        <p className="hint" style={{ textAlign: 'center', color: '#a03c3c' }}>
+          Something went wrong enabling notifications{pushErrorMessage ? `: ${pushErrorMessage}` : ''} — please try
+          again.
         </p>
       )}
 
