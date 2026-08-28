@@ -22,28 +22,33 @@ export async function enablePushNotifications() {
     return 'unsupported';
   }
 
-  const { data } = await api.get('/push/public-key');
-  if (!data.enabled || !data.publicKey) {
-    return 'not-configured';
-  }
-
-  const registration = await navigator.serviceWorker.register('/service-worker.js');
-
-  let subscription;
   try {
-    subscription = await registration.pushManager.subscribe({
+    const { data } = await api.get('/push/public-key');
+    if (!data.enabled || !data.publicKey) {
+      return 'not-configured';
+    }
+
+    const registration = await navigator.serviceWorker.register('/service-worker.js');
+
+    const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(data.publicKey),
     });
-  } catch (err) {
-    // The person declined (or it's already blocked at the browser level) -
-    // anything else is a genuine, unexpected failure worth surfacing.
-    if (Notification.permission === 'denied') return 'denied';
-    throw err;
-  }
 
-  await api.post('/users/me/push-subscription', subscription.toJSON());
-  return 'granted';
+    await api.post('/users/me/push-subscription', subscription.toJSON());
+    return 'granted';
+  } catch (err) {
+    // Whatever went wrong - the person declining, an already-blocked
+    // permission, a network hiccup fetching the key, a subscribe() failure -
+    // this function must always resolve to a status string, never throw.
+    // An uncaught rejection here would leave the "Enabling…" UI stuck
+    // forever, since nothing downstream would ever get the chance to clear
+    // that state. This was a real bug in the previous version (a bare
+    // `throw err;` for anything other than an outright denial), which is
+    // exactly what caused the primer to get stuck.
+    console.error('Failed to enable push notifications:', err);
+    return 'denied';
+  }
 }
 
 // Checks whether push is ALREADY enabled from a previous visit, so the app
