@@ -163,10 +163,16 @@ export default function App() {
 
   async function handleEnablePush() {
     setPrimingConfirming(true);
-    const result = await enablePushNotifications();
-    setPushStatus(result);
-    setPrimingConfirming(false);
-    setShowNotificationPrimer(false);
+    try {
+      const result = await enablePushNotifications();
+      setPushStatus(result);
+    } catch (err) {
+      console.error('Unexpected error enabling push:', err);
+      setPushStatus('denied');
+    } finally {
+      setPrimingConfirming(false);
+      setShowNotificationPrimer(false);
+    }
   }
 
   function handleLogout() {
