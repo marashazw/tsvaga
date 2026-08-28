@@ -123,6 +123,31 @@ export default function VendorApp() {
     return () => s.disconnect();
   }, [vendor?.id]);
 
+  // Mobile OS's aggressively suspend WebSocket connections when the app is
+  // backgrounded (screen locked, switched away from, etc.) to save battery.
+  // socket.io's client doesn't always notice the connection died, so it can
+  // sit silently disconnected until something forces a fresh one - this is
+  // exactly why new requests were only showing up after a manual refresh.
+  // When the app comes back to the foreground, force a reconnect if needed
+  // AND do a one-off data refresh as a safety net regardless of whether the
+  // socket recovers immediately.
+  useEffect(() => {
+    if (!socket || !vendor) return;
+    function handleVisible() {
+      if (document.visibilityState !== 'visible') return;
+      if (!socket.connected) {
+        socket.connect();
+      }
+      loadNearbyRequests(vendor);
+    }
+    document.addEventListener('visibilitychange', handleVisible);
+    window.addEventListener('focus', handleVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisible);
+      window.removeEventListener('focus', handleVisible);
+    };
+  }, [socket, vendor, loadNearbyRequests]);
+
   function startEditingName() {
     setNameInput(vendor.business_name);
     setEditingName(true);

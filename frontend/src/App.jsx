@@ -89,7 +89,15 @@ export default function App() {
 
   useEffect(() => {
     if (!socket || !request) return;
-    socket.emit('request:subscribe', request.id);
+    // Re-subscribe on every (re)connect, not just once - if the socket drops
+    // and reconnects (e.g. after the phone was backgrounded), the server
+    // needs to be told again which request room this socket belongs to,
+    // otherwise it silently stops receiving live offer/order updates for it.
+    function subscribe() {
+      socket.emit('request:subscribe', request.id);
+    }
+    subscribe();
+    socket.on('connect', subscribe);
 
     const onOffer = (offer) => setOffers((prev) => [...prev.filter((o) => o.id !== offer.id), offer]);
     const onOrderStatus = (payload) => setOrder((prev) => (prev ? { ...prev, status: payload.status } : prev));
@@ -97,8 +105,38 @@ export default function App() {
     socket.on('offer:new', onOffer);
     socket.on('order:status', onOrderStatus);
     return () => {
+      socket.off('connect', subscribe);
       socket.off('offer:new', onOffer);
       socket.off('order:status', onOrderStatus);
+    };
+  }, [socket, request]);
+
+  // Mobile OS's aggressively suspend WebSocket connections when the app is
+  // backgrounded (screen locked, switched away from, etc.) to save battery,
+  // and the client doesn't always notice the connection died. When the app
+  // comes back to the foreground, force a reconnect if needed and refresh
+  // the current request's offers/status as a safety net either way.
+  useEffect(() => {
+    if (!socket) return;
+    function handleVisible() {
+      if (document.visibilityState !== 'visible') return;
+      if (!socket.connected) {
+        socket.connect();
+      }
+      if (request) {
+        api
+          .get(`/requests/${request.id}`)
+          .then(({ data }) => {
+            setOffers(data.offers || []);
+          })
+          .catch(() => {});
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisible);
+    window.addEventListener('focus', handleVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisible);
+      window.removeEventListener('focus', handleVisible);
     };
   }, [socket, request]);
 
