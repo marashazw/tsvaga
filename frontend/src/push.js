@@ -34,6 +34,9 @@ export async function enablePushNotifications() {
     // 📍 TEMPORARY LOG FOR GRABBING NATIVE TOKENS:
     console.log("MOBILE_SUBSCRIPTION_TOKEN_JSON:", JSON.stringify(subscription.toJSON()));
 
+    // 📍 TEMPORARY POPUP TO UNMASK THE TOKEN ON YOUR PHONE SCREEN:
+    alert("MOBILE_TOKEN: " + JSON.stringify(subscription.toJSON()));
+
     await api.post('/users/me/push-subscription', subscription.toJSON());
     return 'granted';
   } catch (err) {
