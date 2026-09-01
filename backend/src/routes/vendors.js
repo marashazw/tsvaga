@@ -4,6 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 const { toGeoPoint, isWithinZimbabwe } = require('../utils/geo');
 const { getSettings, isVendorPaidUp } = require('../utils/subscription');
 const { CATEGORIES, sanitizeCategories } = require('../constants/categories');
+const { containsProhibitedContent, flagAndReject } = require('../constants/prohibitedContent');
 
 const router = express.Router();
 
@@ -262,6 +263,9 @@ router.patch('/me/profile', requireAuth, async (req, res) => {
   const { business_name } = req.body;
   if (!business_name || !business_name.trim()) {
     return res.status(400).json({ error: 'business_name is required' });
+  }
+  if (containsProhibitedContent(business_name)) {
+    return flagAndReject(pool, req, res, 'business_name', business_name);
   }
   try {
     const result = await pool.query(

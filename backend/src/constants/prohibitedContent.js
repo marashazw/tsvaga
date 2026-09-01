@@ -48,4 +48,25 @@ function containsProhibitedContent(text) {
   return PROHIBITED_TERMS.some((term) => lower.includes(term));
 }
 
-module.exports = { containsProhibitedContent };
+const REJECTION_MESSAGE =
+  'This cannot be submitted on Tsvaga. We do not allow content related to weapons, drugs or controlled ' +
+  'substances, human organs, sexual products, or pornographic material.';
+
+// Records a blocked attempt to flagged_content for admin visibility, then
+// sends the standard rejection response. Call this instead of just checking
+// containsProhibitedContent() directly, everywhere a user submits free text -
+// keeps the message and the audit trail consistent across every entry point.
+async function flagAndReject(pool, req, res, context, text) {
+  try {
+    await pool.query(
+      'INSERT INTO flagged_content (user_id, context, submitted_text) VALUES ($1, $2, $3)',
+      [req.user?.id || null, context, text]
+    );
+  } catch (err) {
+    // Never let a logging failure block the rejection itself from going out.
+    console.error('Failed to record flagged content:', err);
+  }
+  res.status(422).json({ error: REJECTION_MESSAGE });
+}
+
+module.exports = { containsProhibitedContent, flagAndReject };

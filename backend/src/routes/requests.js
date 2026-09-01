@@ -5,7 +5,7 @@ const { toGeoPoint, isWithinZimbabwe } = require('../utils/geo');
 const { notifyUsersByPush } = require('../utils/pushSender');
 const { isVendorPaidUp, getPaidVendorIdSet } = require('../utils/subscription');
 const { sanitizeCategories } = require('../constants/categories');
-const { containsProhibitedContent } = require('../constants/prohibitedContent');
+const { containsProhibitedContent, flagAndReject } = require('../constants/prohibitedContent');
 
 module.exports = function buildRequestsRouter(io) {
   const router = express.Router();
@@ -156,10 +156,7 @@ module.exports = function buildRequestsRouter(io) {
       return res.status(400).json({ error: 'product_text, lng, and lat are required' });
     }
     if (containsProhibitedContent(product_text) || containsProhibitedContent(quantity)) {
-      return res.status(422).json({
-        error: 'This item cannot be requested on Tsvaga. We do not allow requests for weapons, drugs or ' +
-          'controlled substances, human organs, sexual products, or pornographic material.',
-      });
+      return flagAndReject(pool, req, res, 'request', `${product_text} ${quantity || ''}`.trim());
     }
     if (!isWithinZimbabwe(lng, lat)) {
       return res.status(422).json({ error: 'Coordinates fall outside the supported Zimbabwe service area' });
@@ -290,10 +287,7 @@ module.exports = function buildRequestsRouter(io) {
   router.patch('/:id', requireAuth, async (req, res) => {
     const { product_text, quantity } = req.body;
     if (containsProhibitedContent(product_text) || containsProhibitedContent(quantity)) {
-      return res.status(422).json({
-        error: 'This item cannot be requested on Tsvaga. We do not allow requests for weapons, drugs or ' +
-          'controlled substances, human organs, sexual products, or pornographic material.',
-      });
+      return flagAndReject(pool, req, res, 'request', `${product_text || ''} ${quantity || ''}`.trim());
     }
     try {
       const existing = await pool.query('SELECT requester_id, status FROM requests WHERE id = $1', [req.params.id]);

@@ -3,6 +3,7 @@ const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { isVendorPaidUp, getSettings } = require('../utils/subscription');
 const { notifyUsersByPush } = require('../utils/pushSender');
+const { containsProhibitedContent, flagAndReject } = require('../constants/prohibitedContent');
 
 module.exports = function buildOffersRouter(io) {
   const router = express.Router();
@@ -16,6 +17,9 @@ module.exports = function buildOffersRouter(io) {
     }
     if (delivery_fee !== undefined && (typeof delivery_fee !== 'number' || delivery_fee < 0)) {
       return res.status(400).json({ error: 'delivery_fee must be a non-negative number if provided' });
+    }
+    if (containsProhibitedContent(message)) {
+      return flagAndReject(pool, req, res, 'offer', message);
     }
     try {
       const paidUp = await isVendorPaidUp(req.user.id);
@@ -175,6 +179,9 @@ module.exports = function buildOffersRouter(io) {
     const { body } = req.body;
     if (!body || !body.trim()) {
       return res.status(400).json({ error: 'body is required' });
+    }
+    if (containsProhibitedContent(body)) {
+      return flagAndReject(pool, req, res, 'offer_message', body);
     }
     try {
       const ctx = await getOfferContext(req.params.id);

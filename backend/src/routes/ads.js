@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
+const { containsProhibitedContent, flagAndReject } = require('../constants/prohibitedContent');
 
 const router = express.Router();
 
@@ -98,6 +99,9 @@ router.post('/', requireAuth, async (req, res) => {
     checkLength(whatsapp_number, 'whatsapp_number', LIMITS.whatsapp_number);
   if (lengthError) {
     return res.status(400).json({ error: lengthError });
+  }
+  if (containsProhibitedContent(title) || containsProhibitedContent(body)) {
+    return flagAndReject(pool, req, res, 'ad', `${title} ${body || ''}`.trim());
   }
 
   try {

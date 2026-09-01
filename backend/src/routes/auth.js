@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { toGeoPoint } = require('../utils/geo');
 const { CATEGORIES } = require('../constants/categories');
+const { containsProhibitedContent, flagAndReject } = require('../constants/prohibitedContent');
 
 const router = express.Router();
 
@@ -18,6 +19,11 @@ router.post('/register', async (req, res) => {
     req.body;
   if (!name || !phone || !password) {
     return res.status(400).json({ error: 'name, phone, and password are required' });
+  }
+  if (containsProhibitedContent(name) || containsProhibitedContent(business_name)) {
+    // req.user doesn't exist yet at registration time - flagAndReject
+    // handles that gracefully by recording the flag with no user_id.
+    return flagAndReject(pool, req, res, 'registration', `${name} ${business_name || ''}`.trim());
   }
 
   // Verify the math captcha before touching the database at all - stops

@@ -558,4 +558,23 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// GET /api/admin/flagged-content - every blocked prohibited-content attempt,
+// across every entry point on the platform, most recent first.
+router.get('/flagged-content', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT f.id, f.context, f.submitted_text, f.created_at,
+              u.name AS user_name, u.phone AS user_phone, u.role AS user_role
+       FROM flagged_content f
+       LEFT JOIN users u ON u.id = f.user_id
+       ORDER BY f.created_at DESC
+       LIMIT 200`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch flagged content' });
+  }
+});
+
 module.exports = router;

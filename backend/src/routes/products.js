@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
+const { containsProhibitedContent, flagAndReject } = require('../constants/prohibitedContent');
 
 const router = express.Router();
 
@@ -30,6 +31,9 @@ router.post('/', requireAuth, async (req, res) => {
   const { name, category } = req.body;
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'name is required' });
+  }
+  if (containsProhibitedContent(name)) {
+    return flagAndReject(pool, req, res, 'product', name);
   }
   try {
     const existing = await pool.query('SELECT * FROM products WHERE LOWER(name) = LOWER($1)', [name.trim()]);

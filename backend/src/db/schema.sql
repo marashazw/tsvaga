@@ -296,3 +296,19 @@ CREATE TABLE ads (
 );
 CREATE INDEX ads_status_idx ON ads (status);
 CREATE INDEX ads_owner_idx ON ads (owner_id);
+
+-- Records every time someone's submission was blocked for containing
+-- prohibited content (weapons, drugs, human organs, sex toys, porn), across
+-- every free-text entry point on the platform. The submission itself is
+-- always rejected outright, not just flagged and let through - this table
+-- exists purely so admins can see who's attempting what, spot repeat
+-- offenders, and catch anything the keyword filter mis-categorized.
+CREATE TABLE flagged_content (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  context TEXT NOT NULL, -- 'request', 'product', 'business_name', 'offer', 'offer_message', 'ad'
+  submitted_text TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX flagged_content_user_idx ON flagged_content (user_id);
+CREATE INDEX flagged_content_created_idx ON flagged_content (created_at DESC);
