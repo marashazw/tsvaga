@@ -577,6 +577,23 @@ router.get('/flagged-content', async (req, res) => {
   }
 });
 
+// DELETE /api/admin/flagged-content  { ids: [...] } - clears reviewed
+// entries from the log. Purely a housekeeping action, entirely separate
+// from blocking a user - clearing a flag does not touch is_blocked at all.
+router.delete('/flagged-content', async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || !ids.length) {
+    return res.status(400).json({ error: 'ids array is required' });
+  }
+  try {
+    const { rowCount } = await pool.query('DELETE FROM flagged_content WHERE id = ANY($1)', [ids]);
+    res.json({ deleted: rowCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to clear flagged content' });
+  }
+});
+
 // PATCH /api/admin/users/:userId/block  { reason? }
 router.patch('/users/:userId/block', async (req, res) => {
   const { reason } = req.body;

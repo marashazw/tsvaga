@@ -15,6 +15,8 @@ export default function AdminFlags() {
   const [flags, setFlags] = useState(null);
   const [error, setError] = useState('');
   const [actingOn, setActingOn] = useState(null);
+  const [selected, setSelected] = useState(new Set());
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     load();
@@ -45,6 +47,43 @@ export default function AdminFlags() {
     }
   }
 
+  function toggleSelect(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === flags.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(flags.map((f) => f.id)));
+    }
+  }
+
+  // Purely a housekeeping action - clearing entries from this log never
+  // touches is_blocked. Reviewing a flag and deciding no action is needed
+  // (a false positive, or already handled) shouldn't require unblocking
+  // anyone, since blocking was never applied automatically in the first
+  // place.
+  async function clearSelected() {
+    if (!selected.size) return;
+    if (!window.confirm(`Clear ${selected.size} flagged entr${selected.size === 1 ? 'y' : 'ies'} from the log?`)) return;
+    setClearing(true);
+    try {
+      await api.delete('/admin/flagged-content', { data: { ids: [...selected] } });
+      setFlags((prev) => prev.filter((f) => !selected.has(f.id)));
+      setSelected(new Set());
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to clear selected entries');
+    } finally {
+      setClearing(false);
+    }
+  }
+
   if (error) return <p className="error">{error}</p>;
   if (!flags) return <p className="hint">Loading…</p>;
 
@@ -59,33 +98,49 @@ export default function AdminFlags() {
       {flags.length === 0 ? (
         <p className="hint">Nothing flagged yet.</p>
       ) : (
-        <ul className="order-list">
-          {flags.map((f) => (
-            <li key={f.id} className="order-card">
-              <div className="alert-main">
-                <strong>{CONTEXT_LABELS[f.context] || f.context}</strong>
-                <span className="hint">{new Date(f.created_at).toLocaleString()}</span>
-              </div>
-              <p style={{ margin: '6px 0' }}>
-                <em>"{f.submitted_text}"</em>
-              </p>
-              <p className="hint" style={{ margin: '0 0 8px' }}>
-                {f.user_name ? `${f.user_name} (${f.user_phone}) - ${f.user_role}` : 'Unknown user (account deleted)'}
-                {f.is_blocked && <span className="badge status-cancelled" style={{ marginLeft: 8 }}>Blocked</span>}
-              </p>
-              {f.user_id && (
-                <button
-                  type="button"
-                  className={f.is_blocked ? 'secondary' : ''}
-                  disabled={actingOn === f.user_id}
-                  onClick={() => toggleBlock(f.user_id, f.is_blocked)}
-                >
-                  {actingOn === f.user_id ? 'Working…' : f.is_blocked ? 'Unblock this user' : 'Block this user'}
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <label className="category-checkbox" style={{ padding: 0 }}>
+              <input type="checkbox" checked={selected.size === flags.length} onChange={toggleSelectAll} />
+              <span>Select all</span>
+            </label>
+            {selected.size > 0 && (
+              <button type="button" className="secondary" disabled={clearing} onClick={clearSelected}>
+                {clearing ? 'Clearing…' : `Clear ${selected.size} selected`}
+              </button>
+            )}
+          </div>
+          <ul className="order-list">
+            {flags.map((f) => (
+              <li key={f.id} className="order-card">
+                <div className="alert-main">
+                  <label className="category-checkbox" style={{ padding: 0 }}>
+                    <input type="checkbox" checked={selected.has(f.id)} onChange={() => toggleSelect(f.id)} />
+                    <strong>{CONTEXT_LABELS[f.context] || f.context}</strong>
+                  </label>
+                  <span className="hint">{new Date(f.created_at).toLocaleString()}</span>
+                </div>
+                <p style={{ margin: '6px 0' }}>
+                  <em>"{f.submitted_text}"</em>
+                </p>
+                <p className="hint" style={{ margin: '0 0 8px' }}>
+                  {f.user_name ? `${f.user_name} (${f.user_phone}) - ${f.user_role}` : 'Unknown user (account deleted)'}
+                  {f.is_blocked && <span className="badge status-cancelled" style={{ marginLeft: 8 }}>Blocked</span>}
+                </p>
+                {f.user_id && (
+                  <button
+                    type="button"
+                    className={f.is_blocked ? 'secondary' : ''}
+                    disabled={actingOn === f.user_id}
+                    onClick={() => toggleBlock(f.user_id, f.is_blocked)}
+                  >
+                    {actingOn === f.user_id ? 'Working…' : f.is_blocked ? 'Unblock this user' : 'Block this user'}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );
