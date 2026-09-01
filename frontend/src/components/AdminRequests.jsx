@@ -6,6 +6,7 @@ export default function AdminRequests() {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState('');
   const [actingOn, setActingOn] = useState(null);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     load(search);
@@ -13,6 +14,7 @@ export default function AdminRequests() {
   }, []);
 
   function load(q) {
+    setShowAll(false);
     api
       .get('/admin/requests', { params: q ? { search: q } : {} })
       .then(({ data }) => setRequests(data))
@@ -80,8 +82,9 @@ export default function AdminRequests() {
       ) : requests.length === 0 ? (
         <p className="hint">No requests found.</p>
       ) : (
-        <ul className="order-list">
-          {requests.map((r) => {
+        <>
+          <ul className="order-list">
+            {(showAll ? requests : requests.slice(0, 5)).map((r) => {
             const isBlockedRequest = r.status === 'blocked';
             return (
               <li key={r.id} className="order-card">
@@ -119,7 +122,13 @@ export default function AdminRequests() {
               </li>
             );
           })}
-        </ul>
+          </ul>
+          {!showAll && requests.length > 5 && (
+            <button type="button" className="secondary" onClick={() => setShowAll(true)}>
+              Show {requests.length - 5} more
+            </button>
+          )}
+        </>
       )}
     </div>
   );
