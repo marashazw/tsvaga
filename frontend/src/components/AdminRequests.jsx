@@ -96,6 +96,11 @@ export default function AdminRequests() {
                 <p className="hint" style={{ margin: '2px 0 8px' }}>
                   {r.requester_name} ({r.requester_phone}) - status: {r.status}
                   {r.is_blocked && <span className="badge status-cancelled" style={{ marginLeft: 8 }}>User blocked</span>}
+                  {r.deleted_at && (
+                    <span className="badge status-cancelled" style={{ marginLeft: 8 }}>
+                      Deleted by user {new Date(r.deleted_at).toLocaleDateString()}
+                    </span>
+                  )}
                 </p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button

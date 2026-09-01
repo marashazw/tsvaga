@@ -635,7 +635,7 @@ router.get('/requests', async (req, res) => {
   const { search } = req.query;
   try {
     const { rows } = await pool.query(
-      `SELECT r.id, r.product_text, r.quantity, r.status, r.created_at,
+      `SELECT r.id, r.product_text, r.quantity, r.status, r.created_at, r.deleted_at,
               u.id AS requester_id, u.name AS requester_name, u.phone AS requester_phone, u.is_blocked
        FROM requests r
        JOIN users u ON u.id = r.requester_id

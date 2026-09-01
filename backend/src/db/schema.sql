@@ -85,6 +85,13 @@ CREATE TABLE requests (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   product_id UUID REFERENCES products(id),
+  -- Soft delete: when a requester deletes their own request, this is set
+  -- rather than actually removing the row, so admins retain full visibility
+  -- (e.g. someone posting something prohibited and quickly deleting it to
+  -- evade review still leaves a trace). Excluded from the requester's own
+  -- list and from vendors' nearby-request matching, but still visible to
+  -- admin in the request browser.
+  deleted_at TIMESTAMPTZ,
   product_text TEXT NOT NULL,
   quantity TEXT,
   -- 'location' is the SEARCH center (where the requester is standing / wants to
