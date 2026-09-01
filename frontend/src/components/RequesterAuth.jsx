@@ -4,7 +4,7 @@ import Captcha from './Captcha.jsx';
 
 export default function RequesterAuth({ onAuthed }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
-  const [form, setForm] = useState({ name: '', phone: '', password: '', role: 'requester', businessName: '' });
+  const [form, setForm] = useState({ name: '', phone: '+263 ', password: '', role: 'requester', businessName: '' });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [registeredAsVendor, setRegisteredAsVendor] = useState(false);

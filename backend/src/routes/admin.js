@@ -564,7 +564,7 @@ router.get('/flagged-content', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT f.id, f.context, f.submitted_text, f.created_at,
-              u.name AS user_name, u.phone AS user_phone, u.role AS user_role
+              u.id AS user_id, u.name AS user_name, u.phone AS user_phone, u.role AS user_role, u.is_blocked
        FROM flagged_content f
        LEFT JOIN users u ON u.id = f.user_id
        ORDER BY f.created_at DESC
@@ -574,6 +574,99 @@ router.get('/flagged-content', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch flagged content' });
+  }
+});
+
+// PATCH /api/admin/users/:userId/block  { reason? }
+router.patch('/users/:userId/block', async (req, res) => {
+  const { reason } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users SET is_blocked = true, blocked_reason = $2, blocked_at = now()
+       WHERE id = $1 RETURNING id, name, phone, is_blocked, blocked_reason`,
+      [req.params.userId, reason || null]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to block user' });
+  }
+});
+
+// PATCH /api/admin/users/:userId/unblock
+router.patch('/users/:userId/unblock', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users SET is_blocked = false, blocked_reason = NULL, blocked_at = NULL
+       WHERE id = $1 RETURNING id, name, phone, is_blocked`,
+      [req.params.userId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to unblock user' });
+  }
+});
+
+// GET /api/admin/requests?search=  - browse requests for manual moderation.
+// Requests that escaped the automatic content filter (via slang/creative
+// spelling the keyword list doesn't catch) still need a way for a human to
+// find and deactivate them.
+router.get('/requests', async (req, res) => {
+  const { search } = req.query;
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.id, r.product_text, r.quantity, r.status, r.created_at,
+              u.id AS requester_id, u.name AS requester_name, u.phone AS requester_phone, u.is_blocked
+       FROM requests r
+       JOIN users u ON u.id = r.requester_id
+       WHERE $1::text IS NULL OR r.product_text ILIKE '%' || $1 || '%'
+       ORDER BY r.created_at DESC
+       LIMIT 100`,
+      [search || null]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+});
+
+// PATCH /api/admin/requests/:id/deactivate - pulls a request that slipped
+// past the automatic filter but was manually found to be a policy
+// violation. Sets status to 'blocked', distinct from a user's own
+// 'cancelled', so it's clear this was an admin moderation action, not the
+// requester changing their mind.
+router.patch('/requests/:id/deactivate', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE requests SET status = 'blocked' WHERE id = $1 RETURNING id, status`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Request not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to deactivate request' });
+  }
+});
+
+// PATCH /api/admin/requests/:id/reactivate
+router.patch('/requests/:id/reactivate', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE requests SET status = 'open' WHERE id = $1 AND status = 'blocked' RETURNING id, status`,
+      [req.params.id]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Request not found or was not blocked' });
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to reactivate request' });
   }
 });
 

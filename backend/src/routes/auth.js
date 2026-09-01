@@ -140,6 +140,10 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid phone number or password' });
 
+    if (user.is_blocked) {
+      return res.status(403).json({ error: 'This account has been blocked.' });
+    }
+
     const token = jwt.sign({ id: user.id, role: user.role, phone: user.phone }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     });

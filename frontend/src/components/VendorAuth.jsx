@@ -4,7 +4,7 @@ import Captcha from './Captcha.jsx';
 
 export default function VendorAuth({ onAuthed }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
-  const [form, setForm] = useState({ name: '', phone: '', password: '', business_name: '' });
+  const [form, setForm] = useState({ name: '', phone: '+263 ', password: '', business_name: '' });
   const [alsoRequester, setAlsoRequester] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);

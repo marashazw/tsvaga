@@ -14,13 +14,36 @@ const CONTEXT_LABELS = {
 export default function AdminFlags() {
   const [flags, setFlags] = useState(null);
   const [error, setError] = useState('');
+  const [actingOn, setActingOn] = useState(null);
 
   useEffect(() => {
+    load();
+  }, []);
+
+  function load() {
     api
       .get('/admin/flagged-content')
       .then(({ data }) => setFlags(data))
       .catch(() => setError('Failed to load flagged content'));
-  }, []);
+  }
+
+  async function toggleBlock(userId, currentlyBlocked) {
+    const reason = currentlyBlocked
+      ? null
+      : window.prompt('Reason for blocking this user (shown only to admins):', 'Repeated prohibited content attempts');
+    if (!currentlyBlocked && reason === null) return; // cancelled the prompt
+
+    setActingOn(userId);
+    try {
+      const endpoint = currentlyBlocked ? 'unblock' : 'block';
+      await api.patch(`/admin/users/${userId}/${endpoint}`, { reason });
+      setFlags((prev) => prev.map((f) => (f.user_id === userId ? { ...f, is_blocked: !currentlyBlocked } : f)));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Action failed');
+    } finally {
+      setActingOn(null);
+    }
+  }
 
   if (error) return <p className="error">{error}</p>;
   if (!flags) return <p className="hint">Loading…</p>;
@@ -46,9 +69,20 @@ export default function AdminFlags() {
               <p style={{ margin: '6px 0' }}>
                 <em>"{f.submitted_text}"</em>
               </p>
-              <p className="hint" style={{ margin: 0 }}>
+              <p className="hint" style={{ margin: '0 0 8px' }}>
                 {f.user_name ? `${f.user_name} (${f.user_phone}) - ${f.user_role}` : 'Unknown user (account deleted)'}
+                {f.is_blocked && <span className="badge status-cancelled" style={{ marginLeft: 8 }}>Blocked</span>}
               </p>
+              {f.user_id && (
+                <button
+                  type="button"
+                  className={f.is_blocked ? 'secondary' : ''}
+                  disabled={actingOn === f.user_id}
+                  onClick={() => toggleBlock(f.user_id, f.is_blocked)}
+                >
+                  {actingOn === f.user_id ? 'Working…' : f.is_blocked ? 'Unblock this user' : 'Block this user'}
+                </button>
+              )}
             </li>
           ))}
         </ul>

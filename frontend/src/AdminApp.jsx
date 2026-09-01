@@ -8,6 +8,7 @@ import AdminPrioritySubmissions from './components/AdminPrioritySubmissions.jsx'
 import AdminAds from './components/AdminAds.jsx';
 import AdminStats from './components/AdminStats.jsx';
 import AdminFlags from './components/AdminFlags.jsx';
+import AdminRequests from './components/AdminRequests.jsx';
 import AdminTodoList from './components/AdminTodoList.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 
@@ -146,6 +147,10 @@ export default function AdminApp() {
 
       <section id="section-flags" style={{ marginTop: 20 }}>
         <AdminFlags />
+      </section>
+
+      <section id="section-requests" style={{ marginTop: 20 }}>
+        <AdminRequests />
       </section>
 
       <section id="section-payment-submissions" style={{ marginTop: 20 }}>

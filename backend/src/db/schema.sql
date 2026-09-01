@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE user_role AS ENUM ('requester', 'vendor', 'both', 'admin');
-CREATE TYPE request_status AS ENUM ('open', 'matched', 'completed', 'cancelled', 'expired');
+CREATE TYPE request_status AS ENUM ('open', 'matched', 'completed', 'cancelled', 'expired', 'blocked');
 CREATE TYPE offer_status AS ENUM ('pending', 'accepted', 'declined', 'withdrawn');
 CREATE TYPE order_status AS ENUM ('confirmed', 'out_for_delivery', 'delivered', 'cancelled');
 CREATE TYPE subscription_status AS ENUM ('inactive', 'active', 'waived');
@@ -19,6 +19,13 @@ CREATE TABLE users (
   phone TEXT UNIQUE NOT NULL,
   role user_role NOT NULL DEFAULT 'requester',
   password_hash TEXT NOT NULL,
+  -- Admin can block an offending user (e.g. repeated prohibited-content
+  -- attempts). A blocked user is rejected both at login AND on every
+  -- already-authenticated request (see middleware/auth.js), so an existing
+  -- session doesn't keep working after a block - it takes effect immediately.
+  is_blocked BOOLEAN NOT NULL DEFAULT false,
+  blocked_reason TEXT,
+  blocked_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
