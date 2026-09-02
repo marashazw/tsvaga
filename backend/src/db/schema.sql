@@ -139,7 +139,10 @@ CREATE TABLE offers (
   -- Meaningful only when the request's fulfillment_type = 'delivery'; vendors
   -- responding to a pickup request should leave this at 0.
   delivery_fee NUMERIC(10,2) NOT NULL DEFAULT 0,
-  delivery_eta_minutes INT NOT NULL,
+  -- Nullable: not required when the request is pickup-only (fulfillment_type
+  -- = 'pickup') and the vendor doesn't want to commit to a collection-ready
+  -- time. Still optional to provide either way.
+  delivery_eta_minutes INT,
   message TEXT,
   status offer_status NOT NULL DEFAULT 'pending',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -162,6 +162,11 @@ module.exports = function buildRequestsRouter(io) {
       return res.status(422).json({ error: 'Coordinates fall outside the supported Zimbabwe service area' });
     }
     const safeFulfillment = fulfillment_type === 'pickup' ? 'pickup' : 'delivery';
+    if (safeFulfillment === 'delivery' && !address_text?.trim() && !delivery_address_text?.trim()) {
+      return res.status(400).json({
+        error: 'Please set your location on the map, or provide a delivery address, for a delivery request.',
+      });
+    }
     // Delivery address only makes sense for 'delivery' - ignore it for pickup
     // rather than storing something that would never be read.
     const safeDeliveryAddress = safeFulfillment === 'delivery' ? delivery_address_text || null : null;
@@ -218,7 +223,7 @@ module.exports = function buildRequestsRouter(io) {
         `SELECT id, product_text, quantity, status, fulfillment_type, created_at, visible_until,
                 (SELECT COUNT(*) FROM offers WHERE offers.request_id = requests.id) AS offer_count
          FROM requests
-         WHERE requester_id = $1 AND visible_until > now()
+         WHERE requester_id = $1 AND visible_until > now() AND deleted_at IS NULL
          ORDER BY created_at DESC
          LIMIT 100`,
         [req.user.id]
@@ -243,7 +248,7 @@ module.exports = function buildRequestsRouter(io) {
       client = await pool.connect();
       const existing = await client.query(
         `SELECT id, requester_id, product_id, product_text, quantity, address_text, radius_km,
-                fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories, status,
+                fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories, status, deleted_at,
                 ST_X(location::geometry) AS lng, ST_Y(location::geometry) AS lat
          FROM requests WHERE id = $1`,
         [req.params.id]
@@ -254,6 +259,9 @@ module.exports = function buildRequestsRouter(io) {
       const current = existing.rows[0];
       if (current.requester_id !== req.user.id) {
         return res.status(403).json({ error: 'Not authorized to renew this request' });
+      }
+      if (current.deleted_at) {
+        return res.status(410).json({ error: 'This request has been deleted' });
       }
       if (current.status === 'matched' || current.status === 'completed') {
         return res.status(409).json({ error: "This request has already been matched and can't be renewed" });
@@ -290,10 +298,13 @@ module.exports = function buildRequestsRouter(io) {
       return flagAndReject(pool, req, res, 'request', `${product_text || ''} ${quantity || ''}`.trim());
     }
     try {
-      const existing = await pool.query('SELECT requester_id, status FROM requests WHERE id = $1', [req.params.id]);
+      const existing = await pool.query('SELECT requester_id, status, deleted_at FROM requests WHERE id = $1', [req.params.id]);
       if (!existing.rows.length) return res.status(404).json({ error: 'Request not found' });
       if (existing.rows[0].requester_id !== req.user.id) {
         return res.status(403).json({ error: 'Not authorized to edit this request' });
+      }
+      if (existing.rows[0].deleted_at) {
+        return res.status(410).json({ error: 'This request has been deleted' });
       }
       if (existing.rows[0].status !== 'open') {
         return res.status(409).json({ error: 'Only an open request (not yet matched) can be edited' });
@@ -326,7 +337,7 @@ module.exports = function buildRequestsRouter(io) {
       if (hasOrder.rows.length) {
         return res.status(409).json({ error: 'This request has an order on it and cannot be deleted' });
       }
-      await pool.query('DELETE FROM requests WHERE id = $1', [req.params.id]);
+      await pool.query('UPDATE requests SET deleted_at = now() WHERE id = $1', [req.params.id]);
       res.json({ deleted: true });
     } catch (err) {
       console.error(err);
@@ -398,7 +409,7 @@ module.exports = function buildRequestsRouter(io) {
                 recipient_name, recipient_phone, created_at,
                 ST_Distance(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}) AS distance_m
          FROM requests
-         WHERE status = 'open'
+         WHERE status = 'open' AND deleted_at IS NULL
            AND ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1::numeric * 1000)
          ORDER BY created_at DESC
          LIMIT 100`,

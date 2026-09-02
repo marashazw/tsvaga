@@ -1,4 +1,14 @@
 import React from 'react';
+
+function formatEta(minutes) {
+  if (!minutes) return null;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return remainder ? `${hours}h ${remainder}min` : `${hours}h`;
+  }
+  return `${minutes} min`;
+}
 import ChatToggleButton from './ChatToggleButton.jsx';
 
 export default function OfferList({ offers, onAccept, matched, socket, currentUserId }) {
@@ -26,7 +36,7 @@ export default function OfferList({ offers, onAccept, matched, socket, currentUs
           </div>
           <div className="offer-meta">
             <span className="price">${offer.total.toFixed(2)}</span>
-            <span className="eta">{offer.delivery_eta_minutes} min</span>
+            {formatEta(offer.delivery_eta_minutes) && <span className="eta">{formatEta(offer.delivery_eta_minutes)}</span>}
           </div>
           <p className="hint" style={{ margin: '2px 0 0' }}>
             Item: ${Number(offer.price).toFixed(2)}

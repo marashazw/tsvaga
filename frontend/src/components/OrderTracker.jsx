@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import ReviewForm from './ReviewForm.jsx';
 import ChatToggleButton from './ChatToggleButton.jsx';
 
+function formatEta(minutes) {
+  if (!minutes) return null;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return remainder ? `${hours}h ${remainder}min` : `${hours}h`;
+  }
+  return `${minutes} min`;
+}
+
 const STEPS_DELIVERY = [
   { key: 'confirmed', label: 'Order confirmed' },
   { key: 'out_for_delivery', label: 'Out for delivery' },
@@ -34,7 +44,7 @@ export default function OrderTracker({ order, socket, currentUserId }) {
         {Number(order.delivery_fee || 0) > 0
           ? `$${Number(order.price).toFixed(2)} + $${Number(order.delivery_fee).toFixed(2)} delivery = $${(Number(order.price) + Number(order.delivery_fee)).toFixed(2)}`
           : `$${Number(order.price).toFixed(2)}`}
-        {' · '}{order.delivery_eta_minutes} min ETA
+        {formatEta(order.delivery_eta_minutes) && <> · {formatEta(order.delivery_eta_minutes)} ETA</>}
       </p>
       <p className="hint">
         {isPickup

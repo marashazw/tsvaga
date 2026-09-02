@@ -12,8 +12,11 @@ module.exports = function buildOffersRouter(io) {
   router.post('/:requestId/offers', requireAuth, async (req, res) => {
     const { requestId } = req.params;
     const { price, delivery_fee, delivery_eta_minutes, message } = req.body;
-    if (typeof price !== 'number' || typeof delivery_eta_minutes !== 'number') {
-      return res.status(400).json({ error: 'price and delivery_eta_minutes (numbers) are required' });
+    if (typeof price !== 'number') {
+      return res.status(400).json({ error: 'price (a number) is required' });
+    }
+    if (delivery_eta_minutes !== undefined && typeof delivery_eta_minutes !== 'number') {
+      return res.status(400).json({ error: 'delivery_eta_minutes must be a number if provided' });
     }
     if (delivery_fee !== undefined && (typeof delivery_fee !== 'number' || delivery_fee < 0)) {
       return res.status(400).json({ error: 'delivery_fee must be a non-negative number if provided' });
@@ -48,7 +51,7 @@ module.exports = function buildOffersRouter(io) {
                         delivery_eta_minutes = EXCLUDED.delivery_eta_minutes,
                         message = EXCLUDED.message, status = 'pending'
          RETURNING *`,
-        [requestId, req.user.id, price, delivery_fee || 0, delivery_eta_minutes, message || null]
+        [requestId, req.user.id, price, delivery_fee || 0, delivery_eta_minutes ?? null, message || null]
       );
       const offer = result.rows[0];
 

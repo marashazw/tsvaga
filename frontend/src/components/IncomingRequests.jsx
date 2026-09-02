@@ -19,6 +19,7 @@ function RespondForm({ alert, onSent, onPaywalled }) {
   const [price, setPrice] = useState('');
   const [deliveryFee, setDeliveryFee] = useState('');
   const [eta, setEta] = useState('');
+  const [etaUnit, setEtaUnit] = useState('min'); // 'min' | 'hours'
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const isPickup = alert.fulfillment_type === 'pickup';
@@ -27,10 +28,11 @@ function RespondForm({ alert, onSent, onPaywalled }) {
     e.preventDefault();
     setSending(true);
     try {
+      const etaMinutes = eta ? Number(eta) * (etaUnit === 'hours' ? 60 : 1) : undefined;
       const { data } = await api.post(`/requests/${alert.request_id}/offers`, {
         price: Number(price),
         delivery_fee: isPickup ? 0 : Number(deliveryFee || 0),
-        delivery_eta_minutes: Number(eta),
+        delivery_eta_minutes: etaMinutes,
         message: message || undefined,
       });
       onSent(alert.request_id, data.id);
@@ -55,7 +57,20 @@ function RespondForm({ alert, onSent, onPaywalled }) {
           onChange={(e) => setDeliveryFee(e.target.value)}
         />
       )}
-      <input type="number" placeholder="ETA (min)" value={eta} onChange={(e) => setEta(e.target.value)} required />
+      <span style={{ display: 'inline-flex', gap: 4 }}>
+        <input
+          type="number"
+          placeholder={isPickup ? 'ETA (optional)' : 'ETA'}
+          value={eta}
+          onChange={(e) => setEta(e.target.value)}
+          required={!isPickup}
+          style={{ flex: 1 }}
+        />
+        <select value={etaUnit} onChange={(e) => setEtaUnit(e.target.value)}>
+          <option value="min">min</option>
+          <option value="hours">hours</option>
+        </select>
+      </span>
       <input type="text" placeholder="Message (optional)" value={message} onChange={(e) => setMessage(e.target.value)} />
       <button type="submit" disabled={sending}>{sending ? 'Sending…' : 'Send offer'}</button>
       <a
