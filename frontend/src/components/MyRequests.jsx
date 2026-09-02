@@ -147,17 +147,49 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
   );
 }
 
-export default function MyRequests() {
+export default function MyRequests({ socket }) {
   const [requests, setRequests] = useState(null); // null = still loading
   const [visibleCount, setVisibleCount] = useState(3);
   const [expanded, setExpanded] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  useEffect(() => {
+  function load() {
     api
       .get('/requests/me')
       .then(({ data }) => setRequests(data))
       .catch(() => setRequests([]));
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  // Backend pushes 'myrequests:updated' whenever anything relevant happens
+  // to any of this user's requests - a new offer arrives, one gets
+  // accepted, or an order's status changes. Refetching the whole list on
+  // that signal is simpler and more robust than trying to patch individual
+  // fields from a partial event payload, and this list is small enough that
+  // the extra request is negligible.
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('myrequests:updated', load);
+    return () => socket.off('myrequests:updated', load);
+  }, [socket]);
+
+  // If a relevant event fired while the phone was locked/backgrounded, the
+  // socket was disconnected and never received it - reconnecting afterward
+  // doesn't replay missed events. Refetching on foreground return catches
+  // anything that slipped through that gap.
+  useEffect(() => {
+    function handleVisible() {
+      if (document.visibilityState === 'visible') load();
+    }
+    document.addEventListener('visibilitychange', handleVisible);
+    window.addEventListener('focus', handleVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisible);
+      window.removeEventListener('focus', handleVisible);
+    };
   }, []);
 
   if (requests === null) return null;

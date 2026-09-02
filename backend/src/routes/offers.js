@@ -69,6 +69,9 @@ module.exports = function buildOffersRouter(io) {
         rating_avg: vendorInfo.rows[0]?.rating_avg,
         vendor_priority: vendorInfo.rows[0]?.vendor_priority || 0,
       });
+      // Also nudge My Requests, regardless of whether this happens to be
+      // the requester's currently "active" request.
+      io.to(`user:${requestRow.rows[0].requester_id}`).emit('myrequests:updated');
 
       res.status(201).json(offer);
     } catch (err) {
@@ -105,6 +108,8 @@ module.exports = function buildOffersRouter(io) {
       await client.query('COMMIT');
 
       io.to(`request:${offer.request_id}`).emit('request:matched', { request_id: offer.request_id, offer_id: offer.id });
+      // req.user.id is the requester here - they're the one accepting.
+      io.to(`user:${req.user.id}`).emit('myrequests:updated');
 
       // Fetch the fully-joined order detail (same shape as GET /vendors/me/orders)
       // so the vendor dashboard can add this straight into its list without a

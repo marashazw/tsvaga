@@ -13,6 +13,15 @@ function attachSocketHandlers(io) {
   });
 
   io.on('connection', (socket) => {
+    // Authenticated users automatically join their own room, so the backend
+    // can push "your requests list changed" events without the client
+    // needing to explicitly subscribe per-request - this is what lets My
+    // Requests update live (new offer arrived, request matched, order
+    // status changed) regardless of which request is "active" right now.
+    if (socket.user?.id) {
+      socket.join(`user:${socket.user.id}`);
+    }
+
     // A vendor joins their own room to receive `request:new` alerts.
     socket.on('vendor:subscribe', (vendorId) => {
       socket.join(`vendor:${vendorId}`);

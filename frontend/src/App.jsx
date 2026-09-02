@@ -346,7 +346,7 @@ export default function App() {
           </section>
 
           <div className="my-requests-area" id="my-requests-section">
-            <MyRequests />
+            <MyRequests socket={socket} />
           </div>
         </div>
 

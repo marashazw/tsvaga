@@ -97,6 +97,7 @@ module.exports = function buildOrdersRouter(io) {
       const payload = { order_id: order.id, request_id: order.request_id, status };
       io.to(`request:${order.request_id}`).emit('order:status', payload);
       io.to(`vendor:${order.vendor_id}`).emit('order:status', payload);
+      io.to(`user:${order.requester_id}`).emit('myrequests:updated');
 
       // Let the requester know even if their tab isn't open right now.
       const isPickup = order.fulfillment_type === 'pickup';
