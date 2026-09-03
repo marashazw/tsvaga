@@ -376,6 +376,7 @@ export default function App() {
                 <RequestModePrompt onChoose={setRequestMode} />
               ) : (
                 <RequestForm
+                  key={requestMode}
                   location={location}
                   addressLabel={addressLabel}
                   radiusKm={radiusKm}
@@ -383,6 +384,7 @@ export default function App() {
                   onSubmit={handleSubmitRequest}
                   submitting={submitting}
                   requestType={requestMode}
+                  onSwitchMode={setRequestMode}
                 />
               )}
             </>

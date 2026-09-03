@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CATEGORIES, suggestCategories } from '../categories.js';
 
-export default function RequestForm({ location, addressLabel, radiusKm, onRadiusChange, onSubmit, submitting, requestType }) {
+export default function RequestForm({ location, addressLabel, radiusKm, onRadiusChange, onSubmit, submitting, requestType, onSwitchMode }) {
   const [productText, setProductText] = useState('');
   const [quantity, setQuantity] = useState('');
   const [fulfillmentType, setFulfillmentType] = useState('delivery');
@@ -59,6 +59,16 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
 
   return (
     <form className="request-form" onSubmit={handleSubmit}>
+      {onSwitchMode && (
+        <button
+          type="button"
+          className="link-btn"
+          style={{ marginBottom: 10 }}
+          onClick={() => onSwitchMode(isService ? 'product' : 'service')}
+        >
+          🔁 Switch to {isService ? 'a product' : 'a service'} request instead
+        </button>
+      )}
       <label>
         <span className="primary-label">{isService ? 'What service do you need?' : 'What are you looking for today?'}</span>
         <input
