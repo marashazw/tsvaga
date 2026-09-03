@@ -527,6 +527,17 @@ module.exports = function buildRequestsRouter(io) {
       // Same nationwide-match behavior as the broadcast alert flow - a
       // remote service isn't tied to physical proximity at all.
       const effectiveRadiusKm = r.is_remote ? 1000 : r.radius_km || 35;
+      // Category-overlap matching only makes sense for services - a
+      // category like 'plumbing' genuinely IS one interchangeable offering
+      // regardless of phrasing ("plumber" vs "plumbing"). A product
+      // category like 'groceries' is just a wide bucket covering many
+      // distinct, non-substitutable items - paprika, okra, and cooking oil
+      // all land in 'groceries', but someone wanting paprika should never
+      // see cooking oil suggested as a match. Passing an empty array here
+      // for product requests disables that path entirely (p.category =
+      // ANY('{}') is always false), leaving name/synonym matching as the
+      // only path for products, which is appropriately specific.
+      const categoryFilter = r.request_type === 'service' ? r.categories || [] : [];
 
       const { rows } = await pool.query(
         `SELECT * FROM (
@@ -562,7 +573,7 @@ module.exports = function buildRequestsRouter(io) {
          ) matched
          ORDER BY vendor_priority DESC, typical_price ASC NULLS LAST
          LIMIT 20`,
-        [likePatterns, effectiveRadiusKm, r.request_type, r.categories || []]
+        [likePatterns, effectiveRadiusKm, r.request_type, categoryFilter]
       );
       res.json(rows);
     } catch (err) {
