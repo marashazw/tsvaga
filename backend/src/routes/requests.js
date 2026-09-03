@@ -479,12 +479,17 @@ module.exports = function buildRequestsRouter(io) {
   // for items matching this request's free-text description, so the
   // requester gets an immediate alternative to waiting for a broadcast
   // offer: vendors who already have it in stock at a known price, right
-  // now. Only surfaces paid-up vendors (waived or active subscription),
-  // consistent with the rest of the app's "pay to be reachable" model.
+  // now. Matches on name/synonym text (with prefix matching for word-form
+  // variations like plumber/plumbing) OR shared category (catches cases
+  // with no shared word root at all, like "tutor" vs "teacher" - both tag
+  // as 'tutoring_lessons' via the same keyword detector used at product
+  // creation, see constants/categoryKeywords.js). Only surfaces paid-up
+  // vendors (waived or active subscription), consistent with the rest of
+  // the app's "pay to be reachable" model.
   router.get('/:id/suggested-vendors', requireAuth, async (req, res) => {
     try {
       const requestRow = await pool.query(
-        `SELECT product_text, radius_km, requester_id, request_type, is_remote,
+        `SELECT product_text, radius_km, requester_id, request_type, is_remote, categories,
                 ST_X(location::geometry) AS lng, ST_Y(location::geometry) AS lat
          FROM requests WHERE id = $1`,
         [req.params.id]
@@ -542,11 +547,12 @@ module.exports = function buildRequestsRouter(io) {
            AND (
              p.name ILIKE ANY($1)
              OR EXISTS (SELECT 1 FROM unnest(p.synonyms) syn WHERE syn ILIKE ANY($1))
+             OR p.category = ANY($4::text[])
            )
          ORDER BY (CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END) DESC,
                   vi.typical_price ASC NULLS LAST
          LIMIT 20`,
-        [likePatterns, effectiveRadiusKm, r.request_type]
+        [likePatterns, effectiveRadiusKm, r.request_type, r.categories || []]
       );
       res.json(rows);
     } catch (err) {

@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { containsProhibitedContent, flagAndReject } = require('../constants/prohibitedContent');
+const { detectCategory } = require('../constants/categoryKeywords');
 
 const router = express.Router();
 
@@ -48,7 +49,7 @@ router.post('/', requireAuth, async (req, res) => {
     }
     const result = await pool.query(
       `INSERT INTO products (name, category, type) VALUES ($1, $2, $3) RETURNING *`,
-      [name.trim(), category || null, safeType]
+      [name.trim(), category || detectCategory(name, safeType), safeType]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
