@@ -529,28 +529,38 @@ module.exports = function buildRequestsRouter(io) {
       const effectiveRadiusKm = r.is_remote ? 1000 : r.radius_km || 35;
 
       const { rows } = await pool.query(
-        `SELECT vi.typical_price, vi.pricing_type, v.id AS vendor_id, v.business_name, v.address_text,
-                u.phone AS vendor_phone, p.name AS product_name,
-                CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END AS vendor_priority,
-                ST_Distance(v.location, ${toGeoPoint(r.lng, r.lat)}) AS distance_m
-         FROM vendor_inventory vi
-         JOIN vendors v ON v.id = vi.vendor_id
-         JOIN users u ON u.id = v.id
-         JOIN products p ON p.id = vi.product_id
-         JOIN subscriptions s ON s.vendor_id = v.id
-           AND (s.status = 'waived' OR (s.status = 'active' AND s.expires_at > now()))
-         WHERE vi.in_stock = true
-           AND v.is_online = true
-           AND u.is_blocked = false
-           AND p.type = $3
-           AND ST_DWithin(v.location, ${toGeoPoint(r.lng, r.lat)}, $2::numeric * 1000)
-           AND (
-             p.name ILIKE ANY($1)
-             OR EXISTS (SELECT 1 FROM unnest(p.synonyms) syn WHERE syn ILIKE ANY($1))
-             OR p.category = ANY($4::text[])
-           )
-         ORDER BY (CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END) DESC,
-                  vi.typical_price ASC NULLS LAST
+        `SELECT * FROM (
+           SELECT DISTINCT ON (v.id)
+                  vi.typical_price, vi.pricing_type, v.id AS vendor_id, v.business_name, v.address_text,
+                  u.phone AS vendor_phone, p.name AS product_name,
+                  CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END AS vendor_priority,
+                  ST_Distance(v.location, ${toGeoPoint(r.lng, r.lat)}) AS distance_m
+           FROM vendor_inventory vi
+           JOIN vendors v ON v.id = vi.vendor_id
+           JOIN users u ON u.id = v.id
+           JOIN products p ON p.id = vi.product_id
+           JOIN subscriptions s ON s.vendor_id = v.id
+             AND (s.status = 'waived' OR (s.status = 'active' AND s.expires_at > now()))
+           WHERE vi.in_stock = true
+             AND v.is_online = true
+             AND u.is_blocked = false
+             AND p.type = $3
+             AND ST_DWithin(v.location, ${toGeoPoint(r.lng, r.lat)}, $2::numeric * 1000)
+             AND (
+               p.name ILIKE ANY($1)
+               OR EXISTS (SELECT 1 FROM unnest(p.synonyms) syn WHERE syn ILIKE ANY($1))
+               OR p.category = ANY($4::text[])
+             )
+           -- DISTINCT ON requires its column to lead the ORDER BY - this
+           -- picks each vendor's single BEST matching item (highest
+           -- priority, then lowest price) if they have more than one
+           -- inventory entry that matches (e.g. listing both "Plumber" and
+           -- "Plumbing" separately - same underlying business, shouldn't
+           -- appear as two separate results).
+           ORDER BY v.id, (CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END) DESC,
+                    vi.typical_price ASC NULLS LAST
+         ) matched
+         ORDER BY vendor_priority DESC, typical_price ASC NULLS LAST
          LIMIT 20`,
         [likePatterns, effectiveRadiusKm, r.request_type, r.categories || []]
       );
