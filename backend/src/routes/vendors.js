@@ -140,7 +140,7 @@ router.get('/me/orders', requireAuth, async (req, res) => {
     const result = await pool.query(
       `SELECT o.id, o.status, o.created_at, o.delivered_at,
               r.product_text, r.quantity, r.address_text AS request_address,
-              r.fulfillment_type, r.delivery_address_text, r.recipient_name, r.recipient_phone,
+              r.fulfillment_type, r.delivery_address_text, r.recipient_name, r.recipient_phone, r.request_type,
               u.phone AS requester_phone,
               of.id AS offer_id, of.price, of.delivery_fee, of.delivery_eta_minutes
        FROM orders o

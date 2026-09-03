@@ -412,7 +412,7 @@ export default function App() {
               <p className="hint">{request.request_type === 'service' ? 'Live offers from nearby providers:' : 'Live offers from nearby stores:'}</p>
               <OfferList offers={offers} onAccept={handleAcceptOffer} matched={false} socket={socket} currentUserId={user.id} />
               <button className="secondary" onClick={startOver}>
-                Ask for another item
+                Ask for another item or service
               </button>
             </div>
           )}

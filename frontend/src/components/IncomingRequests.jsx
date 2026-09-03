@@ -3,12 +3,15 @@ import { api } from '../api';
 import ChatToggleButton from './ChatToggleButton.jsx';
 
 function buildShareUrl(alert) {
+  const isService = alert.request_type === 'service';
   const lines = [
     `📦 Request via Tsvaga - Wanted: ${alert.product_text}`,
     alert.quantity ? `Qty: ${alert.quantity}` : null,
     alert.fulfillment_type === 'pickup'
-      ? "Customer will collect — no delivery needed"
-      : `Deliver to: ${alert.delivery_address_text || alert.address_text || "customer's pinned location"}`,
+      ? isService
+        ? 'Customer will come to you'
+        : 'Customer will collect — no delivery needed'
+      : `${isService ? 'Provide service at' : 'Deliver to'}: ${alert.delivery_address_text || alert.address_text || "customer's pinned location"}`,
     '',
     'Want to help fulfil this? Join Tsvaga to contact the requester directly OR to post what you are looking for: https://tsvaga.app',
   ].filter((line) => line !== null).join('\n');

@@ -36,10 +36,12 @@ function OrderCard({ order: o, onAdvance, socket, currentUserId }) {
       )}
       <p className="hint">
         {o.fulfillment_type === 'pickup'
-          ? '🚶 Customer will collect'
-          : o.delivery_address_text
-            ? `🚚 Deliver to: ${o.delivery_address_text}`
-            : `🚚 Deliver to: ${o.request_address || 'their pinned location'}`}
+          ? o.request_type === 'service'
+            ? '🚶 Customer will come to you'
+            : '🚶 Customer will collect'
+          : o.request_type === 'service'
+            ? `🔧 Provide service at: ${o.delivery_address_text || o.request_address || 'their pinned location'}`
+            : `🚚 Deliver to: ${o.delivery_address_text || o.request_address || 'their pinned location'}`}
       </p>
       <p className="hint">
         📞 {o.recipient_name || 'Contact'}: {o.recipient_phone || o.requester_phone}
