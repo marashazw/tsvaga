@@ -37,6 +37,18 @@ const PROHIBITED_TERMS = [
   // Pornographic material
   'porn', 'pornographic', 'xxx video', 'nude video', 'sex tape', 'adult film',
   'explicit video', 'nude pictures', 'nude photos',
+
+  // Illegal or seriously harmful services (relevant now that Tsvaga supports
+  // service requests, not just products)
+  'hitman', 'contract killing', 'assassination service', 'hire a hitman',
+  'human trafficking', 'people smuggling', 'illegal border crossing', 'smuggle person',
+  'fake passport', 'fake id', 'forged id', 'forged passport', 'fake degree',
+  'fake certificate', 'buy a degree', 'exam impersonation', 'sit exam for me',
+  'escort service', 'prostitute for hire', 'sex worker for hire',
+  'drug mule', 'drug courier service', 'smuggle drugs',
+  'money laundering service', 'launder money', 'illegal wiretapping',
+  'spy on my partner', 'phone tapping service', 'stalk someone service',
+  'kidnapping service', 'extortion service', 'blackmail service',
 ];
 
 // Returns true if the given text contains any prohibited term. Case
@@ -50,7 +62,7 @@ function containsProhibitedContent(text) {
 
 const REJECTION_MESSAGE =
   'This cannot be submitted on Tsvaga. We do not allow content related to weapons, drugs or controlled ' +
-  'substances, human organs, sexual products, or pornographic material.';
+  'substances, human organs, sexual products or services, pornographic material, or other illegal services.';
 
 // Records a blocked attempt to flagged_content for admin visibility, then
 // sends the standard rejection response. Call this instead of just checking

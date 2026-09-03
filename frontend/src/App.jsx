@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import MapView from './components/MapView.jsx';
 import RequestForm from './components/RequestForm.jsx';
+import RequestModePrompt from './components/RequestModePrompt.jsx';
 import OfferList from './components/OfferList.jsx';
 import OrderTracker from './components/OrderTracker.jsx';
 import RequesterAuth from './components/RequesterAuth.jsx';
@@ -29,6 +30,7 @@ export default function App() {
   const [addressLabel, setAddressLabel] = useState(null);
   const [radiusKm, setRadiusKm] = useState(35);
   const [request, setRequest] = useState(null);
+  const [requestMode, setRequestMode] = useState(null); // null | 'product' | 'service' - re-asked every new request cycle
   const [offers, setOffers] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState(null);
@@ -184,6 +186,7 @@ export default function App() {
     setUser(null);
     socket?.disconnect();
     setRequest(null);
+    setRequestMode(null);
     setOffers([]);
     setOrder(null);
   }
@@ -196,13 +199,17 @@ export default function App() {
     recipient_name,
     recipient_phone,
     categories,
+    request_type,
+    is_remote,
+    dropoff_address_text,
   }) {
     // location silently defaults to Harare CBD until the person actually
     // drags the pin, uses GPS, or searches an address (addressLabel stays
     // null until then) - without this check, someone could submit a
     // delivery request having never actually set where they are, and it
-    // would silently go to that default location instead.
-    if (fulfillment_type === 'delivery' && !addressLabel && !delivery_address_text?.trim()) {
+    // would silently go to that default location instead. A remote service
+    // has no physical location at all, so this check doesn't apply to it.
+    if (!is_remote && fulfillment_type === 'delivery' && !addressLabel && !delivery_address_text?.trim()) {
       alert('Please set your location on the map, or enter a delivery address, before submitting.');
       return;
     }
@@ -220,6 +227,9 @@ export default function App() {
         recipient_name,
         recipient_phone,
         categories,
+        request_type,
+        is_remote,
+        dropoff_address_text,
       });
       setRequest(data.request);
       setOffers([]);
@@ -244,6 +254,7 @@ export default function App() {
 
   function startOver() {
     setRequest(null);
+    setRequestMode(null);
     setOffers([]);
     setOrder(null);
   }
@@ -361,14 +372,19 @@ export default function App() {
                   View my requests
                 </a>
               )}
-              <RequestForm
-                location={location}
-                addressLabel={addressLabel}
-                radiusKm={radiusKm}
-                onRadiusChange={setRadiusKm}
-                onSubmit={handleSubmitRequest}
-                submitting={submitting}
-              />
+              {!requestMode ? (
+                <RequestModePrompt onChoose={setRequestMode} />
+              ) : (
+                <RequestForm
+                  location={location}
+                  addressLabel={addressLabel}
+                  radiusKm={radiusKm}
+                  onRadiusChange={setRadiusKm}
+                  onSubmit={handleSubmitRequest}
+                  submitting={submitting}
+                  requestType={requestMode}
+                />
+              )}
             </>
           ) : order ? (
             <>

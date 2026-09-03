@@ -17,8 +17,13 @@ module.exports = function buildRequestsRouter(io) {
   // fulfillment_type, delivery_address_text, recipient_name, recipient_phone,
   // categories, expires_at. Returns the number of vendors alerted.
   async function matchAndNotifyVendors({ client, request }) {
-    const { lng, lat, product_id, product_text, categories } = request;
+    const { lng, lat, product_id, product_text, categories, is_remote } = request;
     const finalCategories = categories && categories.length ? categories : ['miscellaneous'];
+    // A remote service isn't tied to physical proximity at all (a designer
+    // in Bulawayo can serve someone in Harare) - 1000km safely covers the
+    // whole of Zimbabwe, so this effectively removes distance as a factor
+    // without needing a separate un-filtered query path.
+    const effectiveRadiusKm = is_remote ? 1000 : request.radius_km;
 
     const matchQuery = product_id
       ? `SELECT v.id, v.business_name, v.address_text, v.notify_categories, v.notify_mode,
@@ -39,7 +44,7 @@ module.exports = function buildRequestsRouter(io) {
          ORDER BY distance_m ASC
          LIMIT 25`;
 
-    const matchParams = product_id ? [product_id, request.radius_km] : [request.radius_km];
+    const matchParams = product_id ? [product_id, effectiveRadiusKm] : [effectiveRadiusKm];
     const nearbyVendors = await client.query(matchQuery, matchParams);
 
     // Category filter: a request tagged ONLY 'miscellaneous' (nothing more
@@ -100,6 +105,9 @@ module.exports = function buildRequestsRouter(io) {
         address_text: paidUp ? request.address_text : null,
         fulfillment_type: request.fulfillment_type,
         delivery_address_text: paidUp ? request.delivery_address_text : null,
+        request_type: request.request_type,
+        is_remote: request.is_remote,
+        dropoff_address_text: paidUp ? request.dropoff_address_text : null,
         recipient_name: null,
         recipient_phone: null,
         distance_m: Math.round(vendor.distance_m),
@@ -150,6 +158,9 @@ module.exports = function buildRequestsRouter(io) {
       recipient_name,
       recipient_phone,
       categories,
+      request_type,
+      is_remote,
+      dropoff_address_text,
     } = req.body;
 
     if (!product_text || typeof lng !== 'number' || typeof lat !== 'number') {
@@ -161,8 +172,15 @@ module.exports = function buildRequestsRouter(io) {
     if (!isWithinZimbabwe(lng, lat)) {
       return res.status(422).json({ error: 'Coordinates fall outside the supported Zimbabwe service area' });
     }
+    const safeRequestType = request_type === 'service' ? 'service' : 'product';
+    // Only a service can be remote - a product always needs a physical
+    // delivery/pickup somewhere, so this flag is meaningless for products.
+    const safeIsRemote = safeRequestType === 'service' && is_remote === true;
     const safeFulfillment = fulfillment_type === 'pickup' ? 'pickup' : 'delivery';
-    if (safeFulfillment === 'delivery' && !address_text?.trim() && !delivery_address_text?.trim()) {
+    // A remote service (design, coding, tutoring over video call) has no
+    // physical meeting point at all, so the location/address requirement
+    // that applies to everything else doesn't apply here.
+    if (!safeIsRemote && safeFulfillment === 'delivery' && !address_text?.trim() && !delivery_address_text?.trim()) {
       return res.status(400).json({
         error: 'Please set your location on the map, or provide a delivery address, for a delivery request.',
       });
@@ -170,6 +188,9 @@ module.exports = function buildRequestsRouter(io) {
     // Delivery address only makes sense for 'delivery' - ignore it for pickup
     // rather than storing something that would never be read.
     const safeDeliveryAddress = safeFulfillment === 'delivery' ? delivery_address_text || null : null;
+    // Drop-off only makes sense for a transport/logistics service request.
+    const safeDropoff =
+      safeRequestType === 'service' && dropoff_address_text?.trim() ? dropoff_address_text.trim() : null;
 
     // A request always has at least one valid category - if the requester
     // (or the client's auto-suggestion) didn't assign anything usable, it
@@ -182,8 +203,8 @@ module.exports = function buildRequestsRouter(io) {
     try {
       client = await pool.connect();
       const insertResult = await client.query(
-        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories)
-         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5), $7, $8, $9, $10, $11)
+        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories, request_type, is_remote, dropoff_address_text)
+         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5), $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [
           req.user.id,
@@ -197,6 +218,9 @@ module.exports = function buildRequestsRouter(io) {
           recipient_name || null,
           recipient_phone || null,
           finalCategories,
+          safeRequestType,
+          safeIsRemote,
+          safeDropoff,
         ]
       );
       const request = insertResult.rows[0];
@@ -249,6 +273,7 @@ module.exports = function buildRequestsRouter(io) {
       const existing = await client.query(
         `SELECT id, requester_id, product_id, product_text, quantity, address_text, radius_km,
                 fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories, status, deleted_at,
+                request_type, is_remote, dropoff_address_text,
                 ST_X(location::geometry) AS lng, ST_Y(location::geometry) AS lat
          FROM requests WHERE id = $1`,
         [req.params.id]
@@ -406,11 +431,11 @@ module.exports = function buildRequestsRouter(io) {
     try {
       const result = await pool.query(
         `SELECT id, product_text, quantity, address_text, expires_at, fulfillment_type, delivery_address_text,
-                recipient_name, recipient_phone, created_at,
+                recipient_name, recipient_phone, created_at, request_type, is_remote, dropoff_address_text,
                 ST_Distance(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}) AS distance_m
          FROM requests
          WHERE status = 'open' AND deleted_at IS NULL
-           AND ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1::numeric * 1000)
+           AND (is_remote = true OR ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1::numeric * 1000))
          ORDER BY created_at DESC
          LIMIT 100`,
         [radius_km || 5]
@@ -433,6 +458,9 @@ module.exports = function buildRequestsRouter(io) {
           address_text: null,
           fulfillment_type: r.fulfillment_type,
           delivery_address_text: null,
+          request_type: r.request_type,
+          is_remote: r.is_remote,
+          dropoff_address_text: null,
           recipient_name: null,
           recipient_phone: null,
           expires_at: r.expires_at,

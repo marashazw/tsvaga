@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { CATEGORIES, suggestCategories } from '../categories.js';
 
-export default function RequestForm({ location, addressLabel, radiusKm, onRadiusChange, onSubmit, submitting }) {
+export default function RequestForm({ location, addressLabel, radiusKm, onRadiusChange, onSubmit, submitting, requestType }) {
   const [productText, setProductText] = useState('');
   const [quantity, setQuantity] = useState('');
   const [fulfillmentType, setFulfillmentType] = useState('delivery');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('+263 ');
+  const [isRemote, setIsRemote] = useState(false);
+  const [dropoffAddress, setDropoffAddress] = useState('');
 
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categoriesTouched, setCategoriesTouched] = useState(false);
@@ -15,13 +17,17 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
 
+  const isService = requestType === 'service';
+  const categoriesForType = CATEGORIES.filter((c) => c.type === requestType);
+  const showsTransportDropoff = isService && selectedCategories.includes('transport_logistics');
+
   // Auto-suggest as they type, but only until the requester manually adjusts
   // the selection themselves - once touched, typing more shouldn't silently
   // override a choice they already made.
   useEffect(() => {
     if (categoriesTouched) return;
-    setSelectedCategories(suggestCategories(productText));
-  }, [productText, categoriesTouched]);
+    setSelectedCategories(suggestCategories(productText, requestType));
+  }, [productText, categoriesTouched, requestType]);
 
   function toggleCategory(slug) {
     setCategoriesTouched(true);
@@ -32,7 +38,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (!location) return;
+    if (!isRemote && !location) return;
     onSubmit({
       product_text: productText,
       quantity,
@@ -41,6 +47,9 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       recipient_name: recipientName || undefined,
       recipient_phone: recipientPhone.trim() && recipientPhone.trim() !== '+263' ? recipientPhone.trim() : undefined,
       categories: selectedCategories.length ? selectedCategories : ['miscellaneous'],
+      request_type: requestType,
+      is_remote: isRemote,
+      dropoff_address_text: showsTransportDropoff ? dropoffAddress : undefined,
     });
   }
 
@@ -51,10 +60,10 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
   return (
     <form className="request-form" onSubmit={handleSubmit}>
       <label>
-        <span className="primary-label">What are you looking for today?</span>
+        <span className="primary-label">{isService ? 'What service do you need?' : 'What are you looking for today?'}</span>
         <input
           type="text"
-          placeholder="e.g. Mealie meal (10kg)"
+          placeholder={isService ? 'e.g. Plumber for a leaking pipe' : 'e.g. Mealie meal (10kg)'}
           value={productText}
           onChange={(e) => setProductText(e.target.value)}
           required
@@ -62,10 +71,10 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       </label>
 
       <label>
-        Quantity — how many, or how much of it
+        {isService ? 'Additional details (optional) — timeline, budget, specifics' : 'Quantity — how many, or how much of it'}
         <input
           type="text"
-          placeholder="e.g. 2 bags"
+          placeholder={isService ? 'e.g. Needed by Friday, budget around $30' : 'e.g. 2 bags'}
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
         />
@@ -86,7 +95,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
               We guessed based on what you typed — tick or untick any that fit. Leave everything unticked to be
               seen as a general request.
             </p>
-            {CATEGORIES.map((c) => (
+            {categoriesForType.map((c) => (
               <label key={c.slug} className="category-checkbox">
                 <input
                   type="checkbox"
@@ -100,16 +109,37 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
         )}
       </div>
 
-      <label>
-        Search radius: {radiusKm} km
-        <input
-          type="range"
-          min="1"
-          max="60"
-          value={radiusKm}
-          onChange={(e) => onRadiusChange(Number(e.target.value))}
-        />
-      </label>
+      {isService && (
+        <label className="radio-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="checkbox" checked={isRemote} onChange={(e) => setIsRemote(e.target.checked)} />
+          This can be done remotely (no need for the provider to be nearby)
+        </label>
+      )}
+
+      {showsTransportDropoff && (
+        <label>
+          Drop-off address (where should it be taken to?)
+          <input
+            type="text"
+            placeholder="e.g. 45 Fife Avenue, Harare"
+            value={dropoffAddress}
+            onChange={(e) => setDropoffAddress(e.target.value)}
+          />
+        </label>
+      )}
+
+      {!isRemote && (
+        <label>
+          Search radius: {radiusKm} km
+          <input
+            type="range"
+            min="1"
+            max="60"
+            value={radiusKm}
+            onChange={(e) => onRadiusChange(Number(e.target.value))}
+          />
+        </label>
+      )}
 
       <fieldset className="fulfillment-choice">
         <legend>How do you want to get it?</legend>
@@ -121,7 +151,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
             checked={fulfillmentType === 'delivery'}
             onChange={() => setFulfillmentType('delivery')}
           />
-          Deliver it to me
+          {isService ? 'Provider comes to me' : 'Deliver it to me'}
         </label>
         <label className="radio-label">
           <input
@@ -131,7 +161,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
             checked={fulfillmentType === 'pickup'}
             onChange={() => setFulfillmentType('pickup')}
           />
-          I'll collect it myself
+          {isService ? "I'll go to them" : "I'll collect it myself"}
         </label>
       </fieldset>
 
@@ -142,7 +172,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
             className="category-accordion-toggle"
             onClick={() => setDeliveryAddressOpen((o) => !o)}
           >
-            <span>Delivery address / landmark (if different from your map pin)</span>
+            <span>{isService ? 'Address (if different from your map pin)' : 'Delivery address / landmark (if different from your map pin)'}</span>
           </button>
           {deliveryAddressOpen && (
             <div className="category-accordion-body">
@@ -153,7 +183,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
                 onChange={(e) => setDeliveryAddress(e.target.value)}
               />
               <span className="hint" style={{ display: 'block', marginTop: 4 }}>
-                Leave blank to deliver to the pin you dropped on the map.
+                Leave blank to use the pin you dropped on the map.
               </span>
             </div>
           )}
@@ -194,15 +224,17 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       )}
 
       <p className="hint">
-        {location
-          ? addressLabel
-            ? `Location set: ${addressLabel}`
-            : 'Location set — tap the map again to move it.'
-          : 'Tap the map to drop your location pin first.'}
+        {isRemote
+          ? 'Remote service — no physical location needed, matched nationwide.'
+          : location
+            ? addressLabel
+              ? `Location set: ${addressLabel}`
+              : 'Location set — tap the map again to move it.'
+            : 'Tap the map to drop your location pin first.'}
       </p>
 
-      <button type="submit" disabled={!location || submitting}>
-        {submitting ? 'Alerting nearby stores…' : 'Ask nearby stores'}
+      <button type="submit" disabled={(!isRemote && !location) || submitting}>
+        {submitting ? 'Alerting nearby providers…' : isService ? 'Ask nearby providers' : 'Ask nearby stores'}
       </button>
     </form>
   );
