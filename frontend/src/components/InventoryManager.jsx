@@ -48,7 +48,14 @@ export default function InventoryManager({ inventory, onChange }) {
         typical_price: price ? Number(price) : null,
         pricing_type: itemType === 'service' ? pricingType : 'fixed',
       });
-      onChange([...inventory.filter((i) => i.product_id !== product.id), { ...data, name: product.name, type: product.type }]);
+      // Prepend, not append - the backend always returns inventory sorted
+      // newest-first (ORDER BY updated_at DESC), so appending here would
+      // silently push a freshly-added item outside the default top-5
+      // visible window if the vendor already has 5+ items. This is exactly
+      // what looked like "the page isn't updating" - the item WAS added,
+      // just invisible until Show more was clicked or the page refreshed
+      // (which re-fetches in the correct order).
+      onChange([{ ...data, name: product.name, type: product.type }, ...inventory.filter((i) => i.product_id !== product.id)]);
       setNewProductName('');
       setPrice('');
     } catch (err) {
@@ -212,7 +219,7 @@ export default function InventoryManager({ inventory, onChange }) {
         const merged = { ...invItem, name: product.name };
         const idx = workingList.findIndex((i) => i.product_id === product.id);
         if (idx >= 0) workingList[idx] = merged;
-        else workingList.push(merged);
+        else workingList.unshift(merged);
         created++;
       } catch (err) {
         skipped++;
@@ -310,7 +317,9 @@ export default function InventoryManager({ inventory, onChange }) {
                     : '—'}
                 </span>
                 <button className={item.in_stock ? 'stock-btn in' : 'stock-btn out'} onClick={() => toggleStock(item)}>
-                  {item.in_stock ? 'In stock' : 'Out of stock'}
+                  {item.type === 'service'
+                    ? item.in_stock ? 'Available' : 'Not available'
+                    : item.in_stock ? 'In stock' : 'Out of stock'}
                 </button>
                 {selectedIds.has(item.product_id) && (
                   <>
