@@ -286,7 +286,7 @@ export default function App() {
       <header className="vendor-header">
         <div className="vendor-name-block">
           <h1>Tsvaga</h1>
-          <p className="tagline">Hi {user.name} — ask for what you want. Nearby stores come to you.</p>
+          <p className="tagline">Hi {user.name} — ask for what you want. Nearby stores/service providers come to you.</p>
           <OnlineCount socket={socket} />
         </div>
         <div className="header-actions">
