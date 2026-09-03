@@ -447,5 +447,64 @@ module.exports = function buildRequestsRouter(io) {
     }
   });
 
+  // GET /api/requests/:id/suggested-vendors - searches vendor inventories
+  // for items matching this request's free-text description, so the
+  // requester gets an immediate alternative to waiting for a broadcast
+  // offer: vendors who already have it in stock at a known price, right
+  // now. Only surfaces paid-up vendors (waived or active subscription),
+  // consistent with the rest of the app's "pay to be reachable" model.
+  router.get('/:id/suggested-vendors', requireAuth, async (req, res) => {
+    try {
+      const requestRow = await pool.query(
+        `SELECT product_text, radius_km, requester_id,
+                ST_X(location::geometry) AS lng, ST_Y(location::geometry) AS lat
+         FROM requests WHERE id = $1`,
+        [req.params.id]
+      );
+      if (!requestRow.rows.length) return res.status(404).json({ error: 'Request not found' });
+      const r = requestRow.rows[0];
+      if (r.requester_id !== req.user.id && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Not authorized to view suggestions for this request' });
+      }
+
+      // Meaningful search words (3+ chars, deduplicated) from the free-text
+      // description, matched against both the product's canonical name and
+      // its synonyms - e.g. "mealie meal" should also match a product whose
+      // name is "maize meal" if that's listed as a synonym.
+      const words = [...new Set(r.product_text.toLowerCase().split(/\s+/).filter((w) => w.length >= 3))];
+      if (!words.length) return res.json([]);
+      const likePatterns = words.map((w) => `%${w}%`);
+
+      const { rows } = await pool.query(
+        `SELECT vi.typical_price, v.id AS vendor_id, v.business_name, v.address_text,
+                u.phone AS vendor_phone, p.name AS product_name,
+                CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END AS vendor_priority,
+                ST_Distance(v.location, ${toGeoPoint(r.lng, r.lat)}) AS distance_m
+         FROM vendor_inventory vi
+         JOIN vendors v ON v.id = vi.vendor_id
+         JOIN users u ON u.id = v.id
+         JOIN products p ON p.id = vi.product_id
+         JOIN subscriptions s ON s.vendor_id = v.id
+           AND (s.status = 'waived' OR (s.status = 'active' AND s.expires_at > now()))
+         WHERE vi.in_stock = true
+           AND v.is_online = true
+           AND u.is_blocked = false
+           AND ST_DWithin(v.location, ${toGeoPoint(r.lng, r.lat)}, $2::numeric * 1000)
+           AND (
+             p.name ILIKE ANY($1)
+             OR EXISTS (SELECT 1 FROM unnest(p.synonyms) syn WHERE syn ILIKE ANY($1))
+           )
+         ORDER BY (CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END) DESC,
+                  vi.typical_price ASC NULLS LAST
+         LIMIT 20`,
+        [likePatterns, r.radius_km || 35]
+      );
+      res.json(rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch suggested vendors' });
+    }
+  });
+
   return router;
 };

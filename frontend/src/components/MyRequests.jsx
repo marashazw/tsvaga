@@ -27,6 +27,77 @@ function daysLeft(visibleUntil) {
 
 const compactBtnStyle = { padding: '4px 10px', fontSize: '0.78rem' };
 
+function SuggestedVendors({ requestId }) {
+  const [vendors, setVendors] = useState(null);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    api
+      .get(`/requests/${requestId}/suggested-vendors`)
+      .then(({ data }) => setVendors(data))
+      .catch(() => setVendors([]));
+  }, [requestId]);
+
+  if (!vendors || vendors.length === 0) return null;
+
+  const visible = showAll ? vendors : vendors.slice(0, 5);
+
+  return (
+    <div style={{ marginTop: 8, marginBottom: 4 }}>
+      <p className="hint" style={{ margin: '0 0 6px', fontWeight: 600 }}>
+        🏪 {vendors.length} vendor{vendors.length === 1 ? '' : 's'} nearby already ha{vendors.length === 1 ? 's' : 've'} this in
+        stock — contact directly instead of waiting:
+      </p>
+      {visible.map((v) => {
+        const distanceKm = (v.distance_m / 1000).toFixed(1);
+        const waMessage = encodeURIComponent(
+          `Hi ${v.business_name}, I saw on Tsvaga that you have ${v.product_name} in stock. Is it still available?`
+        );
+        return (
+          <div
+            key={v.vendor_id}
+            style={{ border: '1px solid #e7ddc9', borderRadius: 10, padding: '8px 10px', marginBottom: 6 }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <strong style={{ fontSize: '0.88rem' }}>
+                {v.business_name}
+                {v.vendor_priority > 0 && (
+                  <span className="badge status-delivered" style={{ marginLeft: 6, fontSize: '0.7rem' }}>⭐</span>
+                )}
+              </strong>
+              <span style={{ fontWeight: 700, color: 'var(--clay)' }}>
+                {v.typical_price != null ? `$${Number(v.typical_price).toFixed(2)}` : 'Price on request'}
+              </span>
+            </div>
+            <p className="hint" style={{ margin: '2px 0' }}>
+              {v.product_name} · {distanceKm} km away
+            </p>
+            {v.address_text && <p className="hint" style={{ margin: '0 0 4px' }}>📍 {v.address_text}</p>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <a href={`tel:${v.vendor_phone}`} style={{ color: 'var(--forest)', fontSize: '0.85rem', fontWeight: 600 }}>
+                📞 Call
+              </a>
+              <a
+                href={`https://wa.me/${v.vendor_phone.replace(/[^0-9]/g, '')}?text=${waMessage}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--clay)', fontSize: '0.85rem', fontWeight: 600 }}
+              >
+                💬 WhatsApp
+              </a>
+            </div>
+          </div>
+        );
+      })}
+      {!showAll && vendors.length > 5 && (
+        <button type="button" className="secondary" style={compactBtnStyle} onClick={() => setShowAll(true)}>
+          Show {vendors.length - 5} more
+        </button>
+      )}
+    </div>
+  );
+}
+
 function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
   const [editing, setEditing] = useState(false);
   const [productText, setProductText] = useState(r.product_text);
@@ -120,6 +191,7 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
             {r.quantity && `Qty: ${r.quantity} · `}
             {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} · {new Date(r.created_at).toLocaleDateString()}
           </p>
+          {r.status === 'open' && <SuggestedVendors requestId={r.id} />}
           <p className="hint" style={{ margin: '2px 0 6px', fontStyle: 'italic' }}>
             {left <= 1 ? 'Leaves your history log today' : `On your history log for ${left} more day${left === 1 ? '' : 's'}`} unless renewed
           </p>
