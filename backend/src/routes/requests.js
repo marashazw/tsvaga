@@ -499,7 +499,24 @@ module.exports = function buildRequestsRouter(io) {
       // description, matched against both the product's canonical name and
       // its synonyms - e.g. "mealie meal" should also match a product whose
       // name is "maize meal" if that's listed as a synonym.
-      const words = [...new Set(r.product_text.toLowerCase().split(/\s+/).filter((w) => w.length >= 3))];
+      // Prefixes rather than whole words - "plumber" and "plumbing" share
+      // "plumb" but neither is a substring of the other, so whole-word
+      // matching was silently missing exactly this kind of common word-form
+      // variation (electrician/electrical, clean/cleaning, etc). A short
+      // prefix bridges these. This can occasionally over-match (e.g.
+      // "generator" and "general" share a prefix) - that's an acceptable
+      // tradeoff here, since a false positive just means one extra,
+      // easily-ignored suggestion, while a false negative means a real,
+      // relevant vendor stays invisible entirely.
+      const words = [
+        ...new Set(
+          r.product_text
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((w) => w.length >= 3)
+            .map((w) => (w.length > 5 ? w.slice(0, 5) : w))
+        ),
+      ];
       if (!words.length) return res.json([]);
       const likePatterns = words.map((w) => `%${w}%`);
       // Same nationwide-match behavior as the broadcast alert flow - a
