@@ -75,6 +75,9 @@ function SuggestedVendors({ requestId, requestType }) {
                 {v.vendor_priority > 0 && (
                   <span className="badge status-delivered" style={{ marginLeft: 6, fontSize: '0.7rem' }}>⭐</span>
                 )}
+                {v.rating_avg != null && (
+                  <span className="hint" style={{ marginLeft: 6, fontWeight: 400 }}>★ {Number(v.rating_avg).toFixed(1)}</span>
+                )}
               </strong>
               <span style={{ fontWeight: 700, color: 'var(--clay)' }}>
                 {v.typical_price != null

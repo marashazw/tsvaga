@@ -543,7 +543,7 @@ module.exports = function buildRequestsRouter(io) {
         `SELECT * FROM (
            SELECT DISTINCT ON (v.id)
                   vi.typical_price, vi.pricing_type, v.id AS vendor_id, v.business_name, v.address_text,
-                  u.phone AS vendor_phone, p.name AS product_name,
+                  v.rating_avg, u.phone AS vendor_phone, p.name AS product_name,
                   CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END AS vendor_priority,
                   ST_Distance(v.location, ${toGeoPoint(r.lng, r.lat)}) AS distance_m
            FROM vendor_inventory vi
@@ -564,14 +564,14 @@ module.exports = function buildRequestsRouter(io) {
              )
            -- DISTINCT ON requires its column to lead the ORDER BY - this
            -- picks each vendor's single BEST matching item (highest
-           -- priority, then lowest price) if they have more than one
-           -- inventory entry that matches (e.g. listing both "Plumber" and
-           -- "Plumbing" separately - same underlying business, shouldn't
-           -- appear as two separate results).
+           -- priority, then rating, then lowest price) if they have more
+           -- than one inventory entry that matches (e.g. listing both
+           -- "Plumber" and "Plumbing" separately - same underlying
+           -- business, shouldn't appear as two separate results).
            ORDER BY v.id, (CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END) DESC,
-                    vi.typical_price ASC NULLS LAST
+                    v.rating_avg DESC NULLS LAST, vi.typical_price ASC NULLS LAST
          ) matched
-         ORDER BY vendor_priority DESC, typical_price ASC NULLS LAST
+         ORDER BY vendor_priority DESC, rating_avg DESC NULLS LAST, typical_price ASC NULLS LAST
          LIMIT 20`,
         [likePatterns, effectiveRadiusKm, r.request_type, categoryFilter]
       );

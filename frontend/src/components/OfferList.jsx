@@ -20,6 +20,8 @@ export default function OfferList({ offers, onAccept, matched, socket, currentUs
   const sorted = [...withTotals].sort((a, b) => {
     const priorityDiff = (b.vendor_priority || 0) - (a.vendor_priority || 0);
     if (priorityDiff !== 0) return priorityDiff;
+    const ratingDiff = (b.rating_avg || 0) - (a.rating_avg || 0);
+    if (ratingDiff !== 0) return ratingDiff;
     return a.total - b.total;
   });
 
