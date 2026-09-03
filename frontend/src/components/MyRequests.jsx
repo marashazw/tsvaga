@@ -27,7 +27,7 @@ function daysLeft(visibleUntil) {
 
 const compactBtnStyle = { padding: '4px 10px', fontSize: '0.78rem' };
 
-function SuggestedVendors({ requestId }) {
+function SuggestedVendors({ requestId, requestType }) {
   const [vendors, setVendors] = useState(null);
   const [showAll, setShowAll] = useState(false);
 
@@ -42,16 +42,27 @@ function SuggestedVendors({ requestId }) {
 
   const visible = showAll ? vendors : vendors.slice(0, 5);
 
+  const isService = requestType === 'service';
+  const count = vendors.length;
+  const headerMessage = isService
+    ? count === 1
+      ? '1 provider nearby already offers this'
+      : `${count} providers nearby already offer this`
+    : count === 1
+      ? '1 vendor nearby already has this in stock'
+      : `${count} vendors nearby already have this in stock`;
+
   return (
     <div style={{ marginTop: 8, marginBottom: 4 }}>
       <p className="hint" style={{ margin: '0 0 6px', fontWeight: 600 }}>
-        🏪 {vendors.length} vendor{vendors.length === 1 ? '' : 's'} nearby already ha{vendors.length === 1 ? 's' : 've'} this in
-        stock — contact directly instead of waiting:
+        🏪 {headerMessage} — contact directly instead of waiting:
       </p>
       {visible.map((v) => {
         const distanceKm = (v.distance_m / 1000).toFixed(1);
         const waMessage = encodeURIComponent(
-          `Hi ${v.business_name}, I saw on Tsvaga that you have ${v.product_name} in stock. Is it still available?`
+          isService
+            ? `Hi ${v.business_name}, I saw on Tsvaga that you offer ${v.product_name}. Is this still available?`
+            : `Hi ${v.business_name}, I saw on Tsvaga that you have ${v.product_name} in stock. Is it still available?`
         );
         return (
           <div
@@ -200,7 +211,7 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
             {r.quantity && `Qty: ${r.quantity} · `}
             {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} · {new Date(r.created_at).toLocaleDateString()}
           </p>
-          {r.status === 'open' && <SuggestedVendors requestId={r.id} />}
+          {r.status === 'open' && <SuggestedVendors requestId={r.id} requestType={r.request_type} />}
           <p className="hint" style={{ margin: '2px 0 6px', fontStyle: 'italic' }}>
             {left <= 1 ? 'Leaves your history log today' : `On your history log for ${left} more day${left === 1 ? '' : 's'}`} unless renewed
           </p>
