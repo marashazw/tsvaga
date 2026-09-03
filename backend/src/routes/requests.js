@@ -182,7 +182,7 @@ module.exports = function buildRequestsRouter(io) {
     // that applies to everything else doesn't apply here.
     if (!safeIsRemote && safeFulfillment === 'delivery' && !address_text?.trim() && !delivery_address_text?.trim()) {
       return res.status(400).json({
-        error: 'Please set your location on the map, or provide a delivery address, for a delivery request.',
+        error: 'Please set your location on the map, or provide a delivery/service address.',
       });
     }
     // Delivery address only makes sense for 'delivery' - ignore it for pickup

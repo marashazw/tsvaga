@@ -210,7 +210,7 @@ export default function App() {
     // would silently go to that default location instead. A remote service
     // has no physical location at all, so this check doesn't apply to it.
     if (!is_remote && fulfillment_type === 'delivery' && !addressLabel && !delivery_address_text?.trim()) {
-      alert('Please set your location on the map, or enter a delivery address, before submitting.');
+      alert('Please set your location on the map, or enter a delivery/service address, before submitting.');
       return;
     }
     setSubmitting(true);

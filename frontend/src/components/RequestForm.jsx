@@ -172,7 +172,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
             className="category-accordion-toggle"
             onClick={() => setDeliveryAddressOpen((o) => !o)}
           >
-            <span>{isService ? 'Address (if different from your map pin)' : 'Delivery address / landmark (if different from your map pin)'}</span>
+            <span>{isService ? 'Delivery/service address (if different from your map pin)' : 'Delivery address / landmark (if different from your map pin)'}</span>
           </button>
           {deliveryAddressOpen && (
             <div className="category-accordion-body">
@@ -193,7 +193,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       {fulfillmentType === 'delivery' && (
         <div className="category-accordion">
           <button type="button" className="category-accordion-toggle" onClick={() => setContactOpen((o) => !o)}>
-            <span>Contact for delivery (optional)</span>
+            <span>{isService ? 'Contact for service (optional)' : 'Contact for delivery (optional)'}</span>
           </button>
           {contactOpen && (
             <div className="category-accordion-body">
