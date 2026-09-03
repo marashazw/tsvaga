@@ -132,10 +132,14 @@ export default function IncomingRequests({ alerts, respondedIds, offerIdsByReque
                 {a.quantity && <p className="hint">Qty: {a.quantity}</p>}
                 <p className="hint">
                   {a.fulfillment_type === 'pickup'
-                    ? '🚶 Customer will collect'
+                    ? a.request_type === 'service'
+                      ? '🚶 Customer will come to you'
+                      : '🚶 Customer will collect'
                     : a.delivery_address_text
-                      ? `🚚 Deliver to: ${a.delivery_address_text}`
-                      : '🚚 Deliver to their pinned location'}
+                      ? `${a.request_type === 'service' ? '🔧 Provide service at' : '🚚 Deliver to'}: ${a.delivery_address_text}`
+                      : a.request_type === 'service'
+                        ? '🔧 Provide service at their pinned location'
+                        : '🚚 Deliver to their pinned location'}
                 </p>
                 {respondedIds.has(a.request_id) ? (
                   <SentOfferChat

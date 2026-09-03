@@ -48,10 +48,14 @@ export default function OrderTracker({ order, socket, currentUserId }) {
       </p>
       <p className="hint">
         {isPickup
-          ? "You'll collect this yourself."
+          ? order.request_type === 'service'
+            ? "You'll go to them."
+            : "You'll collect this yourself."
           : order.delivery_address_text
-            ? `Deliver to: ${order.delivery_address_text}`
-            : 'Deliver to your pinned location.'}
+            ? `${order.request_type === 'service' ? 'Service provided at' : 'Deliver to'}: ${order.delivery_address_text}`
+            : order.request_type === 'service'
+              ? 'Service provided at your pinned location.'
+              : 'Deliver to your pinned location.'}
       </p>
 
       {isCancelled ? (

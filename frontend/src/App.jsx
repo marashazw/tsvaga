@@ -400,12 +400,16 @@ export default function App() {
               <h2>{request.product_text}</h2>
               <p className="hint">
                 {request.fulfillment_type === 'pickup'
-                  ? "You'll collect this yourself."
+                  ? request.request_type === 'service'
+                    ? "You'll go to them."
+                    : "You'll collect this yourself."
                   : request.delivery_address_text
-                    ? `Deliver to: ${request.delivery_address_text}`
-                    : 'Deliver to your pinned location.'}
+                    ? `${request.request_type === 'service' ? 'Service provided at' : 'Deliver to'}: ${request.delivery_address_text}`
+                    : request.request_type === 'service'
+                      ? 'Service provided at your pinned location.'
+                      : 'Deliver to your pinned location.'}
               </p>
-              <p className="hint">Live offers from nearby stores:</p>
+              <p className="hint">{request.request_type === 'service' ? 'Live offers from nearby providers:' : 'Live offers from nearby stores:'}</p>
               <OfferList offers={offers} onAccept={handleAcceptOffer} matched={false} socket={socket} currentUserId={user.id} />
               <button className="secondary" onClick={startOver}>
                 Ask for another item
