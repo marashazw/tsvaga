@@ -145,20 +145,24 @@ export default function VendorCategoryPreferences() {
               Miscellaneous only
             </button>
           </div>
-          {CATEGORIES.map((c) => (
-            <label
-              key={c.slug}
-              className="category-checkbox"
-              style={categoriesDisabled ? { opacity: 0.5 } : undefined}
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(c.slug)}
-                onChange={() => toggle(c.slug)}
-                disabled={categoriesDisabled}
-              />
-              <span>{c.label}</span>
-            </label>
+          {CATEGORIES.map((c, index) => (
+            <React.Fragment key={c.slug}>
+              {index > 0 && CATEGORIES[index - 1].type === 'product' && c.type === 'service' && (
+                <hr style={{ border: 'none', borderTop: '1px solid #e7ddc9', margin: '8px 0' }} />
+              )}
+              <label
+                className="category-checkbox"
+                style={categoriesDisabled ? { opacity: 0.5 } : undefined}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.includes(c.slug)}
+                  onChange={() => toggle(c.slug)}
+                  disabled={categoriesDisabled}
+                />
+                <span>{c.label}</span>
+              </label>
+            </React.Fragment>
           ))}
           {error && <p className="error">{error}</p>}
           <button type="button" onClick={save} disabled={saving} style={{ marginTop: 10 }}>
