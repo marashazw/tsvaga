@@ -167,6 +167,9 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
           )}
         </label>
         <span className={`badge ${statusClass(r.status)}`}>{statusLabel(r.status)}</span>
+        <span className="hint" style={{ marginLeft: 6, whiteSpace: 'nowrap' }}>
+          {r.request_type === 'service' ? '🔧 Service' : '🛒 Product'}
+        </span>
       </div>
 
       {editing ? (
