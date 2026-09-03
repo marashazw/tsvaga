@@ -171,7 +171,7 @@ router.get('/me', requireAuth, async (req, res) => {
     if (!vendor.rows.length) return res.status(404).json({ error: 'No vendor profile for this account' });
 
     const inventory = await pool.query(
-      `SELECT vi.id, vi.product_id, vi.in_stock, vi.typical_price, vi.updated_at, p.name, p.category
+      `SELECT vi.id, vi.product_id, vi.in_stock, vi.typical_price, vi.pricing_type, vi.updated_at, p.name, p.category, p.type
        FROM vendor_inventory vi JOIN products p ON p.id = vi.product_id
        WHERE vi.vendor_id = $1 ORDER BY vi.updated_at DESC`,
       [req.user.id]
@@ -297,16 +297,18 @@ router.patch('/me/status', requireAuth, async (req, res) => {
 
 // POST /api/vendors/me/inventory  { product_id, in_stock, typical_price }
 router.post('/me/inventory', requireAuth, async (req, res) => {
-  const { product_id, in_stock, typical_price } = req.body;
+  const { product_id, in_stock, typical_price, pricing_type } = req.body;
   if (!product_id) return res.status(400).json({ error: 'product_id is required' });
+  const safePricingType = ['fixed', 'hourly', 'starting_from'].includes(pricing_type) ? pricing_type : 'fixed';
   try {
     const result = await pool.query(
-      `INSERT INTO vendor_inventory (vendor_id, product_id, in_stock, typical_price)
-       VALUES ($1, $2, COALESCE($3, true), $4)
+      `INSERT INTO vendor_inventory (vendor_id, product_id, in_stock, typical_price, pricing_type)
+       VALUES ($1, $2, COALESCE($3, true), $4, $5)
        ON CONFLICT (vendor_id, product_id)
-       DO UPDATE SET in_stock = EXCLUDED.in_stock, typical_price = EXCLUDED.typical_price, updated_at = now()
+       DO UPDATE SET in_stock = EXCLUDED.in_stock, typical_price = EXCLUDED.typical_price,
+                      pricing_type = EXCLUDED.pricing_type, updated_at = now()
        RETURNING *`,
-      [req.user.id, product_id, in_stock, typical_price || null]
+      [req.user.id, product_id, in_stock, typical_price || null, safePricingType]
     );
     res.json(result.rows[0]);
   } catch (err) {

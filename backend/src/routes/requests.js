@@ -484,7 +484,7 @@ module.exports = function buildRequestsRouter(io) {
   router.get('/:id/suggested-vendors', requireAuth, async (req, res) => {
     try {
       const requestRow = await pool.query(
-        `SELECT product_text, radius_km, requester_id,
+        `SELECT product_text, radius_km, requester_id, request_type, is_remote,
                 ST_X(location::geometry) AS lng, ST_Y(location::geometry) AS lat
          FROM requests WHERE id = $1`,
         [req.params.id]
@@ -502,9 +502,12 @@ module.exports = function buildRequestsRouter(io) {
       const words = [...new Set(r.product_text.toLowerCase().split(/\s+/).filter((w) => w.length >= 3))];
       if (!words.length) return res.json([]);
       const likePatterns = words.map((w) => `%${w}%`);
+      // Same nationwide-match behavior as the broadcast alert flow - a
+      // remote service isn't tied to physical proximity at all.
+      const effectiveRadiusKm = r.is_remote ? 1000 : r.radius_km || 35;
 
       const { rows } = await pool.query(
-        `SELECT vi.typical_price, v.id AS vendor_id, v.business_name, v.address_text,
+        `SELECT vi.typical_price, vi.pricing_type, v.id AS vendor_id, v.business_name, v.address_text,
                 u.phone AS vendor_phone, p.name AS product_name,
                 CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END AS vendor_priority,
                 ST_Distance(v.location, ${toGeoPoint(r.lng, r.lat)}) AS distance_m
@@ -517,6 +520,7 @@ module.exports = function buildRequestsRouter(io) {
          WHERE vi.in_stock = true
            AND v.is_online = true
            AND u.is_blocked = false
+           AND p.type = $3
            AND ST_DWithin(v.location, ${toGeoPoint(r.lng, r.lat)}, $2::numeric * 1000)
            AND (
              p.name ILIKE ANY($1)
@@ -525,7 +529,7 @@ module.exports = function buildRequestsRouter(io) {
          ORDER BY (CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END) DESC,
                   vi.typical_price ASC NULLS LAST
          LIMIT 20`,
-        [likePatterns, r.radius_km || 35]
+        [likePatterns, effectiveRadiusKm, r.request_type]
       );
       res.json(rows);
     } catch (err) {

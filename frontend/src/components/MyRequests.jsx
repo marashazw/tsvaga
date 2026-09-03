@@ -66,7 +66,13 @@ function SuggestedVendors({ requestId }) {
                 )}
               </strong>
               <span style={{ fontWeight: 700, color: 'var(--clay)' }}>
-                {v.typical_price != null ? `$${Number(v.typical_price).toFixed(2)}` : 'Price on request'}
+                {v.typical_price != null
+                  ? v.pricing_type === 'hourly'
+                    ? `$${Number(v.typical_price).toFixed(2)}/hr`
+                    : v.pricing_type === 'starting_from'
+                      ? `From $${Number(v.typical_price).toFixed(2)}`
+                      : `$${Number(v.typical_price).toFixed(2)}`
+                  : 'Price on request'}
               </span>
             </div>
             <p className="hint" style={{ margin: '2px 0' }}>

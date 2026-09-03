@@ -49,7 +49,11 @@ CREATE TABLE vendors (
   -- is broadcast to every nearby vendor regardless of this list.
   notify_categories TEXT[] NOT NULL DEFAULT ARRAY[
     'groceries','electronics','clothing','hardware','health','automotive',
-    'home','beauty','stationery','baby_kids','sports','garden','leisure','miscellaneous'
+    'home','beauty','stationery','baby_kids','sports','garden','leisure',
+    'plumbing','electrical_services','transport_logistics','construction',
+    'it_design_services','tutoring_lessons','cleaning_services','legal_admin_services',
+    'event_services','repair_services','automotive_services','beauty_wellness_services',
+    'miscellaneous'
   ],
   -- How this vendor decides which nearby requests to be alerted about:
   --   'categories'                - match on notify_categories only (default)
@@ -68,6 +72,10 @@ CREATE TABLE products (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   category TEXT,
+  -- 'product' (a physical good) or 'service' (plumbing, tutoring, etc) -
+  -- matches request_type on requests, so a search for a service only
+  -- surfaces service-type products in vendor inventories.
+  type TEXT NOT NULL DEFAULT 'product' CHECK (type IN ('product', 'service')),
   synonyms TEXT[] DEFAULT '{}'
 );
 
@@ -77,6 +85,10 @@ CREATE TABLE vendor_inventory (
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   in_stock BOOLEAN NOT NULL DEFAULT true,
   typical_price NUMERIC(10,2),
+  -- Only meaningful when the linked product's type = 'service' - a flat
+  -- price doesn't fit most services well ("fix a leak" varies job to job).
+  -- 'fixed' keeps today's product behavior as the default for everyone.
+  pricing_type TEXT NOT NULL DEFAULT 'fixed' CHECK (pricing_type IN ('fixed', 'hourly', 'starting_from')),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (vendor_id, product_id)
 );
@@ -117,6 +129,19 @@ CREATE TABLE requests (
   -- specific was assigned, which is what triggers a broadcast-to-everyone
   -- match rather than a category-filtered one.
   categories TEXT[] NOT NULL DEFAULT ARRAY['miscellaneous'],
+  -- 'product' (the app's original purpose) or 'service' (plumber, designer,
+  -- transport, etc). Drives which fields the request form shows and whether
+  -- distance matching applies at all - see is_remote below.
+  request_type TEXT NOT NULL DEFAULT 'product' CHECK (request_type IN ('product', 'service')),
+  -- Only meaningful for request_type = 'service'. When true, this service
+  -- can be done without the provider being physically nearby (coding,
+  -- design, tutoring over video call, etc) - matching skips the radius
+  -- filter entirely and searches nationwide instead of the usual ~35km.
+  is_remote BOOLEAN NOT NULL DEFAULT false,
+  -- Only meaningful for transport/logistics-type service requests, which
+  -- need a destination as well as a starting point (delivery_address_text
+  -- above already covers "bring it to me"; this covers "take this there").
+  dropoff_address_text TEXT,
   -- Separate from expires_at above (that one governs the short vendor-matching
   -- window). This one controls how long a request stays visible in the
   -- requester's own "My requests" history - hidden from that list once past,

@@ -9,6 +9,8 @@ const MAX_ROWS = 500;
 export default function InventoryManager({ inventory, onChange }) {
   const [newProductName, setNewProductName] = useState('');
   const [price, setPrice] = useState('');
+  const [itemType, setItemType] = useState('product'); // 'product' | 'service'
+  const [pricingType, setPricingType] = useState('fixed'); // 'fixed' | 'hourly' | 'starting_from'
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [showAll, setShowAll] = useState(false);
@@ -36,16 +38,17 @@ export default function InventoryManager({ inventory, onChange }) {
 
     setSaving(true);
     try {
-      // Reuses an existing product with the same name if one already exists
-      // (handled server-side), otherwise creates a new one.
-      const { data: product } = await api.post('/products', { name: newProductName.trim() });
+      // Reuses an existing product with the same name AND type if one
+      // already exists (handled server-side), otherwise creates a new one.
+      const { data: product } = await api.post('/products', { name: newProductName.trim(), type: itemType });
 
       const { data } = await api.post('/vendors/me/inventory', {
         product_id: product.id,
         in_stock: true,
         typical_price: price ? Number(price) : null,
+        pricing_type: itemType === 'service' ? pricingType : 'fixed',
       });
-      onChange([...inventory.filter((i) => i.product_id !== product.id), { ...data, name: product.name }]);
+      onChange([...inventory.filter((i) => i.product_id !== product.id), { ...data, name: product.name, type: product.type }]);
       setNewProductName('');
       setPrice('');
     } catch (err) {
@@ -60,6 +63,7 @@ export default function InventoryManager({ inventory, onChange }) {
       product_id: item.product_id,
       in_stock: !item.in_stock,
       typical_price: item.typical_price,
+      pricing_type: item.pricing_type,
     });
     onChange(inventory.map((i) => (i.product_id === item.product_id ? { ...i, in_stock: data.in_stock } : i)));
   }
@@ -75,6 +79,7 @@ export default function InventoryManager({ inventory, onChange }) {
         product_id: item.product_id,
         in_stock: item.in_stock,
         typical_price: editPrice ? Number(editPrice) : null,
+        pricing_type: item.pricing_type,
       });
       onChange(inventory.map((i) => (i.product_id === item.product_id ? { ...i, typical_price: data.typical_price } : i)));
       setEditingId(null);
@@ -265,7 +270,12 @@ export default function InventoryManager({ inventory, onChange }) {
                 checked={selectedIds.has(item.product_id)}
                 onChange={() => toggleSelect(item.product_id)}
               />
-              <span>{item.name}</span>
+              <span>
+                {item.name}
+                {item.type === 'service' && (
+                  <span className="hint" style={{ marginLeft: 6 }}>🔧</span>
+                )}
+              </span>
             </label>
             {editingId === item.product_id ? (
               <>
@@ -290,7 +300,15 @@ export default function InventoryManager({ inventory, onChange }) {
               </>
             ) : (
               <>
-                <span className="price">{item.typical_price ? `$${Number(item.typical_price).toFixed(2)}` : '—'}</span>
+                <span className="price">
+                  {item.typical_price
+                    ? item.pricing_type === 'hourly'
+                      ? `$${Number(item.typical_price).toFixed(2)}/hr`
+                      : item.pricing_type === 'starting_from'
+                        ? `From $${Number(item.typical_price).toFixed(2)}`
+                        : `$${Number(item.typical_price).toFixed(2)}`
+                    : '—'}
+                </span>
                 <button className={item.in_stock ? 'stock-btn in' : 'stock-btn out'} onClick={() => toggleStock(item)}>
                   {item.in_stock ? 'In stock' : 'Out of stock'}
                 </button>
@@ -374,12 +392,29 @@ export default function InventoryManager({ inventory, onChange }) {
       </div>
 
       <form onSubmit={addOrUpdate} className="inventory-form" style={{ marginTop: 14 }}>
+        <label className="radio-label" style={{ display: 'inline-flex', gap: 12, marginBottom: 8, width: '100%' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <input type="radio" name="item_type" checked={itemType === 'product'} onChange={() => setItemType('product')} />
+            🛒 Product
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <input type="radio" name="item_type" checked={itemType === 'service'} onChange={() => setItemType('service')} />
+            🔧 Service
+          </span>
+        </label>
         <input
           type="text"
-          placeholder="Or type a product name"
+          placeholder={itemType === 'service' ? 'e.g. Plumbing call-out' : 'Or type a product name'}
           value={newProductName}
           onChange={(e) => setNewProductName(e.target.value)}
         />
+        {itemType === 'service' && (
+          <select value={pricingType} onChange={(e) => setPricingType(e.target.value)}>
+            <option value="fixed">Flat fee</option>
+            <option value="hourly">Per hour</option>
+            <option value="starting_from">Starting from</option>
+          </select>
+        )}
         <input
           type="number"
           step="0.01"
