@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CATEGORIES, suggestCategories } from '../categories.js';
+import PhoneInput from './PhoneInput.jsx';
 
 export default function RequestForm({ location, addressLabel, radiusKm, onRadiusChange, onSubmit, submitting, requestType, onSwitchMode, initialProductText }) {
   const [productText, setProductText] = useState(initialProductText || '');
@@ -218,12 +219,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
               </label>
               <label>
                 Contact phone (if different from your account)
-                <input
-                  type="text"
-                  placeholder="+263 7..."
-                  value={recipientPhone}
-                  onChange={(e) => setRecipientPhone(e.target.value)}
-                />
+                <PhoneInput value={recipientPhone} onChange={setRecipientPhone} />
               </label>
               <span className="hint" style={{ display: 'block' }}>
                 Leave blank and the vendor will use your account phone number.

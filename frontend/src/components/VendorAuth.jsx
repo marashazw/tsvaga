@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api, setAuthToken } from '../api';
 import Captcha from './Captcha.jsx';
+import PhoneInput from './PhoneInput.jsx';
 
 export default function VendorAuth({ onAuthed }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
@@ -72,7 +73,7 @@ export default function VendorAuth({ onAuthed }) {
         )}
         <label>
           Phone number
-          <input value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="+263 7..." required />
+          <PhoneInput value={form.phone} onChange={(v) => update('phone', v)} required />
         </label>
         <label>
           Password
