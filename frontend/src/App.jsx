@@ -252,6 +252,24 @@ export default function App() {
     }
   }
 
+  // My Requests only shows an offer count, not the offers themselves - the
+  // interactive accept/chat screen was previously only reachable in the
+  // same session as submitting (request/offers state resets on refresh).
+  // This restores that specific request's live offers into the active view
+  // so it can be resumed anytime from My Requests, not just right after
+  // creating it.
+  async function handleViewOffers(requestId) {
+    try {
+      const { data } = await api.get(`/requests/${requestId}`);
+      setRequest(data.request);
+      setOffers(data.offers || []);
+      setOrder(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to load this request');
+    }
+  }
+
   function startOver() {
     setRequest(null);
     setRequestMode(null);
@@ -357,7 +375,7 @@ export default function App() {
           </section>
 
           <div className="my-requests-area" id="my-requests-section">
-            <MyRequests socket={socket} />
+            <MyRequests socket={socket} onViewOffers={handleViewOffers} />
           </div>
         </div>
 

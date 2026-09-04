@@ -118,7 +118,7 @@ function SuggestedVendors({ requestId, requestType }) {
   );
 }
 
-function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
+function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOffers }) {
   const [editing, setEditing] = useState(false);
   const [productText, setProductText] = useState(r.product_text);
   const [quantity, setQuantity] = useState(r.quantity || '');
@@ -214,6 +214,11 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
             {r.quantity && `Qty: ${r.quantity} · `}
             {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} · {new Date(r.created_at).toLocaleDateString()}
           </p>
+          {r.status === 'open' && Number(r.offer_count) > 0 && onViewOffers && (
+            <button type="button" style={{ marginTop: 4 }} onClick={() => onViewOffers(r.id)}>
+              View {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} — accept or message
+            </button>
+          )}
           {r.status === 'open' && <SuggestedVendors requestId={r.id} requestType={r.request_type} />}
           <p className="hint" style={{ margin: '2px 0 6px', fontStyle: 'italic' }}>
             {left <= 1 ? 'Leaves your history log today' : `On your history log for ${left} more day${left === 1 ? '' : 's'}`} unless renewed
@@ -242,7 +247,7 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted }) {
   );
 }
 
-export default function MyRequests({ socket }) {
+export default function MyRequests({ socket, onViewOffers }) {
   const [requests, setRequests] = useState(null); // null = still loading
   const [visibleCount, setVisibleCount] = useState(3);
   const [expanded, setExpanded] = useState(false);
@@ -377,6 +382,7 @@ export default function MyRequests({ socket }) {
             onCheckToggle={() => toggleOne(r.id)}
             onChanged={handleChanged}
             onDeleted={handleDeleted}
+            onViewOffers={onViewOffers}
           />
         ))}
       </ul>
