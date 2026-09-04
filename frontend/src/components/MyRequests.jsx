@@ -22,6 +22,13 @@ function statusClass(status) {
 }
 
 function daysLeft(visibleUntil) {
+  // A delivered order's visible_until is set to Postgres 'infinity' server-
+  // side (see orders.js), which the pg driver converts to the JS Infinity
+  // number - and JSON.stringify(Infinity) becomes null over the wire. If
+  // this isn't handled explicitly, new Date(null) evaluates to the 1970
+  // epoch, which would wrongly show "leaves your log today" for a request
+  // that should actually never expire.
+  if (visibleUntil == null) return Infinity;
   return Math.max(0, Math.ceil((new Date(visibleUntil) - new Date()) / (24 * 60 * 60 * 1000)));
 }
 
@@ -239,7 +246,9 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
           )}
           {r.status === 'open' && <SuggestedVendors requestId={r.id} requestType={r.request_type} />}
           <p className="hint" style={{ margin: '2px 0 6px', fontStyle: 'italic' }}>
-            {left <= 1 ? 'Leaves your history log today' : `On your history log for ${left} more day${left === 1 ? '' : 's'}`} unless renewed
+            {left === Infinity
+              ? 'Kept in your history log permanently'
+              : `${left <= 1 ? 'Leaves your history log today' : `On your history log for ${left} more day${left === 1 ? '' : 's'}`} unless renewed`}
           </p>
           {checked && (
             <div className="admin-actions">

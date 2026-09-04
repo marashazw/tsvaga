@@ -94,6 +94,15 @@ module.exports = function buildOrdersRouter(io) {
         [order.id, status, delivered_at]
       );
 
+      // Once delivered, the request stays in the requester's history log
+      // indefinitely (until they explicitly delete it) rather than expiring
+      // after the usual 5 days - 'infinity' is a real, valid Postgres
+      // timestamptz value, so the existing `visible_until > now()` check
+      // elsewhere needs no changes at all to respect this.
+      if (status === 'delivered') {
+        await pool.query(`UPDATE requests SET visible_until = 'infinity' WHERE id = $1`, [order.request_id]);
+      }
+
       const payload = { order_id: order.id, request_id: order.request_id, status };
       io.to(`request:${order.request_id}`).emit('order:status', payload);
       io.to(`vendor:${order.vendor_id}`).emit('order:status', payload);
