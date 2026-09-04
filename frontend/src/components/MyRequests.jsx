@@ -243,14 +243,14 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
           {r.status === 'matched' && r.order_id && r.order_status === 'delivered' && r.has_review ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
               <span className="badge status-delivered">✅ Delivered</span>
+              <button type="button" className="secondary" style={compactBtnStyle} disabled={exporting} onClick={handleExportPdf}>
+                {exporting ? 'Preparing…' : '📄 Save as PDF'}
+              </button>
               {onReorder && (
                 <button type="button" className="secondary" style={compactBtnStyle} onClick={() => onReorder(r)}>
                   Request this again
                 </button>
               )}
-              <button type="button" className="secondary" style={compactBtnStyle} disabled={exporting} onClick={handleExportPdf}>
-                {exporting ? 'Preparing…' : '📄 Save as PDF'}
-              </button>
             </div>
           ) : (
             r.status === 'matched' && r.order_id && onViewOrder && (
