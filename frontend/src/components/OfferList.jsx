@@ -40,10 +40,23 @@ export default function OfferList({ offers, onAccept, matched, socket, currentUs
             <span className="price">${offer.total.toFixed(2)}</span>
             {formatEta(offer.delivery_eta_minutes) && <span className="eta">{formatEta(offer.delivery_eta_minutes)}</span>}
           </div>
-          <p className="hint" style={{ margin: '2px 0 0' }}>
-            Item: ${Number(offer.price).toFixed(2)}
-            {Number(offer.delivery_fee || 0) > 0 && ` + Delivery: $${Number(offer.delivery_fee).toFixed(2)}`}
-          </p>
+          {Array.isArray(offer.cart_prices) && offer.cart_prices.length > 0 ? (
+            <div style={{ margin: '4px 0' }}>
+              {offer.cart_prices.map((cp, i) => (
+                <p key={i} className="hint" style={{ margin: '1px 0' }}>
+                  {cp.product_text}: ${Number(cp.price).toFixed(2)}
+                </p>
+              ))}
+              {Number(offer.delivery_fee || 0) > 0 && (
+                <p className="hint" style={{ margin: '1px 0' }}>Delivery: ${Number(offer.delivery_fee).toFixed(2)}</p>
+              )}
+            </div>
+          ) : (
+            <p className="hint" style={{ margin: '2px 0 0' }}>
+              Item: ${Number(offer.price).toFixed(2)}
+              {Number(offer.delivery_fee || 0) > 0 && ` + Delivery: $${Number(offer.delivery_fee).toFixed(2)}`}
+            </p>
+          )}
           {offer.message && <p className="offer-message">{offer.message}</p>}
           <ChatToggleButton
             offerId={offer.id}

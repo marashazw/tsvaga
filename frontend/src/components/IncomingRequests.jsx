@@ -19,7 +19,9 @@ function buildShareUrl(alert) {
 }
 
 function RespondForm({ alert, onSent, onPaywalled }) {
+  const isCart = Array.isArray(alert.cart_items) && alert.cart_items.length > 0;
   const [price, setPrice] = useState('');
+  const [cartPrices, setCartPrices] = useState(isCart ? alert.cart_items.map(() => '') : []);
   const [deliveryFee, setDeliveryFee] = useState('');
   const [eta, setEta] = useState('');
   const [etaUnit, setEtaUnit] = useState('min'); // 'min' | 'hours'
@@ -27,17 +29,31 @@ function RespondForm({ alert, onSent, onPaywalled }) {
   const [sending, setSending] = useState(false);
   const isPickup = alert.fulfillment_type === 'pickup';
 
+  function updateCartPrice(index, value) {
+    setCartPrices((prev) => prev.map((p, i) => (i === index ? value : p)));
+  }
+
+  const cartTotal = isCart ? cartPrices.reduce((sum, p) => sum + (Number(p) || 0), 0) : 0;
+
   async function submit(e) {
     e.preventDefault();
     setSending(true);
     try {
       const etaMinutes = eta ? Number(eta) * (etaUnit === 'hours' ? 60 : 1) : undefined;
-      const { data } = await api.post(`/requests/${alert.request_id}/offers`, {
-        price: Number(price),
+      const payload = {
         delivery_fee: isPickup ? 0 : Number(deliveryFee || 0),
         delivery_eta_minutes: etaMinutes,
         message: message || undefined,
-      });
+      };
+      if (isCart) {
+        payload.cart_prices = alert.cart_items.map((item, i) => ({
+          product_text: item.product_text,
+          price: Number(cartPrices[i]),
+        }));
+      } else {
+        payload.price = Number(price);
+      }
+      const { data } = await api.post(`/requests/${alert.request_id}/offers`, payload);
       onSent(alert.request_id, data.id);
     } catch (err) {
       if (err.response?.status === 402) {
@@ -50,7 +66,31 @@ function RespondForm({ alert, onSent, onPaywalled }) {
 
   return (
     <form className="respond-form" onSubmit={submit}>
-      <input type="number" step="0.01" placeholder="Item price ($)" value={price} onChange={(e) => setPrice(e.target.value)} required />
+      {isCart ? (
+        <div style={{ border: '1px solid #e7ddc9', borderRadius: 8, padding: 8, marginBottom: 4 }}>
+          <p className="hint" style={{ margin: '0 0 6px', fontWeight: 600 }}>🛒 Price each item in the cart:</p>
+          {alert.cart_items.map((item, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: '0.85rem', flex: 1 }}>
+                {item.product_text}
+                {item.quantity && <span className="hint"> · {item.quantity}</span>}
+              </span>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="$"
+                value={cartPrices[i]}
+                onChange={(e) => updateCartPrice(i, e.target.value)}
+                required
+                style={{ width: 80 }}
+              />
+            </div>
+          ))}
+          <p className="hint" style={{ margin: '6px 0 0', fontWeight: 600 }}>Items total: ${cartTotal.toFixed(2)}</p>
+        </div>
+      ) : (
+        <input type="number" step="0.01" placeholder="Item price ($)" value={price} onChange={(e) => setPrice(e.target.value)} required />
+      )}
       {!isPickup && (
         <input
           type="number"
@@ -133,6 +173,16 @@ export default function IncomingRequests({ alerts, respondedIds, offerIdsByReque
                   <span className="hint">{Math.round(a.distance_m / 100) / 10} km away</span>
                 </div>
                 {a.quantity && <p className="hint">Qty: {a.quantity}</p>}
+                {Array.isArray(a.cart_items) && a.cart_items.length > 0 && (
+                  <ul style={{ margin: '2px 0 6px', paddingLeft: 18, fontSize: '0.85rem' }}>
+                    {a.cart_items.map((item, i) => (
+                      <li key={i}>
+                        {item.product_text}
+                        {item.quantity && <span className="hint"> · {item.quantity}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <p className="hint">
                   {a.fulfillment_type === 'pickup'
                     ? a.request_type === 'service'

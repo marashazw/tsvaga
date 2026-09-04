@@ -37,7 +37,7 @@ module.exports = function buildOrdersRouter(io) {
                 r.id AS request_id, r.product_text, r.quantity, r.address_text AS request_address, r.requester_id,
                 r.fulfillment_type, r.delivery_address_text, r.recipient_name, r.recipient_phone, r.request_type,
                 u.phone AS requester_phone,
-                of.id AS offer_id, of.price, of.delivery_fee, of.delivery_eta_minutes, of.message,
+                of.id AS offer_id, of.price, of.delivery_fee, of.delivery_eta_minutes, of.message, of.cart_prices,
                 v.id AS vendor_id, v.business_name, v.address_text AS vendor_address, v.rating_avg,
                 rv.id AS review_id, rv.rating AS review_rating, rv.comment AS review_comment
          FROM orders o

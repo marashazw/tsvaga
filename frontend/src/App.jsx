@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import MapView from './components/MapView.jsx';
 import RequestForm from './components/RequestForm.jsx';
 import RequestModePrompt from './components/RequestModePrompt.jsx';
+import { suggestCategories } from './categories.js';
 import OfferList from './components/OfferList.jsx';
 import OrderTracker from './components/OrderTracker.jsx';
 import RequesterAuth from './components/RequesterAuth.jsx';
@@ -203,6 +204,8 @@ export default function App() {
     request_type,
     is_remote,
     dropoff_address_text,
+    cart_items,
+    separate_items,
   }) {
     // location silently defaults to Harare CBD until the person actually
     // drags the pin, uses GPS, or searches an address (addressLabel stays
@@ -216,9 +219,7 @@ export default function App() {
     }
     setSubmitting(true);
     try {
-      const { data } = await api.post('/requests', {
-        product_text,
-        quantity,
+      const sharedFields = {
         lng: location.lng,
         lat: location.lat,
         address_text: addressLabel || undefined,
@@ -227,15 +228,46 @@ export default function App() {
         delivery_address_text,
         recipient_name,
         recipient_phone,
-        categories,
         request_type,
         is_remote,
         dropoff_address_text,
-      });
-      setRequest(data.request);
-      setOffers([]);
-      setOrder(null);
-      setPrefillText('');
+      };
+
+      if (Array.isArray(separate_items) && separate_items.length > 0) {
+        // Cart in "separate offers" mode - post each item as its own
+        // independent request, one after another, each getting its own
+        // auto-suggested categories based on that specific item's text
+        // (not reused from whichever item happened to be typed first).
+        let lastCreated = null;
+        for (const item of separate_items) {
+          const itemCategories = suggestCategories(item.product_text, request_type);
+          const { data } = await api.post('/requests', {
+            ...sharedFields,
+            product_text: item.product_text,
+            quantity: item.quantity,
+            categories: itemCategories.length ? itemCategories : ['miscellaneous'],
+          });
+          lastCreated = data.request;
+        }
+        // Land on the last one created - My Requests shows the full list
+        // regardless, this just avoids leaving the screen on a stale state.
+        setRequest(lastCreated);
+        setOffers([]);
+        setOrder(null);
+        setPrefillText('');
+      } else {
+        const { data } = await api.post('/requests', {
+          ...sharedFields,
+          product_text,
+          quantity,
+          categories,
+          cart_items,
+        });
+        setRequest(data.request);
+        setOffers([]);
+        setOrder(null);
+        setPrefillText('');
+      }
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to create request');
     } finally {

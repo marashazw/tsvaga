@@ -235,6 +235,16 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
             {r.quantity && `Qty: ${r.quantity} · `}
             {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} · {new Date(r.created_at).toLocaleDateString()}
           </p>
+          {Array.isArray(r.cart_items) && r.cart_items.length > 0 && (
+            <ul style={{ margin: '2px 0 4px', paddingLeft: 18, fontSize: '0.82rem' }}>
+              {r.cart_items.map((item, i) => (
+                <li key={i}>
+                  {item.product_text}
+                  {item.quantity && <span className="hint"> · {item.quantity}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
           {r.status === 'open' && Number(r.offer_count) > 0 && onViewOffers && (
             <button type="button" style={{ marginTop: 4 }} onClick={() => onViewOffers(r.id)}>
               View {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} — accept or message

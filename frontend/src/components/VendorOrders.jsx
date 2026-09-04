@@ -29,10 +29,23 @@ function OrderCard({ order: o, onAdvance, socket, currentUserId }) {
           ${(Number(o.price) + Number(o.delivery_fee || 0)).toFixed(2)}
         </span>
       </div>
-      {Number(o.delivery_fee || 0) > 0 && (
-        <p className="hint" style={{ margin: '2px 0 0' }}>
-          Item: ${Number(o.price).toFixed(2)} + Delivery: ${Number(o.delivery_fee).toFixed(2)}
-        </p>
+      {Array.isArray(o.cart_prices) && o.cart_prices.length > 0 ? (
+        <div style={{ margin: '2px 0' }}>
+          {o.cart_prices.map((cp, i) => (
+            <p key={i} className="hint" style={{ margin: '1px 0' }}>
+              {cp.product_text}: ${Number(cp.price).toFixed(2)}
+            </p>
+          ))}
+          {Number(o.delivery_fee || 0) > 0 && (
+            <p className="hint" style={{ margin: '1px 0' }}>Delivery: ${Number(o.delivery_fee).toFixed(2)}</p>
+          )}
+        </div>
+      ) : (
+        Number(o.delivery_fee || 0) > 0 && (
+          <p className="hint" style={{ margin: '2px 0 0' }}>
+            Item: ${Number(o.price).toFixed(2)} + Delivery: ${Number(o.delivery_fee).toFixed(2)}
+          </p>
+        )
       )}
       <p className="hint">
         {o.fulfillment_type === 'pickup'

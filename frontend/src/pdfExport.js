@@ -78,6 +78,11 @@ export async function exportOrderAsPdf(order, currentUserId) {
   line('Item', order.product_text);
   if (order.quantity) line('Quantity', order.quantity);
   line('Vendor', order.business_name);
+  if (Array.isArray(order.cart_prices) && order.cart_prices.length > 0) {
+    order.cart_prices.forEach((cp) => {
+      line(`  • ${cp.product_text}`, `$${Number(cp.price).toFixed(2)}`);
+    });
+  }
   const total = Number(order.price || 0) + Number(order.delivery_fee || 0);
   line(
     'Price',

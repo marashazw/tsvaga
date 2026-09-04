@@ -53,13 +53,28 @@ export default function OrderTracker({ order, socket, currentUserId }) {
   return (
     <div className="order-tracker">
       <h3 style={{ marginTop: 0 }}>{order.business_name}</h3>
-      <p className="hint">
-        {order.product_text} ·{' '}
-        {Number(order.delivery_fee || 0) > 0
-          ? `$${Number(order.price).toFixed(2)} + $${Number(order.delivery_fee).toFixed(2)} delivery = $${(Number(order.price) + Number(order.delivery_fee)).toFixed(2)}`
-          : `$${Number(order.price).toFixed(2)}`}
-        {formatEta(order.delivery_eta_minutes) && <> · {formatEta(order.delivery_eta_minutes)} ETA</>}
-      </p>
+      {Array.isArray(order.cart_prices) && order.cart_prices.length > 0 ? (
+        <div style={{ margin: '4px 0' }}>
+          {order.cart_prices.map((cp, i) => (
+            <p key={i} className="hint" style={{ margin: '1px 0' }}>
+              {cp.product_text}: ${Number(cp.price).toFixed(2)}
+            </p>
+          ))}
+          <p className="hint" style={{ margin: '4px 0', fontWeight: 600 }}>
+            Total: ${(Number(order.price) + Number(order.delivery_fee || 0)).toFixed(2)}
+            {Number(order.delivery_fee || 0) > 0 && ` (incl. $${Number(order.delivery_fee).toFixed(2)} delivery)`}
+            {formatEta(order.delivery_eta_minutes) && ` · ${formatEta(order.delivery_eta_minutes)} ETA`}
+          </p>
+        </div>
+      ) : (
+        <p className="hint">
+          {order.product_text} ·{' '}
+          {Number(order.delivery_fee || 0) > 0
+            ? `$${Number(order.price).toFixed(2)} + $${Number(order.delivery_fee).toFixed(2)} delivery = $${(Number(order.price) + Number(order.delivery_fee)).toFixed(2)}`
+            : `$${Number(order.price).toFixed(2)}`}
+          {formatEta(order.delivery_eta_minutes) && <> · {formatEta(order.delivery_eta_minutes)} ETA</>}
+        </p>
+      )}
       <p className="hint">
         {isPickup
           ? order.request_type === 'service'

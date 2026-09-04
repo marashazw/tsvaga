@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { CATEGORIES, suggestCategories } from '../categories.js';
 import PhoneInput from './PhoneInput.jsx';
 
+const compactBtnStyle = { padding: '4px 10px', fontSize: '0.78rem' };
+
 export default function RequestForm({ location, addressLabel, radiusKm, onRadiusChange, onSubmit, submitting, requestType, onSwitchMode, initialProductText }) {
   const [productText, setProductText] = useState(initialProductText || '');
   const [quantity, setQuantity] = useState('');
@@ -17,6 +19,20 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [deliveryAddressOpen, setDeliveryAddressOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
+
+  // Cart: lets a requester bundle several products into one submission,
+  // choosing whether vendors respond with one price per item (separate
+  // requests under the hood) or a single consolidated offer covering
+  // everything. Scoped to products only - bundling unrelated services
+  // (a plumber AND a tutor) into one ask doesn't really make sense the same
+  // way. Collapsed by default and entirely opt-in, so it adds no visual
+  // weight at all for the common single-item case.
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState([]);
+  const [newItemText, setNewItemText] = useState('');
+  const [newItemQty, setNewItemQty] = useState('');
+  const [cartMode, setCartMode] = useState('separate'); // 'separate' | 'consolidated'
+  const [cartError, setCartError] = useState('');
 
   const isService = requestType === 'service';
   const categoriesForType = CATEGORIES.filter((c) => c.type === requestType);
@@ -37,21 +53,63 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
     );
   }
 
+  function addCartItem() {
+    if (!newItemText.trim()) {
+      setCartError('Enter what you need before adding it to the cart.');
+      return;
+    }
+    setCartItems((prev) => [...prev, { product_text: newItemText.trim(), quantity: newItemQty.trim() || null }]);
+    setNewItemText('');
+    setNewItemQty('');
+    setCartError('');
+  }
+
+  function removeCartItem(index) {
+    setCartItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     if (!isRemote && !location) return;
-    onSubmit({
-      product_text: productText,
-      quantity,
+    const additionalItems = cartItems; // items beyond the main field above
+    const hasCart = !isService && additionalItems.length > 0;
+    const allItems = [{ product_text: productText, quantity: quantity || null }, ...additionalItems];
+
+    const basePayload = {
       fulfillment_type: fulfillmentType,
       delivery_address_text: fulfillmentType === 'delivery' ? deliveryAddress : undefined,
       recipient_name: recipientName || undefined,
       recipient_phone: recipientPhone.trim() && recipientPhone.trim() !== '+263' ? recipientPhone.trim() : undefined,
-      categories: selectedCategories.length ? selectedCategories : ['miscellaneous'],
       request_type: requestType,
       is_remote: isRemote,
       dropoff_address_text: showsTransportDropoff ? dropoffAddress : undefined,
-    });
+    };
+
+    if (hasCart && cartMode === 'consolidated') {
+      onSubmit({
+        ...basePayload,
+        product_text: `${productText} + ${additionalItems.length} more item${additionalItems.length === 1 ? '' : 's'}`,
+        quantity,
+        cart_items: allItems,
+        categories: selectedCategories.length ? selectedCategories : ['miscellaneous'],
+      });
+    } else if (hasCart && cartMode === 'separate') {
+      onSubmit({
+        ...basePayload,
+        // The parent submits each of these as its own independent request -
+        // categories are auto-suggested per item there, not reused from the
+        // main field, since a different item likely belongs to a different
+        // category.
+        separate_items: allItems,
+      });
+    } else {
+      onSubmit({
+        ...basePayload,
+        product_text: productText,
+        quantity,
+        categories: selectedCategories.length ? selectedCategories : ['miscellaneous'],
+      });
+    }
   }
 
   const summaryLabels = selectedCategories.length
@@ -137,6 +195,82 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
             onChange={(e) => setDropoffAddress(e.target.value)}
           />
         </label>
+      )}
+
+      {!isService && (
+        <div className="category-accordion">
+          <button type="button" className="category-accordion-toggle" onClick={() => setCartOpen((o) => !o)}>
+            <span>
+              🛒 {cartItems.length > 0 ? `Cart: ${cartItems.length + 1} items` : 'Buying more than one thing? Add items'}
+            </span>
+          </button>
+          {cartOpen && (
+            <div className="category-accordion-body">
+              <p className="hint" style={{ marginTop: 0 }}>
+                "{productText || 'your item above'}" is already item 1. Add anything else you need in the same
+                request.
+              </p>
+              {cartItems.length > 0 && (
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 10px' }}>
+                  {cartItems.map((item, i) => (
+                    <li
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '4px 0',
+                        borderBottom: '1px solid #ecdfc0',
+                      }}
+                    >
+                      <span>
+                        {item.product_text}
+                        {item.quantity && <span className="hint"> · {item.quantity}</span>}
+                      </span>
+                      <button type="button" className="secondary" style={compactBtnStyle} onClick={() => removeCartItem(i)}>
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  placeholder="e.g. Cooking oil (2L)"
+                  value={newItemText}
+                  onChange={(e) => setNewItemText(e.target.value)}
+                  style={{ flex: 2, minWidth: 120 }}
+                />
+                <input
+                  type="text"
+                  placeholder="Qty (optional)"
+                  value={newItemQty}
+                  onChange={(e) => setNewItemQty(e.target.value)}
+                  style={{ flex: 1, minWidth: 80 }}
+                />
+                <button type="button" className="secondary" style={compactBtnStyle} onClick={addCartItem}>
+                  + Add to cart
+                </button>
+              </div>
+              {cartError && <p className="error" style={{ margin: '6px 0 0' }}>{cartError}</p>}
+
+              {cartItems.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <p className="hint" style={{ fontWeight: 600, margin: '0 0 4px' }}>How should vendors respond?</p>
+                  <label className="radio-label">
+                    <input type="radio" checked={cartMode === 'separate'} onChange={() => setCartMode('separate')} />
+                    Separate offers for each item ({cartItems.length + 1} individual requests)
+                  </label>
+                  <label className="radio-label">
+                    <input type="radio" checked={cartMode === 'consolidated'} onChange={() => setCartMode('consolidated')} />
+                    One consolidated offer (itemised prices + one delivery fee)
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {!isRemote && (

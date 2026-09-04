@@ -108,6 +108,7 @@ module.exports = function buildRequestsRouter(io) {
         request_type: request.request_type,
         is_remote: request.is_remote,
         dropoff_address_text: paidUp ? request.dropoff_address_text : null,
+        cart_items: paidUp ? request.cart_items : null,
         recipient_name: null,
         recipient_phone: null,
         distance_m: Math.round(vendor.distance_m),
@@ -161,6 +162,7 @@ module.exports = function buildRequestsRouter(io) {
       request_type,
       is_remote,
       dropoff_address_text,
+      cart_items,
     } = req.body;
 
     if (!product_text || typeof lng !== 'number' || typeof lat !== 'number') {
@@ -168,6 +170,24 @@ module.exports = function buildRequestsRouter(io) {
     }
     if (containsProhibitedContent(product_text) || containsProhibitedContent(quantity)) {
       return flagAndReject(pool, req, res, 'request', `${product_text} ${quantity || ''}`.trim());
+    }
+    // Cart items each get checked independently - the filter shouldn't be
+    // something a person can bypass just by putting the prohibited item in
+    // slot 2 of a cart instead of the main field.
+    let safeCartItems = null;
+    if (Array.isArray(cart_items) && cart_items.length > 0) {
+      for (const item of cart_items) {
+        if (!item?.product_text?.trim()) {
+          return res.status(400).json({ error: 'Every cart item needs a description' });
+        }
+        if (containsProhibitedContent(item.product_text) || containsProhibitedContent(item.quantity)) {
+          return flagAndReject(pool, req, res, 'request', `${item.product_text} ${item.quantity || ''}`.trim());
+        }
+      }
+      safeCartItems = cart_items.map((item) => ({
+        product_text: item.product_text.trim(),
+        quantity: item.quantity?.trim() || null,
+      }));
     }
     if (!isWithinZimbabwe(lng, lat)) {
       return res.status(422).json({ error: 'Coordinates fall outside the supported Zimbabwe service area' });
@@ -203,8 +223,8 @@ module.exports = function buildRequestsRouter(io) {
     try {
       client = await pool.connect();
       const insertResult = await client.query(
-        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories, request_type, is_remote, dropoff_address_text)
-         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5), $7, $8, $9, $10, $11, $12, $13, $14)
+        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories, request_type, is_remote, dropoff_address_text, cart_items)
+         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5), $7, $8, $9, $10, $11, $12, $13, $14, $15)
          RETURNING *`,
         [
           req.user.id,
@@ -221,6 +241,7 @@ module.exports = function buildRequestsRouter(io) {
           safeRequestType,
           safeIsRemote,
           safeDropoff,
+          safeCartItems ? JSON.stringify(safeCartItems) : null,
         ]
       );
       const request = insertResult.rows[0];
@@ -244,7 +265,7 @@ module.exports = function buildRequestsRouter(io) {
   router.get('/me', requireAuth, async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT r.id, r.product_text, r.quantity, r.status, r.fulfillment_type, r.request_type, r.created_at, r.visible_until,
+        `SELECT r.id, r.product_text, r.quantity, r.status, r.fulfillment_type, r.request_type, r.created_at, r.visible_until, r.cart_items,
                 (SELECT COUNT(*) FROM offers WHERE offers.request_id = r.id) AS offer_count,
                 (SELECT o.id FROM orders o WHERE o.request_id = r.id ORDER BY o.created_at DESC LIMIT 1) AS order_id,
                 (SELECT o.status FROM orders o WHERE o.request_id = r.id ORDER BY o.created_at DESC LIMIT 1) AS order_status,
@@ -438,7 +459,7 @@ module.exports = function buildRequestsRouter(io) {
     try {
       const result = await pool.query(
         `SELECT id, product_text, quantity, address_text, expires_at, fulfillment_type, delivery_address_text,
-                recipient_name, recipient_phone, created_at, request_type, is_remote, dropoff_address_text,
+                recipient_name, recipient_phone, created_at, request_type, is_remote, dropoff_address_text, cart_items,
                 (SELECT o.id FROM offers o WHERE o.request_id = requests.id AND o.vendor_id = $2) AS my_offer_id,
                 ST_Distance(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}) AS distance_m
          FROM requests
@@ -469,6 +490,7 @@ module.exports = function buildRequestsRouter(io) {
           request_type: r.request_type,
           is_remote: r.is_remote,
           dropoff_address_text: null,
+          cart_items: null,
           my_offer_id: null,
           recipient_name: null,
           recipient_phone: null,
@@ -498,7 +520,7 @@ module.exports = function buildRequestsRouter(io) {
   router.get('/:id/suggested-vendors', requireAuth, async (req, res) => {
     try {
       const requestRow = await pool.query(
-        `SELECT product_text, radius_km, requester_id, request_type, is_remote, categories,
+        `SELECT product_text, radius_km, requester_id, request_type, is_remote, categories, cart_items,
                 ST_X(location::geometry) AS lng, ST_Y(location::geometry) AS lat
          FROM requests WHERE id = $1`,
         [req.params.id]
@@ -522,9 +544,13 @@ module.exports = function buildRequestsRouter(io) {
       // tradeoff here, since a false positive just means one extra,
       // easily-ignored suggestion, while a false negative means a real,
       // relevant vendor stays invisible entirely.
+      const allItemText = [
+        r.product_text,
+        ...(Array.isArray(r.cart_items) ? r.cart_items.map((i) => i.product_text) : []),
+      ].join(' ');
       const words = [
         ...new Set(
-          r.product_text
+          allItemText
             .toLowerCase()
             .split(/\s+/)
             .filter((w) => w.length >= 3)

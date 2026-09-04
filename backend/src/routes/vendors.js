@@ -142,7 +142,7 @@ router.get('/me/orders', requireAuth, async (req, res) => {
               r.product_text, r.quantity, r.address_text AS request_address,
               r.fulfillment_type, r.delivery_address_text, r.recipient_name, r.recipient_phone, r.request_type,
               u.phone AS requester_phone,
-              of.id AS offer_id, of.price, of.delivery_fee, of.delivery_eta_minutes
+              of.id AS offer_id, of.price, of.delivery_fee, of.delivery_eta_minutes, of.cart_prices
        FROM orders o
        JOIN offers of ON of.id = o.offer_id
        JOIN requests r ON r.id = o.request_id

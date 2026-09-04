@@ -106,6 +106,15 @@ CREATE TABLE requests (
   deleted_at TIMESTAMPTZ,
   product_text TEXT NOT NULL,
   quantity TEXT,
+  -- When a requester bundles several items into ONE consolidated request
+  -- (the "cart" feature) rather than submitting separate requests, this
+  -- holds the full itemized list as [{product_text, quantity}, ...].
+  -- product_text/quantity above still hold a human-readable summary for
+  -- every existing query/display that only knows about single items -
+  -- cart_items is purely additive, nothing else needs to change to keep
+  -- working exactly as before for the (overwhelmingly common) single-item
+  -- case, where this stays NULL.
+  cart_items JSONB,
   -- 'location' is the SEARCH center (where the requester is standing / wants to
   -- search around) - it is NOT necessarily the delivery destination. See
   -- fulfillment_type and delivery_address_text below.
@@ -159,6 +168,14 @@ CREATE TABLE offers (
   request_id UUID NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
   vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
   price NUMERIC(10,2) NOT NULL,
+  -- When responding to a consolidated cart request, this holds the
+  -- itemized per-item prices as [{product_text, price}, ...], one entry
+  -- per item in the request's cart_items. 'price' above is always the SUM
+  -- of these (plus is left as the single source of truth for every
+  -- existing ranking/sorting/total calculation, which never needs to know
+  -- cart_prices exists at all) - cart_prices is purely for display, so
+  -- both sides can see the breakdown per item, not just one lump sum.
+  cart_prices JSONB,
   -- Separate from 'price' so both sides can see an itemized breakdown rather
   -- than guessing whether delivery is already baked into the item price.
   -- Meaningful only when the request's fulfillment_type = 'delivery'; vendors

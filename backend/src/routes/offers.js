@@ -8,13 +8,10 @@ const { containsProhibitedContent, flagAndReject } = require('../constants/prohi
 module.exports = function buildOffersRouter(io) {
   const router = express.Router();
 
-  // POST /api/requests/:requestId/offers  { price, delivery_fee?, delivery_eta_minutes, message }
+  // POST /api/requests/:requestId/offers  { price, delivery_fee?, delivery_eta_minutes, message, cart_prices? }
   router.post('/:requestId/offers', requireAuth, async (req, res) => {
     const { requestId } = req.params;
-    const { price, delivery_fee, delivery_eta_minutes, message } = req.body;
-    if (typeof price !== 'number') {
-      return res.status(400).json({ error: 'price (a number) is required' });
-    }
+    const { price, delivery_fee, delivery_eta_minutes, message, cart_prices } = req.body;
     if (delivery_eta_minutes !== undefined && typeof delivery_eta_minutes !== 'number') {
       return res.status(400).json({ error: 'delivery_eta_minutes must be a number if provided' });
     }
@@ -42,16 +39,52 @@ module.exports = function buildOffersRouter(io) {
       if (requestRow.rows[0].status !== 'open') {
         return res.status(409).json({ error: 'This request is no longer accepting offers' });
       }
+      const cartItems = requestRow.rows[0].cart_items;
+
+      // For a consolidated cart request, the total price is always computed
+      // server-side as the sum of the itemized prices - never trusting a
+      // client-supplied lump sum that could silently disagree with the
+      // breakdown shown to the requester.
+      let finalPrice = price;
+      let safeCartPrices = null;
+      if (Array.isArray(cartItems) && cartItems.length > 0) {
+        if (!Array.isArray(cart_prices) || cart_prices.length !== cartItems.length) {
+          return res.status(400).json({ error: `cart_prices must have exactly ${cartItems.length} item(s), matching the request's cart` });
+        }
+        let sum = 0;
+        safeCartPrices = cart_prices.map((cp, i) => {
+          const itemPrice = Number(cp.price);
+          if (!Number.isFinite(itemPrice) || itemPrice < 0) {
+            return null;
+          }
+          sum += itemPrice;
+          return { product_text: cartItems[i].product_text, price: itemPrice };
+        });
+        if (safeCartPrices.includes(null)) {
+          return res.status(400).json({ error: 'Every cart item needs a valid, non-negative price' });
+        }
+        finalPrice = sum;
+      } else if (typeof price !== 'number') {
+        return res.status(400).json({ error: 'price (a number) is required' });
+      }
 
       const result = await pool.query(
-        `INSERT INTO offers (request_id, vendor_id, price, delivery_fee, delivery_eta_minutes, message)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO offers (request_id, vendor_id, price, delivery_fee, delivery_eta_minutes, message, cart_prices)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (request_id, vendor_id)
          DO UPDATE SET price = EXCLUDED.price, delivery_fee = EXCLUDED.delivery_fee,
                         delivery_eta_minutes = EXCLUDED.delivery_eta_minutes,
-                        message = EXCLUDED.message, status = 'pending'
+                        message = EXCLUDED.message, cart_prices = EXCLUDED.cart_prices, status = 'pending'
          RETURNING *`,
-        [requestId, req.user.id, price, delivery_fee || 0, delivery_eta_minutes ?? null, message || null]
+        [
+          requestId,
+          req.user.id,
+          finalPrice,
+          delivery_fee || 0,
+          delivery_eta_minutes ?? null,
+          message || null,
+          safeCartPrices ? JSON.stringify(safeCartPrices) : null,
+        ]
       );
       const offer = result.rows[0];
 
