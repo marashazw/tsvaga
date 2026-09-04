@@ -147,7 +147,7 @@ CREATE TABLE requests (
   -- requester's own "My requests" history - hidden from that list once past,
   -- unless the requester renews it (pushing this out another 5 days) before
   -- then. Does not affect matching/offers at all, purely a history-view thing.
-  visible_until TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '5 days'),
+  visible_until TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '30 days'),
   status request_status NOT NULL DEFAULT 'open',
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '30 minutes'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()

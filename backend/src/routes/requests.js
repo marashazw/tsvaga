@@ -239,7 +239,7 @@ module.exports = function buildRequestsRouter(io) {
   // GET /api/requests/me - the signed-in requester's own request history,
   // newest first. Placed BEFORE /:id below - otherwise Express would treat
   // "me" as if it were a request id and this would never be reached.
-  // Requests past their visible_until (5 days, unless renewed) are simply
+  // Requests past their visible_until (30 days, unless renewed) are simply
   // excluded here - they still exist in the database, just no longer shown.
   router.get('/me', requireAuth, async (req, res) => {
     try {
@@ -302,7 +302,7 @@ module.exports = function buildRequestsRouter(io) {
       await client.query('BEGIN');
       const updated = await client.query(
         `UPDATE requests SET status = 'open', expires_at = now() + interval '30 minutes',
-                visible_until = now() + interval '5 days'
+                visible_until = now() + interval '30 days'
          WHERE id = $1 RETURNING *`,
         [current.id]
       );
