@@ -72,6 +72,29 @@ export default function VendorApp() {
         subscription_required: r.subscription_required,
       }));
       setAlerts(normalized);
+
+      // respondedIds/offerIdsByRequest previously only got populated at the
+      // moment of actively sending a new offer in the current session, with
+      // nothing restoring them on load - after any refresh, a request the
+      // vendor had already responded to would silently show the "Send
+      // offer" form again instead of the existing chat, with no way back to
+      // that conversation. Restoring from my_offer_id (now returned by this
+      // endpoint) fixes that.
+      const existingResponses = data.filter((r) => r.my_offer_id);
+      if (existingResponses.length) {
+        setRespondedIds((prev) => {
+          const next = new Set(prev);
+          existingResponses.forEach((r) => next.add(r.id));
+          return next;
+        });
+        setOfferIdsByRequest((prev) => {
+          const next = { ...prev };
+          existingResponses.forEach((r) => {
+            next[r.id] = r.my_offer_id;
+          });
+          return next;
+        });
+      }
     } catch (err) {
       console.error('Failed to load nearby requests', err);
     }

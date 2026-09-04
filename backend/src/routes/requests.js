@@ -432,13 +432,14 @@ module.exports = function buildRequestsRouter(io) {
       const result = await pool.query(
         `SELECT id, product_text, quantity, address_text, expires_at, fulfillment_type, delivery_address_text,
                 recipient_name, recipient_phone, created_at, request_type, is_remote, dropoff_address_text,
+                (SELECT o.id FROM offers o WHERE o.request_id = requests.id AND o.vendor_id = $2) AS my_offer_id,
                 ST_Distance(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}) AS distance_m
          FROM requests
          WHERE status = 'open' AND deleted_at IS NULL
            AND (is_remote = true OR ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1::numeric * 1000))
          ORDER BY created_at DESC
          LIMIT 100`,
-        [radius_km || 5]
+        [radius_km || 5, req.user.id]
       );
 
       const paidUp = req.user.role === 'admin' || (await isVendorPaidUp(req.user.id));
@@ -461,6 +462,7 @@ module.exports = function buildRequestsRouter(io) {
           request_type: r.request_type,
           is_remote: r.is_remote,
           dropoff_address_text: null,
+          my_offer_id: null,
           recipient_name: null,
           recipient_phone: null,
           expires_at: r.expires_at,
