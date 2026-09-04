@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { CATEGORIES, suggestCategories } from '../categories.js';
 
-export default function RequestForm({ location, addressLabel, radiusKm, onRadiusChange, onSubmit, submitting, requestType, onSwitchMode }) {
-  const [productText, setProductText] = useState('');
+export default function RequestForm({ location, addressLabel, radiusKm, onRadiusChange, onSubmit, submitting, requestType, onSwitchMode, initialProductText }) {
+  const [productText, setProductText] = useState(initialProductText || '');
   const [quantity, setQuantity] = useState('');
   const [fulfillmentType, setFulfillmentType] = useState('delivery');
   const [deliveryAddress, setDeliveryAddress] = useState('');

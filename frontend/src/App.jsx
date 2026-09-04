@@ -31,6 +31,7 @@ export default function App() {
   const [radiusKm, setRadiusKm] = useState(35);
   const [request, setRequest] = useState(null);
   const [requestMode, setRequestMode] = useState(null); // null | 'product' | 'service' - re-asked every new request cycle
+  const [prefillText, setPrefillText] = useState('');
   const [offers, setOffers] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState(null);
@@ -234,6 +235,7 @@ export default function App() {
       setRequest(data.request);
       setOffers([]);
       setOrder(null);
+      setPrefillText('');
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to create request');
     } finally {
@@ -286,6 +288,18 @@ export default function App() {
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to load this order');
     }
+  }
+
+  // Once delivered and reviewed, there's nothing left to act on for that
+  // request except possibly wanting the same thing again - this starts a
+  // fresh request of the same type, with the item description pre-filled.
+  function handleReorder(pastRequest) {
+    setRequest(null);
+    setOrder(null);
+    setOffers([]);
+    setPrefillText(pastRequest.product_text || '');
+    setRequestMode(pastRequest.request_type || 'product');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function startOver() {
@@ -393,7 +407,7 @@ export default function App() {
           </section>
 
           <div className="my-requests-area" id="my-requests-section">
-            <MyRequests socket={socket} onViewOffers={handleViewOffers} onViewOrder={handleViewOrder} />
+            <MyRequests socket={socket} onViewOffers={handleViewOffers} onViewOrder={handleViewOrder} onReorder={handleReorder} />
           </div>
         </div>
 
@@ -420,7 +434,8 @@ export default function App() {
                   onSubmit={handleSubmitRequest}
                   submitting={submitting}
                   requestType={requestMode}
-                  onSwitchMode={setRequestMode}
+                  onSwitchMode={(mode) => { setPrefillText(''); setRequestMode(mode); }}
+                  initialProductText={prefillText}
                 />
               )}
             </>

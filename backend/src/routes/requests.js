@@ -244,12 +244,18 @@ module.exports = function buildRequestsRouter(io) {
   router.get('/me', requireAuth, async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT id, product_text, quantity, status, fulfillment_type, request_type, created_at, visible_until,
-                (SELECT COUNT(*) FROM offers WHERE offers.request_id = requests.id) AS offer_count,
-                (SELECT o.id FROM orders o WHERE o.request_id = requests.id) AS order_id
-         FROM requests
-         WHERE requester_id = $1 AND visible_until > now() AND deleted_at IS NULL
-         ORDER BY created_at DESC
+        `SELECT r.id, r.product_text, r.quantity, r.status, r.fulfillment_type, r.request_type, r.created_at, r.visible_until,
+                (SELECT COUNT(*) FROM offers WHERE offers.request_id = r.id) AS offer_count,
+                (SELECT o.id FROM orders o WHERE o.request_id = r.id ORDER BY o.created_at DESC LIMIT 1) AS order_id,
+                (SELECT o.status FROM orders o WHERE o.request_id = r.id ORDER BY o.created_at DESC LIMIT 1) AS order_status,
+                EXISTS (
+                  SELECT 1 FROM reviews rv
+                  JOIN orders o2 ON o2.id = rv.order_id
+                  WHERE o2.request_id = r.id
+                ) AS has_review
+         FROM requests r
+         WHERE r.requester_id = $1 AND r.visible_until > now() AND r.deleted_at IS NULL
+         ORDER BY r.created_at DESC
          LIMIT 100`,
         [req.user.id]
       );

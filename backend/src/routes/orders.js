@@ -177,6 +177,7 @@ module.exports = function buildOrdersRouter(io) {
       await client.query('COMMIT');
 
       io.to(`vendor:${order.vendor_id}`).emit('review:new', { order_id: order.id, rating, comment: comment || null });
+      io.to(`user:${order.requester_id}`).emit('myrequests:updated');
 
       res.status(201).json(review.rows[0]);
     } catch (err) {

@@ -118,7 +118,7 @@ function SuggestedVendors({ requestId, requestType }) {
   );
 }
 
-function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOffers, onViewOrder }) {
+function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOffers, onViewOrder, onReorder }) {
   const [editing, setEditing] = useState(false);
   const [productText, setProductText] = useState(r.product_text);
   const [quantity, setQuantity] = useState(r.quantity || '');
@@ -219,10 +219,23 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
               View {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} — accept or message
             </button>
           )}
-          {r.status === 'matched' && r.order_id && onViewOrder && (
-            <button type="button" style={{ marginTop: 4 }} onClick={() => onViewOrder(r.order_id)}>
-              View order status — track & message vendor
-            </button>
+          {r.status === 'matched' && r.order_id && r.order_status === 'delivered' && r.has_review ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+              <span className="badge status-delivered">✅ Delivered</span>
+              {onReorder && (
+                <button type="button" className="secondary" onClick={() => onReorder(r)}>
+                  Request this again
+                </button>
+              )}
+            </div>
+          ) : (
+            r.status === 'matched' && r.order_id && onViewOrder && (
+              <button type="button" style={{ marginTop: 4 }} onClick={() => onViewOrder(r.order_id)}>
+                {r.order_status === 'delivered'
+                  ? 'Delivered — leave a review'
+                  : 'View order status — track & message vendor'}
+              </button>
+            )
           )}
           {r.status === 'open' && <SuggestedVendors requestId={r.id} requestType={r.request_type} />}
           <p className="hint" style={{ margin: '2px 0 6px', fontStyle: 'italic' }}>
@@ -252,7 +265,7 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
   );
 }
 
-export default function MyRequests({ socket, onViewOffers, onViewOrder }) {
+export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorder }) {
   const [requests, setRequests] = useState(null); // null = still loading
   const [visibleCount, setVisibleCount] = useState(3);
   const [expanded, setExpanded] = useState(false);
@@ -389,6 +402,7 @@ export default function MyRequests({ socket, onViewOffers, onViewOrder }) {
             onDeleted={handleDeleted}
             onViewOffers={onViewOffers}
             onViewOrder={onViewOrder}
+            onReorder={onReorder}
           />
         ))}
       </ul>
