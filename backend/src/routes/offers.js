@@ -129,6 +129,7 @@ module.exports = function buildOffersRouter(io) {
         [orderResult.rows[0].id]
       );
       io.to(`vendor:${offer.vendor_id}`).emit('order:new', fullOrder.rows[0]);
+      io.to(`vendor:${offer.vendor_id}`).emit('offer:accepted', { request_id: offer.request_id, offer_id: offer.id });
 
       // Let the vendor know even if their dashboard tab isn't open right now.
       notifyUsersByPush([offer.vendor_id], {

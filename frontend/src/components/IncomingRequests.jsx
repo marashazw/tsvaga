@@ -94,16 +94,16 @@ function RespondForm({ alert, onSent, onPaywalled }) {
   );
 }
 
-function SentOfferChat({ offerId, socket, currentUserId }) {
+function SentOfferChat({ offerId, socket, currentUserId, isAccepted }) {
   return (
     <>
-      <span className="badge accepted">Offer sent</span>{' '}
+      <span className="badge accepted">{isAccepted ? 'Offer accepted' : 'Offer sent'}</span>{' '}
       <ChatToggleButton offerId={offerId} socket={socket} currentUserId={currentUserId} label="Message customer" />
     </>
   );
 }
 
-export default function IncomingRequests({ alerts, respondedIds, offerIdsByRequest, onResponded, onPaywalled, socket, currentUserId }) {
+export default function IncomingRequests({ alerts, respondedIds, offerIdsByRequest, acceptedRequestIds, onResponded, onPaywalled, socket, currentUserId }) {
   const [visibleCount, setVisibleCount] = useState(10);
   const [expanded, setExpanded] = useState(false);
 
@@ -149,6 +149,7 @@ export default function IncomingRequests({ alerts, respondedIds, offerIdsByReque
                     offerId={offerIdsByRequest[a.request_id]}
                     socket={socket}
                     currentUserId={currentUserId}
+                    isAccepted={acceptedRequestIds?.has(a.request_id)}
                   />
                 ) : (
                   <RespondForm alert={a} onSent={onResponded} onPaywalled={onPaywalled} />

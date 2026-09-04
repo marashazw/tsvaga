@@ -27,6 +27,7 @@ export default function VendorApp() {
   const [alerts, setAlerts] = useState([]);
   const [respondedIds, setRespondedIds] = useState(new Set());
   const [offerIdsByRequest, setOfferIdsByRequest] = useState({});
+  const [acceptedRequestIds, setAcceptedRequestIds] = useState(new Set());
   const [orders, setOrders] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [pushStatus, setPushStatus] = useState(null); // null | 'granted' | 'denied' | 'unsupported' | 'not-configured' | 'error'
@@ -139,6 +140,9 @@ export default function VendorApp() {
     s.on('request:new', (alert) => setAlerts((prev) => [alert, ...prev].slice(0, 100)));
     s.on('order:new', (order) =>
       setOrders((prev) => (prev.some((o) => o.id === order.id) ? prev : [order, ...prev]))
+    );
+    s.on('offer:accepted', (payload) =>
+      setAcceptedRequestIds((prev) => new Set(prev).add(payload.request_id))
     );
     s.on('order:status', (payload) =>
       setOrders((prev) => prev.map((o) => (o.id === payload.order_id ? { ...o, status: payload.status } : o)))
@@ -436,6 +440,7 @@ export default function VendorApp() {
             alerts={alerts}
             respondedIds={respondedIds}
             offerIdsByRequest={offerIdsByRequest}
+            acceptedRequestIds={acceptedRequestIds}
             onResponded={handleOffered}
             onPaywalled={handlePaywalled}
             socket={socket}
