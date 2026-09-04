@@ -245,7 +245,8 @@ module.exports = function buildRequestsRouter(io) {
     try {
       const result = await pool.query(
         `SELECT id, product_text, quantity, status, fulfillment_type, request_type, created_at, visible_until,
-                (SELECT COUNT(*) FROM offers WHERE offers.request_id = requests.id) AS offer_count
+                (SELECT COUNT(*) FROM offers WHERE offers.request_id = requests.id) AS offer_count,
+                (SELECT o.id FROM orders o WHERE o.request_id = requests.id) AS order_id
          FROM requests
          WHERE requester_id = $1 AND visible_until > now() AND deleted_at IS NULL
          ORDER BY created_at DESC

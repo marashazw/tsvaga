@@ -118,7 +118,7 @@ function SuggestedVendors({ requestId, requestType }) {
   );
 }
 
-function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOffers }) {
+function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOffers, onViewOrder }) {
   const [editing, setEditing] = useState(false);
   const [productText, setProductText] = useState(r.product_text);
   const [quantity, setQuantity] = useState(r.quantity || '');
@@ -219,6 +219,11 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
               View {r.offer_count} offer{r.offer_count === '1' ? '' : 's'} — accept or message
             </button>
           )}
+          {r.status === 'matched' && r.order_id && onViewOrder && (
+            <button type="button" style={{ marginTop: 4 }} onClick={() => onViewOrder(r.order_id)}>
+              View order status — track & message vendor
+            </button>
+          )}
           {r.status === 'open' && <SuggestedVendors requestId={r.id} requestType={r.request_type} />}
           <p className="hint" style={{ margin: '2px 0 6px', fontStyle: 'italic' }}>
             {left <= 1 ? 'Leaves your history log today' : `On your history log for ${left} more day${left === 1 ? '' : 's'}`} unless renewed
@@ -247,7 +252,7 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
   );
 }
 
-export default function MyRequests({ socket, onViewOffers }) {
+export default function MyRequests({ socket, onViewOffers, onViewOrder }) {
   const [requests, setRequests] = useState(null); // null = still loading
   const [visibleCount, setVisibleCount] = useState(3);
   const [expanded, setExpanded] = useState(false);
@@ -383,6 +388,7 @@ export default function MyRequests({ socket, onViewOffers }) {
             onChanged={handleChanged}
             onDeleted={handleDeleted}
             onViewOffers={onViewOffers}
+            onViewOrder={onViewOrder}
           />
         ))}
       </ul>

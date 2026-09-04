@@ -270,6 +270,24 @@ export default function App() {
     }
   }
 
+  // Same gap as handleViewOffers, but for an order already in progress -
+  // once matched, order state was only ever set right after accepting an
+  // offer in that same session, with nothing restoring it afterward. A
+  // refresh meant losing the order tracker (status updates, vendor chat)
+  // entirely, even though the order itself was still very much active.
+  async function handleViewOrder(orderId) {
+    try {
+      const { data: fullOrder } = await api.get(`/orders/${orderId}`);
+      const { data: reqData } = await api.get(`/requests/${fullOrder.request_id}`);
+      setRequest(reqData.request);
+      setOffers(reqData.offers || []);
+      setOrder(fullOrder);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to load this order');
+    }
+  }
+
   function startOver() {
     setRequest(null);
     setRequestMode(null);
@@ -375,7 +393,7 @@ export default function App() {
           </section>
 
           <div className="my-requests-area" id="my-requests-section">
-            <MyRequests socket={socket} onViewOffers={handleViewOffers} />
+            <MyRequests socket={socket} onViewOffers={handleViewOffers} onViewOrder={handleViewOrder} />
           </div>
         </div>
 
