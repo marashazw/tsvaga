@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ReviewForm from './ReviewForm.jsx';
 import ChatToggleButton from './ChatToggleButton.jsx';
+import { exportOrderAsPdf } from '../pdfExport.js';
 
 function formatEta(minutes) {
   if (!minutes) return null;
@@ -28,6 +29,19 @@ export default function OrderTracker({ order, socket, currentUserId }) {
   const [review, setReview] = useState(
     order.review_id ? { rating: order.review_rating, comment: order.review_comment } : null
   );
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportPdf() {
+    setExporting(true);
+    try {
+      await exportOrderAsPdf(order, currentUserId);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   if (!order) return null;
   const isPickup = order.fulfillment_type === 'pickup';
@@ -71,14 +85,19 @@ export default function OrderTracker({ order, socket, currentUserId }) {
         </ol>
       )}
 
-      {order.offer_id && (
-        <ChatToggleButton
-          offerId={order.offer_id}
-          socket={socket}
-          currentUserId={currentUserId}
-          label={`Message ${order.business_name}`}
-        />
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        {order.offer_id && (
+          <ChatToggleButton
+            offerId={order.offer_id}
+            socket={socket}
+            currentUserId={currentUserId}
+            label={`Message ${order.business_name}`}
+          />
+        )}
+        <button type="button" className="secondary" disabled={exporting} onClick={handleExportPdf}>
+          {exporting ? 'Preparing PDF…' : '📄 Save as PDF'}
+        </button>
+      </div>
 
       {isDelivered && (
         <div style={{ marginTop: 16 }}>
