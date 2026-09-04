@@ -407,7 +407,7 @@ export default function App() {
           </section>
 
           <div className="my-requests-area" id="my-requests-section">
-            <MyRequests socket={socket} onViewOffers={handleViewOffers} onViewOrder={handleViewOrder} onReorder={handleReorder} />
+            <MyRequests socket={socket} onViewOffers={handleViewOffers} onViewOrder={handleViewOrder} onReorder={handleReorder} currentUserId={user.id} />
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
+import { exportOrderAsPdf } from '../pdfExport.js';
 
 function statusLabel(status) {
   return {
@@ -125,12 +126,25 @@ function SuggestedVendors({ requestId, requestType }) {
   );
 }
 
-function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOffers, onViewOrder, onReorder }) {
+function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOffers, onViewOrder, onReorder, currentUserId }) {
   const [editing, setEditing] = useState(false);
   const [productText, setProductText] = useState(r.product_text);
   const [quantity, setQuantity] = useState(r.quantity || '');
   const [saving, setSaving] = useState(false);
   const [renewing, setRenewing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportPdf() {
+    setExporting(true);
+    try {
+      const { data: fullOrder } = await api.get(`/orders/${r.order_id}`);
+      await exportOrderAsPdf(fullOrder, currentUserId);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to generate PDF');
+    } finally {
+      setExporting(false);
+    }
+  }
   const [error, setError] = useState(null);
 
   async function save() {
@@ -230,10 +244,13 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
               <span className="badge status-delivered">✅ Delivered</span>
               {onReorder && (
-                <button type="button" className="secondary" onClick={() => onReorder(r)}>
+                <button type="button" className="secondary" style={compactBtnStyle} onClick={() => onReorder(r)}>
                   Request this again
                 </button>
               )}
+              <button type="button" className="secondary" style={compactBtnStyle} disabled={exporting} onClick={handleExportPdf}>
+                {exporting ? 'Preparing…' : '📄 Save as PDF'}
+              </button>
             </div>
           ) : (
             r.status === 'matched' && r.order_id && onViewOrder && (
@@ -274,7 +291,7 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
   );
 }
 
-export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorder }) {
+export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorder, currentUserId }) {
   const [requests, setRequests] = useState(null); // null = still loading
   const [visibleCount, setVisibleCount] = useState(3);
   const [expanded, setExpanded] = useState(false);
@@ -412,6 +429,7 @@ export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorde
             onViewOffers={onViewOffers}
             onViewOrder={onViewOrder}
             onReorder={onReorder}
+            currentUserId={currentUserId}
           />
         ))}
       </ul>
