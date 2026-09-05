@@ -511,7 +511,9 @@ export default function App() {
 
       <footer style={{ marginTop: 24, textAlign: 'center', paddingTop: 14, borderTop: '1px solid #e7ddc9' }}>
         <button className="secondary" onClick={handleLogout}>Sign out</button>
-        <DeleteAccountLink onDeleted={handleLogout} />
+        <div style={{ marginTop: 12 }}>
+          <DeleteAccountLink onDeleted={handleLogout} />
+        </div>
       </footer>
     </div>
   );

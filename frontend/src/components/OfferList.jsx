@@ -65,7 +65,7 @@ export default function OfferList({ offers, onAccept, matched, socket, currentUs
             label={`Message ${offer.business_name}`}
           />
           {!matched && offer.status === 'pending' && (
-            <button onClick={() => onAccept(offer.id)}>Accept this offer</button>
+            <button style={{ marginTop: 8 }} onClick={() => onAccept(offer.id)}>Accept this offer</button>
           )}
           {offer.status === 'accepted' && <span className="badge accepted">Accepted</span>}
           {offer.status === 'declined' && <span className="badge declined">Declined</span>}
