@@ -153,8 +153,30 @@ async function api(path, options = {}) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    // A 401 here always means the CURRENT stored token is no longer valid -
+    // most commonly because it's simply expired (tokens last 7 days) after
+    // sitting unused in this tab or a bookmarked link. This has nothing to
+    // do with subscription status (waived/active/etc) - that's a completely
+    // separate check the backend only applies once the token itself is
+    // already accepted. Previously this fell through to the generic error
+    // path below, leaving the dashboard visible with a cryptic
+    // "Invalid or expired token" message buried in whichever panel
+    // happened to be loading, with no indication that signing in again
+    // would fix it. Bouncing straight back to a clean login screen with a
+    // plain explanation is the correct fix for every case a 401 can mean.
+    clearToken();
+    showLogin('Your session has expired. Please sign in again.');
+    throw new Error('Session expired');
+  }
   if (!res.ok) throw new Error(data.error || 'Something went wrong');
   return data;
+}
+
+function showLogin(message) {
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('loginPanel').classList.remove('hidden');
+  document.getElementById('loginError').textContent = message || '';
 }
 
 // ---------- LOGIN ----------
@@ -181,8 +203,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
   clearToken();
-  document.getElementById('dashboard').classList.add('hidden');
-  document.getElementById('loginPanel').classList.remove('hidden');
+  showLogin();
 });
 
 function showDashboard() {
