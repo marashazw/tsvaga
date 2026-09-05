@@ -35,6 +35,93 @@ function daysLeft(visibleUntil) {
 
 const compactBtnStyle = { padding: '4px 10px', fontSize: '0.78rem' };
 
+function formatVendorPrice(price, pricingType) {
+  if (price == null) return 'Price on request';
+  if (pricingType === 'hourly') return `$${Number(price).toFixed(2)}/hr`;
+  if (pricingType === 'starting_from') return `From $${Number(price).toFixed(2)}`;
+  return `$${Number(price).toFixed(2)}`;
+}
+
+function SuggestedVendorCard({ v, isService }) {
+  const [itemsOpen, setItemsOpen] = useState(false);
+  const distanceKm = (v.distance_m / 1000).toFixed(1);
+  const isFullCart = v.matched_count === v.total_items;
+  const matchLabel =
+    v.total_items > 1
+      ? isFullCart
+        ? `Has all ${v.total_items} items`
+        : `Has ${v.matched_count} of ${v.total_items} items`
+      : null;
+  const itemsTotal = v.matched_items.reduce((s, i) => s + (Number(i.price) || 0), 0);
+  const itemNames = v.matched_items.map((i) => i.product_name).join(', ');
+  const waMessage = encodeURIComponent(
+    isService
+      ? `Hi ${v.business_name}, I saw on Tsvaga that you offer ${itemNames}. Is this still available?`
+      : `Hi ${v.business_name}, I saw on Tsvaga that you have ${itemNames} in stock. Is it still available?`
+  );
+
+  return (
+    <div style={{ border: '1px solid #e7ddc9', borderRadius: 10, padding: '8px 10px', marginBottom: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <strong style={{ fontSize: '0.88rem' }}>
+          {v.business_name}
+          {v.vendor_priority > 0 && (
+            <span className="badge status-delivered" style={{ marginLeft: 6, fontSize: '0.7rem' }}>⭐</span>
+          )}
+          {v.rating_avg != null && (
+            <span className="hint" style={{ marginLeft: 6, fontWeight: 400 }}>★ {Number(v.rating_avg).toFixed(1)}</span>
+          )}
+        </strong>
+        <span style={{ fontWeight: 700, color: 'var(--clay)' }}>
+          {v.total_items > 1 ? `$${itemsTotal.toFixed(2)}` : formatVendorPrice(v.matched_items[0].price, v.matched_items[0].pricing_type)}
+        </span>
+      </div>
+      <p className="hint" style={{ margin: '2px 0' }}>
+        {matchLabel ? <strong style={{ color: isFullCart ? 'var(--forest)' : 'inherit' }}>{matchLabel}</strong> : v.matched_items[0].product_name}
+        {' · '}{distanceKm} km away
+      </p>
+      {v.address_text && <p className="hint" style={{ margin: '0 0 4px' }}>📍 {v.address_text}</p>}
+
+      {v.total_items > 1 && (
+        <div style={{ margin: '4px 0' }}>
+          <button
+            type="button"
+            className="secondary"
+            style={compactBtnStyle}
+            onClick={() => setItemsOpen((o) => !o)}
+          >
+            {itemsOpen ? '▲ Hide items' : `▼ View ${v.matched_count} item${v.matched_count === 1 ? '' : 's'}`}
+          </button>
+          {itemsOpen && (
+            <ul style={{ listStyle: 'none', padding: 0, margin: '6px 0 0' }}>
+              {v.matched_items.map((item, i) => (
+                <li key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '2px 0' }}>
+                  <span>{item.product_name}</span>
+                  <span>{formatVendorPrice(item.price, item.pricing_type)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <a href={`tel:${v.vendor_phone}`} style={{ color: 'var(--forest)', fontSize: '0.85rem', fontWeight: 600 }}>
+          📞 Call
+        </a>
+        <a
+          href={`https://wa.me/${v.vendor_phone.replace(/[^0-9]/g, '')}?text=${waMessage}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--clay)', fontSize: '0.85rem', fontWeight: 600 }}
+        >
+          💬 WhatsApp
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function SuggestedVendors({ requestId, requestType }) {
   const [vendors, setVendors] = useState(null);
   const [showAll, setShowAll] = useState(false);
@@ -49,74 +136,29 @@ function SuggestedVendors({ requestId, requestType }) {
   if (!vendors || vendors.length === 0) return null;
 
   const visible = showAll ? vendors : vendors.slice(0, 5);
-
   const isService = requestType === 'service';
   const count = vendors.length;
-  const headerMessage = isService
-    ? count === 1
-      ? '1 provider nearby already offers this'
-      : `${count} providers nearby already offer this`
-    : count === 1
-      ? '1 vendor nearby already has this in stock'
-      : `${count} vendors nearby already have this in stock`;
+  const isCart = vendors[0]?.total_items > 1;
+  const headerMessage = isCart
+    ? isService
+      ? `${count} provider${count === 1 ? '' : 's'} nearby can supply at least one item from your list`
+      : `${count} vendor${count === 1 ? '' : 's'} nearby can supply at least one item from your cart`
+    : isService
+      ? count === 1
+        ? '1 provider nearby already offers this'
+        : `${count} providers nearby already offer this`
+      : count === 1
+        ? '1 vendor nearby already has this in stock'
+        : `${count} vendors nearby already have this in stock`;
 
   return (
     <div style={{ marginTop: 8, marginBottom: 4 }}>
       <p className="hint" style={{ margin: '0 0 6px', fontWeight: 600 }}>
         🏪 {headerMessage} — contact directly instead of waiting:
       </p>
-      {visible.map((v) => {
-        const distanceKm = (v.distance_m / 1000).toFixed(1);
-        const waMessage = encodeURIComponent(
-          isService
-            ? `Hi ${v.business_name}, I saw on Tsvaga that you offer ${v.product_name}. Is this still available?`
-            : `Hi ${v.business_name}, I saw on Tsvaga that you have ${v.product_name} in stock. Is it still available?`
-        );
-        return (
-          <div
-            key={v.vendor_id}
-            style={{ border: '1px solid #e7ddc9', borderRadius: 10, padding: '8px 10px', marginBottom: 6 }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <strong style={{ fontSize: '0.88rem' }}>
-                {v.business_name}
-                {v.vendor_priority > 0 && (
-                  <span className="badge status-delivered" style={{ marginLeft: 6, fontSize: '0.7rem' }}>⭐</span>
-                )}
-                {v.rating_avg != null && (
-                  <span className="hint" style={{ marginLeft: 6, fontWeight: 400 }}>★ {Number(v.rating_avg).toFixed(1)}</span>
-                )}
-              </strong>
-              <span style={{ fontWeight: 700, color: 'var(--clay)' }}>
-                {v.typical_price != null
-                  ? v.pricing_type === 'hourly'
-                    ? `$${Number(v.typical_price).toFixed(2)}/hr`
-                    : v.pricing_type === 'starting_from'
-                      ? `From $${Number(v.typical_price).toFixed(2)}`
-                      : `$${Number(v.typical_price).toFixed(2)}`
-                  : 'Price on request'}
-              </span>
-            </div>
-            <p className="hint" style={{ margin: '2px 0' }}>
-              {v.product_name} · {distanceKm} km away
-            </p>
-            {v.address_text && <p className="hint" style={{ margin: '0 0 4px' }}>📍 {v.address_text}</p>}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <a href={`tel:${v.vendor_phone}`} style={{ color: 'var(--forest)', fontSize: '0.85rem', fontWeight: 600 }}>
-                📞 Call
-              </a>
-              <a
-                href={`https://wa.me/${v.vendor_phone.replace(/[^0-9]/g, '')}?text=${waMessage}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'var(--clay)', fontSize: '0.85rem', fontWeight: 600 }}
-              >
-                💬 WhatsApp
-              </a>
-            </div>
-          </div>
-        );
-      })}
+      {visible.map((v) => (
+        <SuggestedVendorCard key={v.vendor_id} v={v} isService={isService} />
+      ))}
       {!showAll && vendors.length > 5 && (
         <button type="button" className="secondary" style={compactBtnStyle} onClick={() => setShowAll(true)}>
           Show {vendors.length - 5} more

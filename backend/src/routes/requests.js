@@ -531,34 +531,6 @@ module.exports = function buildRequestsRouter(io) {
         return res.status(403).json({ error: 'Not authorized to view suggestions for this request' });
       }
 
-      // Meaningful search words (3+ chars, deduplicated) from the free-text
-      // description, matched against both the product's canonical name and
-      // its synonyms - e.g. "mealie meal" should also match a product whose
-      // name is "maize meal" if that's listed as a synonym.
-      // Prefixes rather than whole words - "plumber" and "plumbing" share
-      // "plumb" but neither is a substring of the other, so whole-word
-      // matching was silently missing exactly this kind of common word-form
-      // variation (electrician/electrical, clean/cleaning, etc). A short
-      // prefix bridges these. This can occasionally over-match (e.g.
-      // "generator" and "general" share a prefix) - that's an acceptable
-      // tradeoff here, since a false positive just means one extra,
-      // easily-ignored suggestion, while a false negative means a real,
-      // relevant vendor stays invisible entirely.
-      const allItemText = [
-        r.product_text,
-        ...(Array.isArray(r.cart_items) ? r.cart_items.map((i) => i.product_text) : []),
-      ].join(' ');
-      const words = [
-        ...new Set(
-          allItemText
-            .toLowerCase()
-            .split(/\s+/)
-            .filter((w) => w.length >= 3)
-            .map((w) => (w.length > 5 ? w.slice(0, 5) : w))
-        ),
-      ];
-      if (!words.length) return res.json([]);
-      const likePatterns = words.map((w) => `%${w}%`);
       // Same nationwide-match behavior as the broadcast alert flow - a
       // remote service isn't tied to physical proximity at all.
       const effectiveRadiusKm = r.is_remote ? 1000 : r.radius_km || 35;
@@ -574,9 +546,32 @@ module.exports = function buildRequestsRouter(io) {
       // only path for products, which is appropriately specific.
       const categoryFilter = r.request_type === 'service' ? r.categories || [] : [];
 
-      const { rows } = await pool.query(
-        `SELECT * FROM (
-           SELECT DISTINCT ON (v.id)
+      // Every item is matched INDEPENDENTLY, then aggregated by vendor -
+      // this is what lets us tell a requester exactly how many of their
+      // items a given vendor can actually supply ("2 of 3"), rather than a
+      // single vague yes/no that used to say the same generic thing whether
+      // a vendor had one item or the whole cart. A plain single-item
+      // request is just the degenerate case of this with one item in the
+      // list, so no separate code path is needed for it.
+      const allItems =
+        Array.isArray(r.cart_items) && r.cart_items.length > 0
+          ? r.cart_items
+          : [{ product_text: r.product_text, quantity: r.quantity }];
+
+      async function findVendorsForItem(itemText) {
+        const words = [
+          ...new Set(
+            itemText
+              .toLowerCase()
+              .split(/\s+/)
+              .filter((w) => w.length >= 3)
+              .map((w) => (w.length > 5 ? w.slice(0, 5) : w))
+          ),
+        ];
+        if (!words.length) return [];
+        const likePatterns = words.map((w) => `%${w}%`);
+        const { rows } = await pool.query(
+          `SELECT DISTINCT ON (v.id)
                   vi.typical_price, vi.pricing_type, v.id AS vendor_id, v.business_name, v.address_text,
                   v.rating_avg, u.phone AS vendor_phone, p.name AS product_name,
                   CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END AS vendor_priority,
@@ -597,20 +592,60 @@ module.exports = function buildRequestsRouter(io) {
                OR EXISTS (SELECT 1 FROM unnest(p.synonyms) syn WHERE syn ILIKE ANY($1))
                OR p.category = ANY($4::text[])
              )
-           -- DISTINCT ON requires its column to lead the ORDER BY - this
-           -- picks each vendor's single BEST matching item (highest
-           -- priority, then rating, then lowest price) if they have more
-           -- than one inventory entry that matches (e.g. listing both
-           -- "Plumber" and "Plumbing" separately - same underlying
-           -- business, shouldn't appear as two separate results).
+           -- One row per vendor for THIS item - if they list it under more
+           -- than one product name (e.g. "Plumber" and "Plumbing"
+           -- separately), only their best-ranked entry counts.
            ORDER BY v.id, (CASE WHEN v.priority_expires_at > now() THEN v.priority_score ELSE 0 END) DESC,
-                    v.rating_avg DESC NULLS LAST, vi.typical_price ASC NULLS LAST
-         ) matched
-         ORDER BY vendor_priority DESC, rating_avg DESC NULLS LAST, typical_price ASC NULLS LAST
-         LIMIT 20`,
-        [likePatterns, effectiveRadiusKm, r.request_type, categoryFilter]
-      );
-      res.json(rows);
+                    v.rating_avg DESC NULLS LAST, vi.typical_price ASC NULLS LAST`,
+          [likePatterns, effectiveRadiusKm, r.request_type, categoryFilter]
+        );
+        return rows;
+      }
+
+      const perItemResults = await Promise.all(allItems.map((item) => findVendorsForItem(item.product_text)));
+
+      const vendorMap = new Map();
+      perItemResults.forEach((vendorsForItem, itemIndex) => {
+        const item = allItems[itemIndex];
+        vendorsForItem.forEach((v) => {
+          if (!vendorMap.has(v.vendor_id)) {
+            vendorMap.set(v.vendor_id, {
+              vendor_id: v.vendor_id,
+              business_name: v.business_name,
+              address_text: v.address_text,
+              vendor_phone: v.vendor_phone,
+              rating_avg: v.rating_avg,
+              vendor_priority: v.vendor_priority,
+              distance_m: v.distance_m,
+              matched_items: [],
+            });
+          }
+          vendorMap.get(v.vendor_id).matched_items.push({
+            cart_item_text: item.product_text,
+            product_name: v.product_name,
+            price: v.typical_price,
+            pricing_type: v.pricing_type,
+          });
+        });
+      });
+
+      const totalItems = allItems.length;
+      const results = [...vendorMap.values()].map((v) => ({ ...v, matched_count: v.matched_items.length, total_items: totalItems }));
+
+      // Vendors who can supply MORE of the requester's items rank first,
+      // regardless of priority boost - actually being able to fulfil the
+      // whole cart matters more here than a paid ranking boost would.
+      results.sort((a, b) => {
+        if (b.matched_count !== a.matched_count) return b.matched_count - a.matched_count;
+        if (b.vendor_priority !== a.vendor_priority) return b.vendor_priority - a.vendor_priority;
+        const ratingDiff = (b.rating_avg || 0) - (a.rating_avg || 0);
+        if (ratingDiff !== 0) return ratingDiff;
+        const sumA = a.matched_items.reduce((s, i) => s + Number(i.price || 0), 0);
+        const sumB = b.matched_items.reduce((s, i) => s + Number(i.price || 0), 0);
+        return sumA - sumB;
+      });
+
+      res.json(results.slice(0, 20));
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Failed to fetch suggested vendors' });
