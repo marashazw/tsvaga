@@ -67,6 +67,7 @@ export default function VendorApp() {
         request_type: r.request_type,
         is_remote: r.is_remote,
         dropoff_address_text: r.dropoff_address_text,
+        cart_items: r.cart_items,
         distance_m: r.distance_m,
         expires_at: r.expires_at,
         created_at: r.created_at,
