@@ -69,6 +69,10 @@ export default function VendorCategoryPreferences() {
 
   if (selected === null) return null;
 
+  const productCategories = CATEGORIES.filter((c) => c.type === 'product' && c.slug !== 'miscellaneous');
+  const serviceCategories = CATEGORIES.filter((c) => c.type === 'service');
+  const miscellaneousCategory = CATEGORIES.find((c) => c.slug === 'miscellaneous');
+
   const usesInventory = mode === 'categories_and_inventory' || mode === 'inventory_only';
   const categoriesDisabled = mode === 'inventory_only';
 
@@ -84,7 +88,7 @@ export default function VendorCategoryPreferences() {
             : `${selected.length} of ${CATEGORIES.length} categories`;
 
   return (
-    <div className="panel" style={{ maxWidth: 480, margin: '0 auto' }}>
+    <div className="panel" style={{ maxWidth: 640, margin: '0 auto' }}>
       <button type="button" className="category-accordion-toggle" onClick={() => setOpen((o) => !o)}>
         <span>🔔 Notify me about: {summary}</span>
         <span>{open ? '▲' : '▼ edit'}</span>
@@ -145,15 +149,13 @@ export default function VendorCategoryPreferences() {
               Miscellaneous only
             </button>
           </div>
-          {CATEGORIES.map((c, index) => (
-            <React.Fragment key={c.slug}>
-              {index > 0 && CATEGORIES[index - 1].type === 'product' && c.type === 'service' && (
-                <hr style={{ border: 'none', borderTop: '1px solid #e7ddc9', margin: '8px 0' }} />
-              )}
-              <label
-                className="category-checkbox"
-                style={categoriesDisabled ? { opacity: 0.5 } : undefined}
-              >
+
+          <p className="hint" style={{ fontWeight: 700, margin: '10px 0 4px', color: 'var(--forest)' }}>
+            🛒 Product Categories
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', columnGap: 16 }}>
+            {productCategories.map((c) => (
+              <label key={c.slug} className="category-checkbox" style={categoriesDisabled ? { opacity: 0.5 } : undefined}>
                 <input
                   type="checkbox"
                   checked={selected.includes(c.slug)}
@@ -162,8 +164,42 @@ export default function VendorCategoryPreferences() {
                 />
                 <span>{c.label}</span>
               </label>
-            </React.Fragment>
-          ))}
+            ))}
+          </div>
+
+          <p className="hint" style={{ fontWeight: 700, margin: '14px 0 4px', color: 'var(--forest)' }}>
+            🔧 Service Categories
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', columnGap: 16 }}>
+            {serviceCategories.map((c) => (
+              <label key={c.slug} className="category-checkbox" style={categoriesDisabled ? { opacity: 0.5 } : undefined}>
+                <input
+                  type="checkbox"
+                  checked={selected.includes(c.slug)}
+                  onChange={() => toggle(c.slug)}
+                  disabled={categoriesDisabled}
+                />
+                <span>{c.label}</span>
+              </label>
+            ))}
+          </div>
+
+          {miscellaneousCategory && (
+            <>
+              <p className="hint" style={{ fontWeight: 700, margin: '14px 0 4px', color: 'var(--forest)' }}>
+                General
+              </p>
+              <label className="category-checkbox" style={categoriesDisabled ? { opacity: 0.5 } : undefined}>
+                <input
+                  type="checkbox"
+                  checked={selected.includes(miscellaneousCategory.slug)}
+                  onChange={() => toggle(miscellaneousCategory.slug)}
+                  disabled={categoriesDisabled}
+                />
+                <span>{miscellaneousCategory.label} (applies to both products and services)</span>
+              </label>
+            </>
+          )}
           {error && <p className="error">{error}</p>}
           <button type="button" onClick={save} disabled={saving} style={{ marginTop: 10 }}>
             {saving ? 'Saving…' : 'Save preferences'}
