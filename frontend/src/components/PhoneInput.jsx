@@ -34,7 +34,7 @@ export default function PhoneInput({ value, onChange, placeholder, required } ) 
   }
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div style={{ display: 'flex', marginTop: 6 }}>
       <select
         value={currentCode}
         onChange={handleCodeChange}
@@ -44,9 +44,13 @@ export default function PhoneInput({ value, onChange, placeholder, required } ) 
           borderRadius: '8px 0 0 8px',
           background: '#f2e9dc',
           fontWeight: 600,
+          fontSize: '1rem',
           color: 'var(--ink)',
-          padding: '0 4px',
+          padding: '8px 6px',
           maxWidth: 110,
+          boxSizing: 'border-box',
+          height: 42,
+          marginTop: 0,
         }}
       >
         <option value="+263">+263 Zimbabwe</option>
@@ -103,7 +107,7 @@ export default function PhoneInput({ value, onChange, placeholder, required } ) 
         onChange={handleDigitsChange}
         placeholder={placeholder || '7...'}
         required={required}
-        style={{ borderRadius: '0 8px 8px 0', flex: 1, minWidth: 0 }}
+        style={{ borderRadius: '0 8px 8px 0', flex: 1, minWidth: 0, marginTop: 0, boxSizing: 'border-box', height: 42 }}
       />
     </div>
   );
