@@ -99,7 +99,10 @@
     <form id="loginForm">
       <label>
         Phone number
-        <input type="text" id="loginPhone" placeholder="+263 7..." required />
+        <div style="display: flex;">
+          <select id="loginCountryCode" style="max-width: 110px; border-radius: 8px 0 0 8px; border-right: none; background: var(--sand); font-weight: 600; flex: none;"></select>
+          <input type="tel" id="loginPhoneDigits" placeholder="7..." required style="border-radius: 0 8px 8px 0; margin-top: 0;" />
+        </div>
       </label>
       <label>
         Password
@@ -143,6 +146,52 @@ const API_BASE = window.location.hostname === 'localhost'
 
 const TOKEN_KEY = 'tsvaga_help_token';
 
+// Same list used in the main app's phone input, so a phone number saved
+// there parses back out consistently here.
+const COUNTRY_CODES = [
+  ['+263', 'Zimbabwe'], ['+27', 'South Africa'], ['+267', 'Botswana'], ['+260', 'Zambia'],
+  ['+258', 'Mozambique'], ['+265', 'Malawi'], ['+266', 'Lesotho'], ['+268', 'Eswatini'],
+  ['+264', 'Namibia'], ['+255', 'Tanzania'], ['+254', 'Kenya'], ['+256', 'Uganda'],
+  ['+250', 'Rwanda'], ['+243', 'DR Congo'], ['+244', 'Angola'], ['+234', 'Nigeria'],
+  ['+233', 'Ghana'], ['+20', 'Egypt'], ['+212', 'Morocco'], ['+216', 'Tunisia'],
+  ['+44', 'United Kingdom'], ['+1', 'USA/Canada'], ['+61', 'Australia'], ['+64', 'New Zealand'],
+  ['+91', 'India'], ['+86', 'China'], ['+81', 'Japan'], ['+82', 'South Korea'],
+  ['+65', 'Singapore'], ['+971', 'UAE'], ['+966', 'Saudi Arabia'], ['+974', 'Qatar'],
+  ['+49', 'Germany'], ['+33', 'France'], ['+31', 'Netherlands'], ['+351', 'Portugal'],
+  ['+34', 'Spain'], ['+39', 'Italy'], ['+41', 'Switzerland'], ['+46', 'Sweden'],
+  ['+55', 'Brazil'], ['+52', 'Mexico'], ['+63', 'Philippines'], ['+62', 'Indonesia'],
+  ['+880', 'Bangladesh'], ['+92', 'Pakistan'], ['+7', 'Russia'],
+];
+
+function populateCountryCodeSelect(selectEl, selectedCode) {
+  selectEl.innerHTML = COUNTRY_CODES.map(([code, name]) =>
+    `<option value="${code}"${code === selectedCode ? ' selected' : ''}>${code} ${name}</option>`
+  ).join('');
+}
+
+// If the person arrived via a link from the main Tsvaga app (which passes
+// their phone number as a URL parameter), pre-fill both the country code
+// and the digits so they don't have to type their number again just to
+// sign in here.
+function prefillPhoneFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const phone = params.get('phone');
+  const select = document.getElementById('loginCountryCode');
+  populateCountryCodeSelect(select, '+263');
+  if (!phone) return;
+  const match = COUNTRY_CODES.find(([code]) => phone.startsWith(code + ' ') || phone.startsWith(code));
+  if (match) {
+    const [code] = match;
+    select.value = code;
+    document.getElementById('loginPhoneDigits').value = phone.slice(code.length).replace(/^\s+/, '');
+  } else {
+    // Unrecognised code - still show something rather than losing the
+    // number entirely, defaulting to Zimbabwe's code selected.
+    document.getElementById('loginPhoneDigits').value = phone;
+  }
+}
+prefillPhoneFromUrl();
+
 function getToken() { return localStorage.getItem(TOKEN_KEY); }
 function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
 function clearToken() { localStorage.removeItem(TOKEN_KEY); }
@@ -182,7 +231,9 @@ function showLogin(message) {
 // ---------- LOGIN ----------
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const phone = document.getElementById('loginPhone').value.trim();
+  const code = document.getElementById('loginCountryCode').value;
+  const digits = document.getElementById('loginPhoneDigits').value.trim().replace(/^0+/, '');
+  const phone = `${code} ${digits}`;
   const password = document.getElementById('loginPassword').value;
   const errEl = document.getElementById('loginError');
   const btn = document.getElementById('loginBtn');
