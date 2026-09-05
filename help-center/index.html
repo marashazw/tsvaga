@@ -202,18 +202,20 @@ async function api(path, options = {}) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401) {
-    // A 401 here always means the CURRENT stored token is no longer valid -
-    // most commonly because it's simply expired (tokens last 7 days) after
-    // sitting unused in this tab or a bookmarked link. This has nothing to
-    // do with subscription status (waived/active/etc) - that's a completely
-    // separate check the backend only applies once the token itself is
-    // already accepted. Previously this fell through to the generic error
-    // path below, leaving the dashboard visible with a cryptic
-    // "Invalid or expired token" message buried in whichever panel
-    // happened to be loading, with no indication that signing in again
-    // would fix it. Bouncing straight back to a clean login screen with a
-    // plain explanation is the correct fix for every case a 401 can mean.
+  if (res.status === 401 && token) {
+    // Only treat this as "your session expired" when we actually SENT a
+    // token that got rejected - most commonly because it's simply expired
+    // (tokens last 7 days) after sitting unused in this tab or a
+    // bookmarked link. This has nothing to do with subscription status
+    // (waived/active/etc) - that's a completely separate check the backend
+    // only applies once the token itself is already accepted.
+    //
+    // Critically, this must NOT fire for a login attempt itself: /auth/login
+    // also returns 401 for wrong credentials, with no token involved at
+    // all. Checking `token` here (not just status) is what tells these two
+    // completely different situations apart - without it, a plain wrong
+    // password would incorrectly show "Your session has expired" instead
+    // of the real "Invalid phone number or password" message.
     clearToken();
     showLogin('Your session has expired. Please sign in again.');
     throw new Error('Session expired');

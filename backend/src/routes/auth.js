@@ -5,6 +5,7 @@ const pool = require('../config/db');
 const { toGeoPoint } = require('../utils/geo');
 const { CATEGORIES } = require('../constants/categories');
 const { containsProhibitedContent, flagAndReject } = require('../constants/prohibitedContent');
+const { normalizePhone } = require('../utils/phone');
 
 const router = express.Router();
 
@@ -45,12 +46,13 @@ router.post('/register', async (req, res) => {
 
   const allowedRoles = ['requester', 'vendor', 'both'];
   const safeRole = allowedRoles.includes(role) ? role : 'requester';
+  const normalizedPhone = normalizePhone(phone);
   // Admin accounts are never created through public self-registration - see
   // `npm run create:admin` for the only way to create/promote one.
   let client;
   try {
     client = await pool.connect();
-    const existing = await client.query('SELECT id FROM users WHERE phone = $1', [phone]);
+    const existing = await client.query('SELECT id FROM users WHERE phone = $1', [normalizedPhone]);
     if (existing.rows.length) {
       return res.status(409).json({ error: 'An account with this phone number already exists' });
     }
@@ -61,7 +63,7 @@ router.post('/register', async (req, res) => {
       `INSERT INTO users (name, phone, role, password_hash)
        VALUES ($1, $2, $3, $4)
        RETURNING id, name, phone, role, created_at`,
-      [name, phone, safeRole, passwordHash]
+      [name, normalizedPhone, safeRole, passwordHash]
     );
     const user = result.rows[0];
 
@@ -133,7 +135,7 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'phone and password are required' });
   }
   try {
-    const result = await pool.query('SELECT * FROM users WHERE phone = $1', [phone]);
+    const result = await pool.query('SELECT * FROM users WHERE phone = $1', [normalizePhone(phone)]);
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: 'Invalid phone number or password' });
 
@@ -246,7 +248,7 @@ router.post('/delete-account', async (req, res) => {
   let client;
   try {
     client = await pool.connect();
-    const result = await client.query('SELECT * FROM users WHERE phone = $1', [phone]);
+    const result = await client.query('SELECT * FROM users WHERE phone = $1', [normalizePhone(phone)]);
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: 'Invalid phone number or password' });
 
