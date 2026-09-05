@@ -356,11 +356,11 @@ export default function VendorApp() {
       )}
 
       <section style={{ marginBottom: 20 }}>
-        <SubscriptionPanel subscriptionInfo={subscriptionInfo} onSubmitted={loadSubscription} />
+        <SubscriptionPanel subscriptionInfo={subscriptionInfo} onSubmitted={loadSubscription} phone={vendor.phone} />
       </section>
 
       <section style={{ marginBottom: 20 }}>
-        <PriorityPanel subscriptionInfo={subscriptionInfo} />
+        <PriorityPanel subscriptionInfo={subscriptionInfo} phone={vendor.phone} />
       </section>
 
       <section style={{ marginBottom: 20 }}>
@@ -451,7 +451,7 @@ export default function VendorApp() {
       </main>
 
       <section style={{ marginTop: 20, textAlign: 'center' }}>
-        <AdvertisingSection />
+        <AdvertisingSection phone={vendor.phone} />
       </section>
       <AdSlot />
 

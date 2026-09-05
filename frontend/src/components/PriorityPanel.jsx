@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
-import { HELP_CENTER_URL } from '../helpCenter.js';
+import { buildHelpCenterUrl } from '../helpCenter.js';
 
 // Purchase form removed - see helpCenter.js for why. Status only here,
 // link out to actually buy a boost.
-export default function PriorityPanel({ subscriptionInfo }) {
+export default function PriorityPanel({ subscriptionInfo, phone }) {
   const [info, setInfo] = useState(null);
+  const helpCenterUrl = buildHelpCenterUrl(phone);
 
   useEffect(() => {
     api.get('/vendors/me/priority').then(({ data }) => setInfo(data));
@@ -40,7 +41,7 @@ export default function PriorityPanel({ subscriptionInfo }) {
           You need an active subscription before you can buy a priority boost — subscribe first.
         </p>
       ) : (
-        <a href={HELP_CENTER_URL} target="_blank" rel="noopener noreferrer">
+        <a href={helpCenterUrl} target="_blank" rel="noopener noreferrer">
           <button type="button">Manage priority ranking on our website</button>
         </a>
       )}

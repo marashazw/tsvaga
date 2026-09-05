@@ -1,11 +1,12 @@
 import React from 'react';
-import { HELP_CENTER_URL } from '../helpCenter.js';
+import { buildHelpCenterUrl } from '../helpCenter.js';
 
 // No payment form lives here anymore - see helpCenter.js for why. This
 // component only ever shows STATUS (paid up or not) and links out to the
 // separate Help Center site to actually pay/manage the subscription.
-export default function SubscriptionPanel({ subscriptionInfo }) {
+export default function SubscriptionPanel({ subscriptionInfo, phone }) {
   if (!subscriptionInfo) return null;
+  const helpCenterUrl = buildHelpCenterUrl(phone);
   const { subscription, price, currency } = subscriptionInfo;
   const isPaidUp = subscription.status === 'waived' ||
     (subscription.status === 'active' && subscription.expires_at && new Date(subscription.expires_at) > new Date());
@@ -31,7 +32,7 @@ export default function SubscriptionPanel({ subscriptionInfo }) {
           </p>
         )}
         <p className="hint" style={{ margin: '8px 0 0' }}>
-          <a href={HELP_CENTER_URL} target="_blank" rel="noopener noreferrer">Manage your subscription</a>
+          <a href={helpCenterUrl} target="_blank" rel="noopener noreferrer">Manage your subscription</a>
         </p>
       </div>
     );
@@ -43,7 +44,7 @@ export default function SubscriptionPanel({ subscriptionInfo }) {
       <p className="hint">
         A subscription costs <strong>${Number(price).toFixed(2)} {currency}/month</strong>.
       </p>
-      <a href={HELP_CENTER_URL} target="_blank" rel="noopener noreferrer">
+      <a href={helpCenterUrl} target="_blank" rel="noopener noreferrer">
         <button type="button">Manage subscription on our website</button>
       </a>
     </div>

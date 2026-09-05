@@ -163,7 +163,7 @@ router.get('/me/orders', requireAuth, async (req, res) => {
 router.get('/me', requireAuth, async (req, res) => {
   try {
     const vendor = await pool.query(
-      `SELECT v.id, v.business_name, v.address_text, v.is_online, v.rating_avg, v.notify_categories, u.role,
+      `SELECT v.id, v.business_name, v.address_text, v.is_online, v.rating_avg, v.notify_categories, u.role, u.phone,
               ST_X(v.location::geometry) AS lng, ST_Y(v.location::geometry) AS lat
        FROM vendors v JOIN users u ON u.id = v.id WHERE v.id = $1`,
       [req.user.id]
