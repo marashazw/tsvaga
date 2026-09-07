@@ -224,7 +224,7 @@ module.exports = function buildRequestsRouter(io) {
       client = await pool.connect();
       const insertResult = await client.query(
         `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories, request_type, is_remote, dropoff_address_text, cart_items)
-         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 5), $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 50), $7, $8, $9, $10, $11, $12, $13, $14, $15)
          RETURNING *`,
         [
           req.user.id,

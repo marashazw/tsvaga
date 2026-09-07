@@ -30,7 +30,7 @@ export default function App() {
   const HARARE_CBD = { lat: -17.8292, lng: 31.0522 };
   const [location, setLocation] = useState(HARARE_CBD);
   const [addressLabel, setAddressLabel] = useState(null);
-  const [radiusKm, setRadiusKm] = useState(35);
+  const [radiusKm, setRadiusKm] = useState(50);
   const [request, setRequest] = useState(null);
   const [requestMode, setRequestMode] = useState(null); // null | 'product' | 'service' - re-asked every new request cycle
   const [prefillText, setPrefillText] = useState('');
