@@ -1,0 +1,6 @@
+{
+  "appId": "app.tsvaga.twa",
+  "appName": "Tsvaga",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

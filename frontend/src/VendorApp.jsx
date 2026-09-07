@@ -17,6 +17,7 @@ import DeleteAccountLink from './components/DeleteAccountLink.jsx';
 import NotificationPrimer from './components/NotificationPrimer.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications, checkExistingPushStatus, getLastPushErrorMessage } from './push';
+import { registerNativePush } from './nativePush';
 import InstallPrompt from './components/InstallPrompt.jsx';
 const SOCKET_BASE = import.meta.env.VITE_SOCKET_BASE || 'http://localhost:4000';
 
@@ -130,7 +131,16 @@ export default function VendorApp() {
     checkExistingPushStatus().then((status) => {
       if (status) setPushStatus(status);
     });
+    registerNativePush();
   }, []);
+
+  // Re-attempt once we know who we are - sending the token to the backend
+  // requires auth, so the earlier mount-time attempt above may fire before
+  // login completes.
+  useEffect(() => {
+    if (!vendor) return;
+    registerNativePush();
+  }, [vendor]);
 
   // Connect socket once we know who we are, and subscribe to our vendor room.
   useEffect(() => {

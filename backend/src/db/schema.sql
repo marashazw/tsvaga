@@ -236,6 +236,21 @@ CREATE TABLE push_subscriptions (
 );
 CREATE INDEX push_subscriptions_user_idx ON push_subscriptions (user_id);
 
+-- Separate from push_subscriptions (Web Push/VAPID, used by browser/PWA
+-- visitors) - this holds Firebase Cloud Messaging tokens for people using
+-- the installed native Capacitor app, which is a genuinely different
+-- delivery mechanism with far better reliability on Android than a TWA's
+-- delegated web push. A user can have rows in BOTH tables at once (they
+-- might use the PWA in a browser AND have the native app installed) -
+-- notifyUsersByPush sends to every channel it finds for them.
+CREATE TABLE fcm_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX fcm_tokens_user_idx ON fcm_tokens (user_id);
+
 -- One row per vendor tracking whether they're "paid up" and can see full
 -- request details / respond with offers. 'waived' means an admin has granted
 -- free access (expires_at is ignored when waived).

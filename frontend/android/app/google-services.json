@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "165270774705",
+    "project_id": "vuma-2026",
+    "storage_bucket": "vuma-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165270774705:android:918e792e2f39a72ebcd390",
+        "android_client_info": {
+          "package_name": "app.tsvaga.twa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzXbPH2B2SlppOuAGPcFKCzwstKxujSf0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -16,6 +16,7 @@ import DeleteAccountLink from './components/DeleteAccountLink.jsx';
 import NotificationPrimer from './components/NotificationPrimer.jsx';
 import { api, loadStoredToken, setAuthToken } from './api';
 import { enablePushNotifications, checkExistingPushStatus, getLastPushErrorMessage } from './push';
+import { registerNativePush } from './nativePush';
 
 const SOCKET_BASE = import.meta.env.VITE_SOCKET_BASE || 'http://localhost:4000';
 
@@ -74,6 +75,7 @@ export default function App() {
     checkExistingPushStatus().then((status) => {
       if (status) setPushStatus(status);
     });
+    registerNativePush();
   }, []);
 
   useEffect(() => {
@@ -82,6 +84,11 @@ export default function App() {
     const s = io(SOCKET_BASE, { auth: { token } });
     setSocket(s);
     return () => s.disconnect();
+  }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
+    registerNativePush();
   }, [authed]);
 
   useEffect(() => {
