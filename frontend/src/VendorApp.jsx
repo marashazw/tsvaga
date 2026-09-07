@@ -52,7 +52,7 @@ export default function VendorApp() {
     if (typeof vendorData.lng !== 'number' || typeof vendorData.lat !== 'number') return;
     try {
       const { data } = await api.get('/requests/nearby/list', {
-        params: { lng: vendorData.lng, lat: vendorData.lat, radius_km: 10 },
+        params: { lng: vendorData.lng, lat: vendorData.lat, radius_km: 50 },
       });
       // Normalize field names to match what live socket alerts look like
       // (request_id, not id) so both sources render the same way.

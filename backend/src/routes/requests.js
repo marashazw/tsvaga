@@ -467,7 +467,7 @@ module.exports = function buildRequestsRouter(io) {
            AND (is_remote = true OR ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1::numeric * 1000))
          ORDER BY created_at DESC
          LIMIT 100`,
-        [radius_km || 5, req.user.id]
+        [radius_km || 50, req.user.id]
       );
 
       const paidUp = req.user.role === 'admin' || (await isVendorPaidUp(req.user.id));
@@ -533,7 +533,7 @@ module.exports = function buildRequestsRouter(io) {
 
       // Same nationwide-match behavior as the broadcast alert flow - a
       // remote service isn't tied to physical proximity at all.
-      const effectiveRadiusKm = r.is_remote ? 1000 : r.radius_km || 35;
+      const effectiveRadiusKm = r.is_remote ? 1000 : r.radius_km || 50;
       // Category-overlap matching only makes sense for services - a
       // category like 'plumbing' genuinely IS one interchangeable offering
       // regardless of phrasing ("plumber" vs "plumbing"). A product
