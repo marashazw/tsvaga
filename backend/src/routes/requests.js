@@ -129,14 +129,14 @@ module.exports = function buildRequestsRouter(io) {
       title: `Someone nearby wants: ${request.product_text}`,
       body: request.address_text ? `Near ${request.address_text}` : 'Tap to view and send an offer',
       request_id: request.id,
-      url: '/vendor.html',
+      url: `/vendor.html?request_id=${request.id}`,
     }).catch((err) => console.error('Push notification batch failed:', err));
 
     notifyUsersByPush(unpaidVendorList, {
       title: 'A nearby request just came in',
       body: 'Subscribe to see the details and respond',
       request_id: request.id,
-      url: '/vendor.html',
+      url: `/vendor.html?request_id=${request.id}`,
     }).catch((err) => console.error('Push notification batch failed:', err));
 
     return matches.rows.length;
@@ -649,6 +649,58 @@ module.exports = function buildRequestsRouter(io) {
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Failed to fetch suggested vendors' });
+    }
+  });
+
+  // GET /api/requests/:id/for-vendor - a vendor-safe view of a single
+  // request, used specifically when following up on a push notification.
+  // The broadcast/push system matches against the REQUESTER's own chosen
+  // radius (up to 60km), but the vendor dashboard's "Nearby requests" list
+  // fetches using a fixed, smaller radius (10km) - so a vendor could get
+  // correctly notified about something that then doesn't appear when they
+  // check the list themselves, purely because of that radius mismatch. This
+  // endpoint sidesteps the radius filter entirely for this one case: if
+  // you were specifically notified about it, you should always be able to
+  // see it, regardless of distance. Deliberately doesn't reuse GET /:id,
+  // since that one also returns every OTHER vendor's offer details, which
+  // would leak competitor pricing to whoever calls this.
+  router.get('/:id/for-vendor', requireAuth, async (req, res) => {
+    try {
+      const paidUp = req.user.role === 'admin' || (await isVendorPaidUp(req.user.id));
+      const { rows } = await pool.query(
+        `SELECT id, product_text, quantity, address_text, expires_at, fulfillment_type, delivery_address_text,
+                request_type, is_remote, dropoff_address_text, cart_items, status, created_at,
+                (SELECT o.id FROM offers o WHERE o.request_id = requests.id AND o.vendor_id = $2) AS my_offer_id
+         FROM requests WHERE id = $1 AND deleted_at IS NULL`,
+        [req.params.id, req.user.id]
+      );
+      if (!rows.length) return res.status(404).json({ error: 'Request not found' });
+      const r = rows[0];
+      if (r.status !== 'open') {
+        return res.status(409).json({ error: 'This request is no longer open' });
+      }
+      if (!paidUp) {
+        return res.json({
+          id: r.id,
+          product_text: null,
+          quantity: null,
+          address_text: null,
+          fulfillment_type: r.fulfillment_type,
+          delivery_address_text: null,
+          request_type: r.request_type,
+          is_remote: r.is_remote,
+          dropoff_address_text: null,
+          cart_items: null,
+          my_offer_id: null,
+          expires_at: r.expires_at,
+          created_at: r.created_at,
+          subscription_required: true,
+        });
+      }
+      res.json({ ...r, subscription_required: false });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to load this request' });
     }
   });
 

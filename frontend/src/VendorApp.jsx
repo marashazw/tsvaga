@@ -142,6 +142,56 @@ export default function VendorApp() {
     registerNativePush();
   }, [vendor]);
 
+  // Tapping a push notification for a specific request lands here with
+  // ?request_id=... in the URL. The normal "Nearby requests" list only
+  // fetches within a fixed 10km radius, but the push that got this vendor
+  // here was matched against the REQUESTER's own (possibly much larger,
+  // up to 60km) broadcast radius - so the request that triggered the
+  // notification could easily fall outside the dashboard's default fetch
+  // entirely. Fetching it directly and prepending it here guarantees that
+  // whatever a vendor was specifically notified about is always visible
+  // when they follow up on it, regardless of distance.
+  useEffect(() => {
+    if (!vendor) return;
+    const params = new URLSearchParams(window.location.search);
+    const requestId = params.get('request_id');
+    if (!requestId) return;
+    api
+      .get(`/requests/${requestId}/for-vendor`)
+      .then(({ data }) => {
+        const alert = {
+          request_id: data.id,
+          product_text: data.product_text,
+          quantity: data.quantity,
+          address_text: data.address_text,
+          fulfillment_type: data.fulfillment_type,
+          delivery_address_text: data.delivery_address_text,
+          request_type: data.request_type,
+          is_remote: data.is_remote,
+          dropoff_address_text: data.dropoff_address_text,
+          cart_items: data.cart_items,
+          distance_m: null, // unknown - it may be well outside the normal radius, so not shown
+          expires_at: data.expires_at,
+          created_at: data.created_at,
+          subscription_required: data.subscription_required,
+        };
+        setAlerts((prev) => (prev.some((a) => a.request_id === alert.request_id) ? prev : [alert, ...prev]));
+      })
+      .catch((err) => {
+        // Most likely it's no longer open (someone else already responded)
+        // by the time this was tapped - not worth surfacing as an error,
+        // the vendor will simply not see it appear.
+        console.log('Could not load the request from the notification:', err.response?.data?.error || err.message);
+      })
+      .finally(() => {
+        // Clean up the URL so this doesn't re-trigger on every subsequent
+        // reload within the same session.
+        params.delete('request_id');
+        const newSearch = params.toString();
+        window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
+      });
+  }, [vendor]);
+
   // Connect socket once we know who we are, and subscribe to our vendor room.
   useEffect(() => {
     if (!vendor) return;

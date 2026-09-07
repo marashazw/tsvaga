@@ -162,7 +162,7 @@ export default function IncomingRequests({ alerts, respondedIds, offerIdsByReque
               <>
                 <div className="alert-main">
                   <strong>🔒 A nearby request came in</strong>
-                  <span className="hint">{Math.round(a.distance_m / 100) / 10} km away</span>
+                  <span className="hint">{a.distance_m != null ? `${Math.round(a.distance_m / 100) / 10} km away` : "From a notification"}</span>
                 </div>
                 <p className="hint">Subscribe to see what's wanted and respond with an offer.</p>
               </>
@@ -170,7 +170,7 @@ export default function IncomingRequests({ alerts, respondedIds, offerIdsByReque
               <>
                 <div className="alert-main">
                   <strong>{a.product_text}</strong>
-                  <span className="hint">{Math.round(a.distance_m / 100) / 10} km away</span>
+                  <span className="hint">{a.distance_m != null ? `${Math.round(a.distance_m / 100) / 10} km away` : "From a notification"}</span>
                 </div>
                 {a.quantity && <p className="hint">Qty: {a.quantity}</p>}
                 {Array.isArray(a.cart_items) && a.cart_items.length > 0 && (
