@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
 import { api } from '../api';
 import { exportOrderAsPdf } from '../pdfExport.js';
 
@@ -161,7 +162,7 @@ function SuggestedVendors({ requestId, requestType }) {
       ))}
       {!showAll && vendors.length > 5 && (
         <button type="button" className="secondary" style={compactBtnStyle} onClick={() => setShowAll(true)}>
-          Show {vendors.length - 5} more
+          View more ({vendors.length - 5})
         </button>
       )}
     </div>
@@ -343,7 +344,7 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
   );
 }
 
-export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorder, currentUserId }) {
+export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorder, currentUserId, refreshTrigger }) {
   const [requests, setRequests] = useState(null); // null = still loading
   const [visibleCount, setVisibleCount] = useState(3);
   const [expanded, setExpanded] = useState(false);
@@ -358,7 +359,7 @@ export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorde
 
   useEffect(() => {
     load();
-  }, []);
+  }, [refreshTrigger]);
 
   // Backend pushes 'myrequests:updated' whenever anything relevant happens
   // to any of this user's requests - a new offer arrives, one gets
@@ -376,15 +377,26 @@ export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorde
   // socket was disconnected and never received it - reconnecting afterward
   // doesn't replay missed events. Refetching on foreground return catches
   // anything that slipped through that gap.
+  //
+  // Inside the native Capacitor app, visibilitychange doesn't always fire
+  // reliably the way it does in a real browser tab - Capacitor's own App
+  // plugin 'resume' event is used here as a second, more reliable trigger
+  // alongside it, not a replacement, so normal browser/PWA behavior is
+  // unaffected.
   useEffect(() => {
     function handleVisible() {
       if (document.visibilityState === 'visible') load();
     }
     document.addEventListener('visibilitychange', handleVisible);
-    window.addEventListener('focus', handleVisible);
+    window.addEventListener('focus', load);
+    let removeResumeListener;
+    CapacitorApp.addListener('resume', load).then((handle) => {
+      removeResumeListener = handle.remove;
+    });
     return () => {
       document.removeEventListener('visibilitychange', handleVisible);
-      window.removeEventListener('focus', handleVisible);
+      window.removeEventListener('focus', load);
+      removeResumeListener?.();
     };
   }, []);
 

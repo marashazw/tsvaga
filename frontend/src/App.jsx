@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
+import { App as CapacitorApp } from '@capacitor/app';
 import MapView from './components/MapView.jsx';
 import RequestForm from './components/RequestForm.jsx';
 import RequestModePrompt from './components/RequestModePrompt.jsx';
@@ -31,6 +32,12 @@ export default function App() {
   const [location, setLocation] = useState(HARARE_CBD);
   const [addressLabel, setAddressLabel] = useState(null);
   const [radiusKm, setRadiusKm] = useState(50);
+  // Bumped whenever a new request is successfully created, so My Requests
+  // (a separate component that only otherwise fetches on mount or on a
+  // 'myrequests:updated' socket event - neither of which fires for your
+  // OWN direct action of creating something) picks it up immediately
+  // instead of only appearing after a tab switch or refresh.
+  const [myRequestsRefreshKey, setMyRequestsRefreshKey] = useState(0);
   const [request, setRequest] = useState(null);
   const [requestMode, setRequestMode] = useState(null); // null | 'product' | 'service' - re-asked every new request cycle
   const [prefillText, setPrefillText] = useState('');
@@ -128,10 +135,18 @@ export default function App() {
   // and the client doesn't always notice the connection died. When the app
   // comes back to the foreground, force a reconnect if needed and refresh
   // the current request's offers/status as a safety net either way.
+  //
+  // Inside the native Capacitor app, the web-standard visibilitychange
+  // event doesn't always fire reliably the way it does in a real browser
+  // tab - this only became relevant once there was an actual native build
+  // to test against. Capacitor's own App plugin provides a 'resume' event
+  // specifically for this, so it's used here as a second, more reliable
+  // trigger alongside visibilitychange rather than replacing it - this
+  // keeps normal browser/PWA behavior unchanged while making native
+  // foreground detection actually work.
   useEffect(() => {
     if (!socket) return;
     function handleVisible() {
-      if (document.visibilityState !== 'visible') return;
       if (!socket.connected) {
         socket.connect();
       }
@@ -144,11 +159,19 @@ export default function App() {
           .catch(() => {});
       }
     }
-    document.addEventListener('visibilitychange', handleVisible);
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') handleVisible();
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleVisible);
+    let removeResumeListener;
+    CapacitorApp.addListener('resume', handleVisible).then((handle) => {
+      removeResumeListener = handle.remove;
+    });
     return () => {
-      document.removeEventListener('visibilitychange', handleVisible);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleVisible);
+      removeResumeListener?.();
     };
   }, [socket, request]);
 
@@ -262,6 +285,7 @@ export default function App() {
         setOffers([]);
         setOrder(null);
         setPrefillText('');
+        setMyRequestsRefreshKey((k) => k + 1);
       } else {
         const { data } = await api.post('/requests', {
           ...sharedFields,
@@ -274,6 +298,7 @@ export default function App() {
         setOffers([]);
         setOrder(null);
         setPrefillText('');
+        setMyRequestsRefreshKey((k) => k + 1);
       }
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to create request');
@@ -446,7 +471,7 @@ export default function App() {
           </section>
 
           <div className="my-requests-area" id="my-requests-section">
-            <MyRequests socket={socket} onViewOffers={handleViewOffers} onViewOrder={handleViewOrder} onReorder={handleReorder} currentUserId={user.id} />
+            <MyRequests socket={socket} onViewOffers={handleViewOffers} onViewOrder={handleViewOrder} onReorder={handleReorder} currentUserId={user.id} refreshTrigger={myRequestsRefreshKey} />
           </div>
         </div>
 
