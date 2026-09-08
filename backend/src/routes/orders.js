@@ -107,6 +107,7 @@ module.exports = function buildOrdersRouter(io) {
       io.to(`request:${order.request_id}`).emit('order:status', payload);
       io.to(`vendor:${order.vendor_id}`).emit('order:status', payload);
       io.to(`user:${order.requester_id}`).emit('myrequests:updated');
+      console.log(`[myrequests] Emitting to user:${order.requester_id} (order status -> ${status})`);
 
       // Let the requester know even if their tab isn't open right now.
       const isPickup = order.fulfillment_type === 'pickup';
@@ -187,6 +188,7 @@ module.exports = function buildOrdersRouter(io) {
 
       io.to(`vendor:${order.vendor_id}`).emit('review:new', { order_id: order.id, rating, comment: comment || null });
       io.to(`user:${order.requester_id}`).emit('myrequests:updated');
+      console.log(`[myrequests] Emitting to user:${order.requester_id} (review submitted)`);
 
       res.status(201).json(review.rows[0]);
     } catch (err) {

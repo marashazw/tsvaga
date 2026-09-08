@@ -20,6 +20,7 @@ function attachSocketHandlers(io) {
     // status changed) regardless of which request is "active" right now.
     if (socket.user?.id) {
       socket.join(`user:${socket.user.id}`);
+      console.log(`[myrequests] Socket ${socket.id} joined user:${socket.user.id}`);
     }
 
     // A vendor joins their own room to receive `request:new` alerts.

@@ -104,6 +104,7 @@ module.exports = function buildOffersRouter(io) {
       });
       // Also nudge My Requests, regardless of whether this happens to be
       // the requester's currently "active" request.
+      console.log(`[myrequests] Emitting to user:${requestRow.rows[0].requester_id} (new offer)`);
       io.to(`user:${requestRow.rows[0].requester_id}`).emit('myrequests:updated');
 
       res.status(201).json(offer);
@@ -142,6 +143,7 @@ module.exports = function buildOffersRouter(io) {
 
       io.to(`request:${offer.request_id}`).emit('request:matched', { request_id: offer.request_id, offer_id: offer.id });
       // req.user.id is the requester here - they're the one accepting.
+      console.log(`[myrequests] Emitting to user:${req.user.id} (offer accepted)`);
       io.to(`user:${req.user.id}`).emit('myrequests:updated');
 
       // Fetch the fully-joined order detail (same shape as GET /vendors/me/orders)
