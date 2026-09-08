@@ -15,7 +15,7 @@ html, body {
 
 body {
   margin: 0;
-  padding: 16px 0;
+  padding: calc(16px + env(safe-area-inset-top)) 0 calc(16px + env(safe-area-inset-bottom)) 0;
   font-family: 'Segoe UI', system-ui, sans-serif;
   background: #e7dbc2;
   color: var(--ink);
@@ -180,7 +180,7 @@ main {
   .vendor-orders-section { order: 3; min-width: 0; }
   .vendor-inventory-section { order: 4; min-width: 0; }
   .vendor-reviews-section { order: 5; min-width: 0; }
-  body { padding: 8px 0; }
+  body { padding: calc(8px + env(safe-area-inset-top)) 0 calc(8px + env(safe-area-inset-bottom)) 0; }
   .app-shell { padding: 12px; margin: 0 8px; border-radius: 14px; }
   header h1 { font-size: 1.7rem; }
   .header-actions {
