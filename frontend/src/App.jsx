@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { App as CapacitorApp } from '@capacitor/app';
 import MapView from './components/MapView.jsx';
@@ -38,6 +38,7 @@ export default function App() {
   // OWN direct action of creating something) picks it up immediately
   // instead of only appearing after a tab switch or refresh.
   const [myRequestsRefreshKey, setMyRequestsRefreshKey] = useState(0);
+  const myRequestsRef = useRef(null);
   const [request, setRequest] = useState(null);
   const [requestMode, setRequestMode] = useState(null); // null | 'product' | 'service' - re-asked every new request cycle
   const [prefillText, setPrefillText] = useState('');
@@ -278,6 +279,7 @@ export default function App() {
             categories: itemCategories.length ? itemCategories : ['miscellaneous'],
           });
           lastCreated = data.request;
+          myRequestsRef.current?.addRequest(data.request);
         }
         // Land on the last one created - My Requests shows the full list
         // regardless, this just avoids leaving the screen on a stale state.
@@ -298,6 +300,7 @@ export default function App() {
         setOffers([]);
         setOrder(null);
         setPrefillText('');
+        myRequestsRef.current?.addRequest(data.request);
         setMyRequestsRefreshKey((k) => k + 1);
       }
     } catch (err) {
@@ -471,7 +474,7 @@ export default function App() {
           </section>
 
           <div className="my-requests-area" id="my-requests-section">
-            <MyRequests socket={socket} onViewOffers={handleViewOffers} onViewOrder={handleViewOrder} onReorder={handleReorder} currentUserId={user.id} refreshTrigger={myRequestsRefreshKey} />
+            <MyRequests ref={myRequestsRef} socket={socket} onViewOffers={handleViewOffers} onViewOrder={handleViewOrder} onReorder={handleReorder} currentUserId={user.id} refreshTrigger={myRequestsRefreshKey} />
           </div>
         </div>
 

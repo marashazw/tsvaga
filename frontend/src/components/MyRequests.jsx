@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { api } from '../api';
 import { exportOrderAsPdf } from '../pdfExport.js';
@@ -344,7 +344,7 @@ function RequestCard({ r, checked, onCheckToggle, onChanged, onDeleted, onViewOf
   );
 }
 
-export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorder, currentUserId, refreshTrigger }) {
+const MyRequests = forwardRef(function MyRequests({ socket, onViewOffers, onViewOrder, onReorder, currentUserId, refreshTrigger }, ref) {
   const [requests, setRequests] = useState(null); // null = still loading
   const [visibleCount, setVisibleCount] = useState(3);
   const [expanded, setExpanded] = useState(false);
@@ -356,6 +356,29 @@ export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorde
       .then(({ data }) => setRequests(data))
       .catch(() => setRequests([]));
   }
+
+  // Called directly by the parent right after a request is successfully
+  // created, so it appears in this list immediately - the same reliable
+  // pattern already proven on the vendor dashboard (prepending straight
+  // from the data you already have), rather than a refetch round-trip that
+  // depends on a prop change being noticed and a fresh request completing.
+  // Fields that don't exist yet for a brand new request (no offers, no
+  // order, no review) are filled in with the same defaults GET /requests/me
+  // would return for it.
+  useImperativeHandle(ref, () => ({
+    addRequest(newRequest) {
+      setRequests((prev) => [
+        {
+          ...newRequest,
+          offer_count: '0',
+          order_id: null,
+          order_status: null,
+          has_review: false,
+        },
+        ...(prev || []),
+      ]);
+    },
+  }));
 
   useEffect(() => {
     load();
@@ -524,4 +547,6 @@ export default function MyRequests({ socket, onViewOffers, onViewOrder, onReorde
       )}
     </div>
   );
-}
+});
+
+export default MyRequests;
