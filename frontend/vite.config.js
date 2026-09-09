@@ -11,6 +11,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         vendor: resolve(__dirname, 'vendor.html'),
         admin: resolve(__dirname, 'admin.html'),
+        driverTrack: resolve(__dirname, 'driver-track.html'),
       },
     },
   },

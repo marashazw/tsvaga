@@ -186,6 +186,45 @@ module.exports = function buildOrdersRouter(io) {
     }
   });
 
+  // PATCH /api/orders/:id/location/public  { lat, lng }
+  // Same as above, but deliberately WITHOUT requireAuth - for the common
+  // case where whoever marks an order "out for delivery" (often shop staff,
+  // staying at the shop) isn't the person actually carrying the goods. The
+  // vendor shares a link containing this order's ID with the actual driver,
+  // who opens it on their own phone with no Tsvaga account needed at all.
+  //
+  // Security here relies on the order ID itself being an unguessable random
+  // UUID, combined with a narrow window of usefulness (only accepted while
+  // status is actually 'out_for_delivery') - anyone who guessed a live
+  // order's ID could only ever send bogus position pings for that one
+  // order during that one delivery, nothing more sensitive than that.
+  router.patch('/:id/location/public', async (req, res) => {
+    const { lat, lng } = req.body;
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+      return res.status(400).json({ error: 'lat and lng (numbers) are required' });
+    }
+    try {
+      const orderRow = await pool.query(`SELECT id, status, request_id FROM orders WHERE id = $1`, [req.params.id]);
+      if (!orderRow.rows.length) return res.status(404).json({ error: 'Order not found' });
+      const order = orderRow.rows[0];
+
+      if (order.status !== 'out_for_delivery') {
+        return res.status(409).json({ error: 'Location tracking is only active while the order is out for delivery' });
+      }
+
+      await pool.query(
+        `UPDATE orders SET current_lat = $2, current_lng = $3, location_updated_at = now() WHERE id = $1`,
+        [order.id, lat, lng]
+      );
+      io.to(`request:${order.request_id}`).emit('order:location', { order_id: order.id, lat, lng });
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to update delivery location' });
+    }
+  });
+
   // POST /api/orders/:id/reviews  { rating: 1-5, comment? }
   // Only the requester can review, and only once the order is delivered.
   router.post('/:id/reviews', requireAuth, async (req, res) => {

@@ -92,6 +92,23 @@ function OrderCard({ order: o, onAdvance, socket, currentUserId }) {
           {nextAction(o).label}
         </button>
       )}
+      {o.status === 'out_for_delivery' && o.fulfillment_type !== 'pickup' && (
+        <div style={{ marginTop: 6 }}>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(
+              `Hi, please open this link and tap "Start sharing" so the customer can track this delivery live: https://tsvaga.app/driver-track.html?order=${o.id}`
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="link-btn"
+          >
+            📢 Send tracking link to driver
+          </a>
+          <span className="hint" style={{ display: 'block', marginTop: 2 }}>
+            If you're the one delivering yourself, this device is already sharing your location automatically.
+          </span>
+        </div>
+      )}
       <div style={{ marginTop: 6 }}>
         <ChatToggleButton offerId={o.offer_id} socket={socket} currentUserId={currentUserId} label="Message customer" />
       </div>
