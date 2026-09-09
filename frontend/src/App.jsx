@@ -89,7 +89,7 @@ export default function App() {
   useEffect(() => {
     if (!authed) return;
     const token = localStorage.getItem('tsvaga_token');
-    const s = io(SOCKET_BASE, { auth: { token } });
+    const s = io(SOCKET_BASE, { auth: { token }, transports: ['websocket'] });
     setSocket(s);
     return () => s.disconnect();
   }, [authed]);

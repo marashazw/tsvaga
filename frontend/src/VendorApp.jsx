@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
+import { App as CapacitorApp } from '@capacitor/app';
 import MapView from './components/MapView.jsx';
 import VendorAuth from './components/VendorAuth.jsx';
 import InventoryManager from './components/InventoryManager.jsx';
@@ -196,7 +197,7 @@ export default function VendorApp() {
   useEffect(() => {
     if (!vendor) return;
     const token = localStorage.getItem('tsvaga_token');
-    const s = io(SOCKET_BASE, { auth: { token } });
+    const s = io(SOCKET_BASE, { auth: { token }, transports: ['websocket'] });
     s.on('connect', () => s.emit('vendor:subscribe', vendor.id));
     s.on('request:new', (alert) => setAlerts((prev) => [alert, ...prev].slice(0, 100)));
     s.on('order:new', (order) =>
@@ -223,20 +224,33 @@ export default function VendorApp() {
   // When the app comes back to the foreground, force a reconnect if needed
   // AND do a one-off data refresh as a safety net regardless of whether the
   // socket recovers immediately.
+  //
+  // Inside the native Capacitor app, visibilitychange doesn't always fire
+  // reliably the way it does in a real browser tab - Capacitor's own App
+  // plugin 'resume' event is used here as a second, more reliable trigger
+  // alongside it, not a replacement, so normal browser/PWA behavior is
+  // unaffected.
   useEffect(() => {
     if (!socket || !vendor) return;
     function handleVisible() {
-      if (document.visibilityState !== 'visible') return;
       if (!socket.connected) {
         socket.connect();
       }
       loadNearbyRequests(vendor);
     }
-    document.addEventListener('visibilitychange', handleVisible);
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') handleVisible();
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleVisible);
+    let removeResumeListener;
+    CapacitorApp.addListener('resume', handleVisible).then((handle) => {
+      removeResumeListener = handle.remove;
+    });
     return () => {
-      document.removeEventListener('visibilitychange', handleVisible);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleVisible);
+      removeResumeListener?.();
     };
   }, [socket, vendor, loadNearbyRequests]);
 
