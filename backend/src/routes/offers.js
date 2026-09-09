@@ -259,6 +259,7 @@ module.exports = function buildOffersRouter(io) {
 
       // Deliver live to whichever side is watching - the requester's
       // request room, and the vendor's own room.
+      console.log(`[chat-diag] emitting offer:message for offer_id:${savedMessage.offer_id} to request:${ctx.request_id} and vendor:${ctx.vendor_id}`);
       io.to(`request:${ctx.request_id}`).emit('offer:message', savedMessage);
       io.to(`vendor:${ctx.vendor_id}`).emit('offer:message', savedMessage);
 

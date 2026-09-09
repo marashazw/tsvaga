@@ -12,10 +12,19 @@ export default function ChatToggleButton({ offerId, socket, currentUserId, label
 
   useEffect(() => {
     if (!socket || !offerId) return;
+    console.log('[chat-diag] listener attached, offerId:', offerId, 'currentUserId:', currentUserId, 'socket connected:', socket.connected);
     function onMessage(msg) {
-      if (msg.offer_id !== offerId) return;
-      if (msg.sender_id === currentUserId) return; // don't flag our own messages
+      console.log('[chat-diag] offer:message received:', msg, 'watching offerId:', offerId, 'open:', openRef.current);
+      if (msg.offer_id !== offerId) {
+        console.log('[chat-diag] IGNORED - offer_id mismatch');
+        return;
+      }
+      if (msg.sender_id === currentUserId) {
+        console.log('[chat-diag] IGNORED - own message');
+        return; // don't flag our own messages
+      }
       if (!openRef.current) {
+        console.log('[chat-diag] FLAGGING as unread');
         setHasUnread(true);
         playNotificationSound();
       }

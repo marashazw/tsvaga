@@ -31,6 +31,7 @@ function attachSocketHandlers(io) {
     // A requester (or anyone watching) joins a request's room to receive live offers.
     socket.on('request:subscribe', (requestId) => {
       socket.join(`request:${requestId}`);
+      console.log(`[chat-diag] socket ${socket.id} joined request:${requestId}`);
     });
 
     socket.on('disconnect', () => {

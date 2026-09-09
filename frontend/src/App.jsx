@@ -114,6 +114,7 @@ export default function App() {
     // needs to be told again which request room this socket belongs to,
     // otherwise it silently stops receiving live offer/order updates for it.
     function subscribe() {
+      console.log('[chat-diag] subscribing to request:' + request.id, 'socket connected:', socket.connected);
       socket.emit('request:subscribe', request.id);
     }
     subscribe();
