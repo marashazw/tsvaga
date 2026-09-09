@@ -279,7 +279,6 @@ export default function App() {
             categories: itemCategories.length ? itemCategories : ['miscellaneous'],
           });
           lastCreated = data.request;
-          console.log('[diag] separate-items: calling addRequest, ref is:', myRequestsRef.current, 'with:', data.request);
           myRequestsRef.current?.addRequest(data.request);
         }
         // Land on the last one created - My Requests shows the full list
@@ -301,7 +300,6 @@ export default function App() {
         setOffers([]);
         setOrder(null);
         setPrefillText('');
-        console.log('[diag] single-item: calling addRequest, ref is:', myRequestsRef.current, 'with:', data.request);
         myRequestsRef.current?.addRequest(data.request);
         setMyRequestsRefreshKey((k) => k + 1);
       }

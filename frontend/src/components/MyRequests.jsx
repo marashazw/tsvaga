@@ -354,7 +354,6 @@ const MyRequests = forwardRef(function MyRequests({ socket, onViewOffers, onView
 
   function load() {
     const seq = ++loadSeq.current;
-    console.log('[diag] load() called, seq:', seq);
     api
       .get('/requests/me')
       .then(({ data }) => {
@@ -365,11 +364,7 @@ const MyRequests = forwardRef(function MyRequests({ socket, onViewOffers, onView
         // what caused a freshly created request to vanish again when the
         // page's own initial fetch (already in flight) resolved after the
         // direct injection had already added it.
-        if (seq !== loadSeq.current) {
-          console.log('[diag] load() response IGNORED as stale, seq was', seq, 'current is', loadSeq.current);
-          return;
-        }
-        console.log('[diag] load() response APPLIED, seq:', seq, 'got', data.length, 'requests');
+        if (seq !== loadSeq.current) return;
         setRequests(data);
       })
       .catch(() => {
@@ -388,7 +383,6 @@ const MyRequests = forwardRef(function MyRequests({ socket, onViewOffers, onView
   // would return for it.
   useImperativeHandle(ref, () => ({
     addRequest(newRequest) {
-      console.log('[diag] addRequest() invoked with:', newRequest);
       // Invalidates any fetch already in flight (e.g. this component's own
       // initial mount-time load()) so its response gets ignored instead of
       // overwriting this direct injection when it resolves later.
