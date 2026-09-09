@@ -1,6 +1,9 @@
-{
+﻿{
   "appId": "app.tsvaga.twa",
   "appName": "Tsvaga",
   "webDir": "dist",
-  "bundledWebRuntime": false
+  "bundledWebRuntime": false,
+  "android": {
+    "adjustMarginsForEdgeToEdge": "auto"
+  }
 }
