@@ -1,4 +1,4 @@
-import React, { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { api } from '../api';
 import { exportOrderAsPdf } from '../pdfExport.js';
@@ -350,11 +350,27 @@ const MyRequests = forwardRef(function MyRequests({ socket, onViewOffers, onView
   const [expanded, setExpanded] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
 
+  const loadSeq = useRef(0);
+
   function load() {
+    const seq = ++loadSeq.current;
     api
       .get('/requests/me')
-      .then(({ data }) => setRequests(data))
-      .catch(() => setRequests([]));
+      .then(({ data }) => {
+        // If a newer load() or a direct addRequest() happened while this
+        // request was in flight, this response is stale - applying it now
+        // would silently overwrite more recent state with an outdated
+        // snapshot from before whatever just happened. This is exactly
+        // what caused a freshly created request to vanish again when the
+        // page's own initial fetch (already in flight) resolved after the
+        // direct injection had already added it.
+        if (seq !== loadSeq.current) return;
+        setRequests(data);
+      })
+      .catch(() => {
+        if (seq !== loadSeq.current) return;
+        setRequests([]);
+      });
   }
 
   // Called directly by the parent right after a request is successfully
@@ -367,6 +383,10 @@ const MyRequests = forwardRef(function MyRequests({ socket, onViewOffers, onView
   // would return for it.
   useImperativeHandle(ref, () => ({
     addRequest(newRequest) {
+      // Invalidates any fetch already in flight (e.g. this component's own
+      // initial mount-time load()) so its response gets ignored instead of
+      // overwriting this direct injection when it resolves later.
+      loadSeq.current++;
       setRequests((prev) => [
         {
           ...newRequest,
