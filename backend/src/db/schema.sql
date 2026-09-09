@@ -210,7 +210,16 @@ CREATE TABLE orders (
   offer_id UUID NOT NULL REFERENCES offers(id),
   status order_status NOT NULL DEFAULT 'confirmed',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  delivered_at TIMESTAMPTZ
+  delivered_at TIMESTAMPTZ,
+  -- Live delivery tracking - only meaningful while status = 'out_for_delivery'.
+  -- Deliberately just the vendor's LATEST position, not a history of every
+  -- ping (that would grow unbounded for no real benefit) - live movement
+  -- between pings is delivered directly via socket to anyone actively
+  -- watching, this is only a starting point for whoever opens the tracking
+  -- view mid-delivery, before further live updates arrive.
+  current_lat DOUBLE PRECISION,
+  current_lng DOUBLE PRECISION,
+  location_updated_at TIMESTAMPTZ
 );
 
 CREATE TABLE reviews (

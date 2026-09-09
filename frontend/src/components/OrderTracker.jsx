@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ReviewForm from './ReviewForm.jsx';
 import ChatToggleButton from './ChatToggleButton.jsx';
+import DeliveryTrackingMap from './DeliveryTrackingMap.jsx';
 import { exportOrderAsPdf } from '../pdfExport.js';
 
 function formatEta(minutes) {
@@ -30,6 +31,25 @@ export default function OrderTracker({ order, socket, currentUserId }) {
     order.review_id ? { rating: order.review_rating, comment: order.review_comment } : null
   );
   const [exporting, setExporting] = useState(false);
+  const [showTracking, setShowTracking] = useState(false);
+  const [vendorPos, setVendorPos] = useState(
+    order.current_lat != null && order.current_lng != null
+      ? { lat: order.current_lat, lng: order.current_lng }
+      : null
+  );
+
+  // Live position updates arrive on the same request room OrderTracker
+  // already listens on for order:status - only relevant while this
+  // specific order's tracking is actually being shown.
+  useEffect(() => {
+    if (!socket) return;
+    function handleLocation(payload) {
+      if (payload.order_id !== order.id) return;
+      setVendorPos({ lat: payload.lat, lng: payload.lng });
+    }
+    socket.on('order:location', handleLocation);
+    return () => socket.off('order:location', handleLocation);
+  }, [socket, order.id]);
 
   async function handleExportPdf() {
     setExporting(true);
@@ -98,6 +118,23 @@ export default function OrderTracker({ order, socket, currentUserId }) {
             </li>
           ))}
         </ol>
+      )}
+
+      {order.status === 'out_for_delivery' && !isPickup && (
+        <div style={{ marginTop: 8 }}>
+          <button type="button" className="secondary" onClick={() => setShowTracking((s) => !s)}>
+            {showTracking ? '▲ Hide live tracking' : '📍 Track delivery'}
+          </button>
+          {showTracking && (
+            <div style={{ marginTop: 8 }}>
+              <DeliveryTrackingMap
+                vendorPos={vendorPos}
+                destPos={order.dest_lat != null && order.dest_lng != null ? { lat: order.dest_lat, lng: order.dest_lng } : null}
+                vendorLabel={order.business_name}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

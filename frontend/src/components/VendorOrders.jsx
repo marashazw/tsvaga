@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import ChatToggleButton from './ChatToggleButton.jsx';
 
@@ -21,6 +21,33 @@ function nextAction(order) {
 }
 
 function OrderCard({ order: o, onAdvance, socket, currentUserId }) {
+  // While THIS order is an actual delivery (not a pickup, where there's no
+  // "vendor traveling to you" scenario) and is out for delivery, watch this
+  // device's GPS and report it to the backend so the requester can see
+  // live movement. Throttled to avoid hammering the API on every tiny GPS
+  // update - a delivery in progress doesn't need sub-second precision, a
+  // position every several seconds is plenty for someone watching a map.
+  const lastSentAt = useRef(0);
+  useEffect(() => {
+    const isActiveDelivery = o.status === 'out_for_delivery' && o.fulfillment_type !== 'pickup';
+    if (!isActiveDelivery || !('geolocation' in navigator)) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const now = Date.now();
+        if (now - lastSentAt.current < 8000) return; // throttle to ~once per 8s
+        lastSentAt.current = now;
+        api
+          .patch(`/orders/${o.id}/location`, { lat: pos.coords.latitude, lng: pos.coords.longitude })
+          .catch(() => {}); // a single missed ping isn't worth surfacing an error for
+      },
+      () => {}, // silently ignore GPS errors here - not worth interrupting the vendor's flow
+      { enableHighAccuracy: true, maximumAge: 5000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [o.id, o.status, o.fulfillment_type]);
+
   return (
     <li className="order-card">
       <div className="alert-main">

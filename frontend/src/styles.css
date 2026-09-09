@@ -642,6 +642,29 @@ button.secondary {
   box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.25);
 }
 
+/* Live delivery tracking markers - the vendor's moving position (clay,
+   matching the brand's accent color, distinct from the blue "you are here"
+   dot used elsewhere) and a fixed destination marker (forest green). */
+.delivery-vendor-badge {
+  width: 34px;
+  height: 34px;
+  background: var(--clay);
+  border: 3px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.delivery-destination-dot {
+  width: 18px;
+  height: 18px;
+  background: var(--forest);
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(47, 111, 79, 0.25);
+}
+
 .install-banner-wrap {
   display: flex;
   flex-direction: column;

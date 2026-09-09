@@ -33,9 +33,10 @@ module.exports = function buildOrdersRouter(io) {
   router.get('/:id', requireAuth, async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT o.id, o.status, o.created_at, o.delivered_at,
+        `SELECT o.id, o.status, o.created_at, o.delivered_at, o.current_lat, o.current_lng, o.location_updated_at,
                 r.id AS request_id, r.product_text, r.quantity, r.address_text AS request_address, r.requester_id,
                 r.fulfillment_type, r.delivery_address_text, r.recipient_name, r.recipient_phone, r.request_type,
+                ST_X(r.location::geometry) AS dest_lng, ST_Y(r.location::geometry) AS dest_lat,
                 u.phone AS requester_phone,
                 of.id AS offer_id, of.price, of.delivery_fee, of.delivery_eta_minutes, of.message, of.cart_prices,
                 v.id AS vendor_id, v.business_name, v.address_text AS vendor_address, v.rating_avg,
@@ -136,6 +137,52 @@ module.exports = function buildOrdersRouter(io) {
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Failed to update order status' });
+    }
+  });
+
+  // PATCH /api/orders/:id/location  { lat, lng }
+  // Called repeatedly by the fulfilling vendor's own device while an order
+  // is out for delivery, to power live tracking for the requester. Only
+  // meaningful (and only accepted) while status is actually
+  // 'out_for_delivery' - a stray location update for a pending or already-
+  // delivered order would just be noise nobody's watching for.
+  router.patch('/:id/location', requireAuth, async (req, res) => {
+    const { lat, lng } = req.body;
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+      return res.status(400).json({ error: 'lat and lng (numbers) are required' });
+    }
+    try {
+      const orderRow = await pool.query(
+        `SELECT o.id, o.status, o.request_id, of.vendor_id
+         FROM orders o JOIN offers of ON of.id = o.offer_id
+         WHERE o.id = $1`,
+        [req.params.id]
+      );
+      if (!orderRow.rows.length) return res.status(404).json({ error: 'Order not found' });
+      const order = orderRow.rows[0];
+
+      if (req.user.id !== order.vendor_id) {
+        return res.status(403).json({ error: 'Only the fulfilling vendor can update delivery location' });
+      }
+      if (order.status !== 'out_for_delivery') {
+        return res.status(409).json({ error: 'Location tracking is only active while the order is out for delivery' });
+      }
+
+      await pool.query(
+        `UPDATE orders SET current_lat = $2, current_lng = $3, location_updated_at = now() WHERE id = $1`,
+        [order.id, lat, lng]
+      );
+
+      // Live position goes straight to whoever's watching via socket - not
+      // persisted as a history, just the latest point in time. The request
+      // room is already the one the requester's OrderTracker listens on
+      // for order:status, so this reuses the same channel.
+      io.to(`request:${order.request_id}`).emit('order:location', { order_id: order.id, lat, lng });
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to update delivery location' });
     }
   });
 
