@@ -188,6 +188,22 @@ export default function App() {
       .catch(() => setAddressLabel(null)); // fine to just fall back to no label if the lookup fails
   }, []);
 
+  // Auto-detect location on load rather than requiring a manual "Set your
+  // location" step every single visit - this is what actually makes the
+  // map collapse to its "already set" state immediately (via the existing
+  // mapOpen smart-default below, which only expands when addressLabel is
+  // still empty). Silently does nothing on denial/failure/unsupported
+  // browsers - the Harare CBD default plus the existing manual map picker
+  // remain exactly as they were as the fallback.
+  useEffect(() => {
+    if (!authed || addressLabel || !('geolocation' in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => handlePickLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}, // denied/unavailable - leave the default pin and manual picker in place
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, [authed, addressLabel, handlePickLocation]);
+
   function handleAddressFound({ lat, lng, label }) {
     setLocation({ lat, lng });
     setAddressLabel(label);

@@ -78,7 +78,7 @@ export default function MapView({ requesterLocation, onPickLocation, radiusKm, v
         <form onSubmit={handleSearch} className="map-search-bar">
           <input
             type="text"
-            placeholder="Drag pin on map or Type street address…"
+            placeholder="Drag pin or type address to refine…"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
