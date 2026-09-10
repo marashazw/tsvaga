@@ -107,6 +107,18 @@ module.exports = function buildOffersRouter(io) {
       console.log(`[myrequests] Emitting to user:${requestRow.rows[0].requester_id} (new offer)`);
       io.to(`user:${requestRow.rows[0].requester_id}`).emit('myrequests:updated');
 
+      // Let the requester know even if their app isn't open right now -
+      // this was previously missing entirely, so a new offer only ever
+      // showed up live in My Requests if the app happened to already be
+      // open at that exact moment.
+      notifyUsersByPush([requestRow.rows[0].requester_id], {
+        title: 'You have a new offer!',
+        body: `${vendorInfo.rows[0]?.business_name || 'A vendor'} responded to: ${requestRow.rows[0].product_text}`,
+        request_id: requestId,
+        url: '/',
+        tag: `offer-${offer.id}`,
+      }).catch((err) => console.error('Push notification failed:', err));
+
       res.status(201).json(offer);
     } catch (err) {
       console.error(err);
@@ -167,11 +179,17 @@ module.exports = function buildOffersRouter(io) {
       io.to(`vendor:${offer.vendor_id}`).emit('offer:accepted', { request_id: offer.request_id, offer_id: offer.id });
 
       // Let the vendor know even if their dashboard tab isn't open right now.
+      // Tagged distinctly per-order so this doesn't collide with (and get
+      // silently replaced in the notification shade by) an unrelated
+      // notification type arriving shortly after - e.g. a chat message or
+      // status update sharing the same generic tag would otherwise
+      // overwrite this one before it's even been seen.
       notifyUsersByPush([offer.vendor_id], {
         title: 'Your offer was accepted!',
         body: `Get moving on: ${fullOrder.rows[0].product_text}`,
         order_id: orderResult.rows[0].id,
         url: '/vendor.html',
+        tag: `order-${orderResult.rows[0].id}`,
       }).catch((err) => console.error('Push notification failed:', err));
 
       res.json({ order: orderResult.rows[0] });
@@ -264,13 +282,18 @@ module.exports = function buildOffersRouter(io) {
       io.to(`vendor:${ctx.vendor_id}`).emit('offer:message', savedMessage);
 
       // Push-notify whichever party didn't send this message, in case their
-      // tab isn't open right now.
+      // tab isn't open right now. Tagged per-conversation (not the generic
+      // shared default) so this doesn't collide with an unrelated
+      // notification type - e.g. an order status update arriving around
+      // the same time would otherwise silently replace this one, or vice
+      // versa, before either was seen.
       const recipientId = isRequester ? ctx.vendor_id : ctx.requester_id;
       notifyUsersByPush([recipientId], {
         title: 'New message',
         body: body.trim().slice(0, 120),
         offer_id: req.params.id,
         url: isRequester ? '/vendor.html' : '/',
+        tag: `chat-${req.params.id}`,
       }).catch((err) => console.error('Push notification failed:', err));
 
       res.status(201).json(savedMessage);
