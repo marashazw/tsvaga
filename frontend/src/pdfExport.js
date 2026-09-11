@@ -1,4 +1,7 @@
 import { jsPDF } from 'jspdf';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { api } from './api';
 
 function formatEta(minutes) {
@@ -131,5 +134,30 @@ export async function exportOrderAsPdf(order, currentUserId) {
     });
   }
 
-  doc.save(`tsvaga-order-${order.id || order.offer_id || 'record'}.pdf`);
+  const filename = `tsvaga-order-${order.id || order.offer_id || 'record'}.pdf`;
+
+  if (Capacitor.isNativePlatform()) {
+    // doc.save() relies on a blob URL + synthetic download click, which
+    // has nothing to hand off to inside Android's WebView (no Downloads
+    // integration) - it silently does nothing there. Writing the file
+    // directly and handing it to the native share sheet lets the person
+    // actually save it, send it via WhatsApp, etc.
+    const base64Data = doc.output('datauristring').split(',')[1];
+    try {
+      const result = await Filesystem.writeFile({
+        path: filename,
+        data: base64Data,
+        directory: Directory.Cache,
+      });
+      await Share.share({
+        title: filename,
+        url: result.uri,
+      });
+    } catch (err) {
+      console.error('Failed to save/share PDF on native:', err);
+      throw err; // let the caller's own error handling (a disabled button, etc.) still apply
+    }
+  } else {
+    doc.save(filename);
+  }
 }
