@@ -111,6 +111,7 @@ module.exports = function buildRequestsRouter(io) {
         delivery_address_text: paidUp ? request.delivery_address_text : null,
         request_type: request.request_type,
         is_remote: request.is_remote,
+        broadcast_mode: request.broadcast_mode,
         dropoff_address_text: paidUp ? request.dropoff_address_text : null,
         cart_items: paidUp ? request.cart_items : null,
         recipient_name: null,

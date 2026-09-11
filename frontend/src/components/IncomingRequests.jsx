@@ -2,6 +2,15 @@ import React, { useState } from 'react';
 import { api } from '../api';
 import ChatToggleButton from './ChatToggleButton.jsx';
 
+// Distance alone is misleading for a request that deliberately opted out of
+// distance-based matching - this explains WHY something far away (or with
+// no meaningful "near you" context at all) is showing up in the list.
+function broadcastLabel(alert) {
+  if (alert.broadcast_mode === 'nationwide') return '📡 Broadcasting nationwide';
+  if (alert.broadcast_mode === 'custom_area') return '📡 Broadcasting to a specific area';
+  return null;
+}
+
 function buildShareUrl(alert) {
   const isService = alert.request_type === 'service';
   const lines = [
@@ -162,7 +171,13 @@ export default function IncomingRequests({ alerts, respondedIds, offerIdsByReque
               <>
                 <div className="alert-main">
                   <strong>🔒 A nearby request came in</strong>
-                  <span className="hint">{a.distance_m != null ? `${Math.round(a.distance_m / 100) / 10} km away` : "From a notification"}</span>
+                  <span className="hint">
+                    {a.broadcast_mode === 'nationwide'
+                      ? broadcastLabel(a)
+                      : a.distance_m != null
+                        ? `${Math.round(a.distance_m / 100) / 10} km away${a.broadcast_mode === 'custom_area' ? ' · 📡 specific area' : ''}`
+                        : 'From a notification'}
+                  </span>
                 </div>
                 <p className="hint">Subscribe to see what's wanted and respond with an offer.</p>
               </>
@@ -170,7 +185,13 @@ export default function IncomingRequests({ alerts, respondedIds, offerIdsByReque
               <>
                 <div className="alert-main">
                   <strong>{a.product_text}</strong>
-                  <span className="hint">{a.distance_m != null ? `${Math.round(a.distance_m / 100) / 10} km away` : "From a notification"}</span>
+                  <span className="hint">
+                    {a.broadcast_mode === 'nationwide'
+                      ? broadcastLabel(a)
+                      : a.distance_m != null
+                        ? `${Math.round(a.distance_m / 100) / 10} km away${a.broadcast_mode === 'custom_area' ? ' · 📡 specific area' : ''}`
+                        : 'From a notification'}
+                  </span>
                 </div>
                 {a.quantity && <p className="hint">Qty: {a.quantity}</p>}
                 {Array.isArray(a.cart_items) && a.cart_items.length > 0 && (
