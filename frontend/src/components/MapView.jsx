@@ -36,8 +36,7 @@ export default function MapView({ requesterLocation, onPickLocation, radiusKm, v
   const [locating, setLocating] = useState(false);
   const [mapError, setMapError] = useState(null);
 
-  async function handleSearch(e) {
-    e.preventDefault();
+  async function handleSearch() {
     if (!searchText.trim()) return;
     setSearching(true);
     setMapError(null);
@@ -75,17 +74,23 @@ export default function MapView({ requesterLocation, onPickLocation, radiusKm, v
   return (
     <div style={{ position: 'relative' }}>
       <div className="map-overlay-controls">
-        <form onSubmit={handleSearch} className="map-search-bar">
+        <div className="map-search-bar">
           <input
             type="text"
             placeholder="Drag pin or type address to refine…"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSearch();
+              }
+            }}
           />
-          <button type="submit" disabled={searching}>
+          <button type="button" onClick={handleSearch} disabled={searching}>
             {searching ? '…' : 'Go'}
           </button>
-        </form>
+        </div>
         <button
           type="button"
           className="map-locate-btn"
