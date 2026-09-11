@@ -6,6 +6,19 @@ const ALLOWED_EXTENSIONS = ['.csv', '.txt', '.xlsx', '.xls'];
 const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2MB
 const MAX_ROWS = 500;
 
+// Sorts a copy of the list - 'date' relies on the backend's own
+// created_at-DESC ordering (so this is a no-op, just returns as-is),
+// 'category' sorts alphabetically by category, with anything uncategorized
+// pushed to the end rather than sorting unpredictably at the top.
+function sortItems(items, sortBy) {
+  if (sortBy !== 'category') return items;
+  return [...items].sort((a, b) => {
+    const catA = a.category || '\uffff';
+    const catB = b.category || '\uffff';
+    return catA.localeCompare(catB);
+  });
+}
+
 export default function InventoryManager({ inventory, onChange }) {
   const [newProductName, setNewProductName] = useState('');
   const [price, setPrice] = useState('');
@@ -13,7 +26,10 @@ export default function InventoryManager({ inventory, onChange }) {
   const [pricingType, setPricingType] = useState('fixed'); // 'fixed' | 'hourly' | 'starting_from'
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [showAll, setShowAll] = useState(false);
+
+  const [sortBy, setSortBy] = useState('date'); // 'date' | 'category'
+  const [showAllProducts, setShowAllProducts] = useState(false);
+  const [showAllServices, setShowAllServices] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [editingId, setEditingId] = useState(null);
   const [editPrice, setEditPrice] = useState('');
@@ -23,6 +39,7 @@ export default function InventoryManager({ inventory, onChange }) {
   const [importRows, setImportRows] = useState([]);
   const [productColumn, setProductColumn] = useState(0);
   const [priceColumn, setPriceColumn] = useState(1);
+  const [importMode, setImportMode] = useState('merge'); // 'merge' | 'replace'
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState(null);
   const [importSummary, setImportSummary] = useState(null);
@@ -38,8 +55,6 @@ export default function InventoryManager({ inventory, onChange }) {
 
     setSaving(true);
     try {
-      // Reuses an existing product with the same name AND type if one
-      // already exists (handled server-side), otherwise creates a new one.
       const { data: product } = await api.post('/products', { name: newProductName.trim(), type: itemType });
 
       const { data } = await api.post('/vendors/me/inventory', {
@@ -48,14 +63,7 @@ export default function InventoryManager({ inventory, onChange }) {
         typical_price: price ? Number(price) : null,
         pricing_type: itemType === 'service' ? pricingType : 'fixed',
       });
-      // Prepend, not append - the backend always returns inventory sorted
-      // newest-first (ORDER BY updated_at DESC), so appending here would
-      // silently push a freshly-added item outside the default top-5
-      // visible window if the vendor already has 5+ items. This is exactly
-      // what looked like "the page isn't updating" - the item WAS added,
-      // just invisible until Show more was clicked or the page refreshed
-      // (which re-fetches in the correct order).
-      onChange([{ ...data, name: product.name, type: product.type }, ...inventory.filter((i) => i.product_id !== product.id)]);
+      onChange([{ ...data, name: product.name, type: product.type, category: product.category }, ...inventory.filter((i) => i.product_id !== product.id)]);
       setNewProductName('');
       setPrice('');
     } catch (err) {
@@ -73,6 +81,28 @@ export default function InventoryManager({ inventory, onChange }) {
       pricing_type: item.pricing_type,
     });
     onChange(inventory.map((i) => (i.product_id === item.product_id ? { ...i, in_stock: data.in_stock } : i)));
+  }
+
+  // Bulk version of the same toggle above, for temporarily pulling several
+  // items out of stock (or bringing them back) at once, without deleting
+  // anything - e.g. "everything from this supplier is out until Friday".
+  async function bulkSetStock(inStock) {
+    const items = inventory.filter((i) => selectedIds.has(i.product_id));
+    if (!items.length) return;
+    for (const item of items) {
+      try {
+        await api.post('/vendors/me/inventory', {
+          product_id: item.product_id,
+          in_stock: inStock,
+          typical_price: item.typical_price,
+          pricing_type: item.pricing_type,
+        });
+      } catch (err) {
+        // continue updating the rest even if one fails
+      }
+    }
+    const ids = new Set(items.map((i) => i.product_id));
+    onChange(inventory.map((i) => (ids.has(i.product_id) ? { ...i, in_stock: inStock } : i)));
   }
 
   function startEdit(item) {
@@ -145,7 +175,7 @@ export default function InventoryManager({ inventory, onChange }) {
 
   function handleFileSelect(e) {
     const file = e.target.files[0];
-    e.target.value = ''; // allow re-selecting the same file later
+    e.target.value = '';
     if (!file) return;
 
     resetImport();
@@ -182,7 +212,6 @@ export default function InventoryManager({ inventory, onChange }) {
         }
         setImportHeaders(headerRow);
         setImportRows(dataRows);
-        // Best-effort auto-detect of which column is which, from common header names.
         const guessedProduct = headerRow.findIndex((h) => /product|item|name/i.test(h));
         const guessedPrice = headerRow.findIndex((h) => /price|cost|amount/i.test(h));
         setProductColumn(guessedProduct >= 0 ? guessedProduct : 0);
@@ -200,7 +229,26 @@ export default function InventoryManager({ inventory, onChange }) {
     setImportError(null);
     let created = 0;
     let skipped = 0;
-    const workingList = [...inventory];
+
+    if (importMode === 'replace') {
+      if (
+        !window.confirm(
+          `This will DELETE your entire current inventory (${inventory.length} item${inventory.length === 1 ? '' : 's'}) and replace it with this file. This can't be undone. Continue?`
+        )
+      ) {
+        setImporting(false);
+        return;
+      }
+      try {
+        await api.delete('/vendors/me/inventory');
+      } catch (err) {
+        setImportError('Failed to clear your existing inventory - import cancelled, nothing was changed.');
+        setImporting(false);
+        return;
+      }
+    }
+
+    const workingList = importMode === 'replace' ? [] : [...inventory];
 
     for (const row of importRows) {
       const name = row[productColumn] != null ? String(row[productColumn]).trim() : '';
@@ -216,7 +264,7 @@ export default function InventoryManager({ inventory, onChange }) {
           in_stock: true,
           typical_price: priceNum,
         });
-        const merged = { ...invItem, name: product.name };
+        const merged = { ...invItem, name: product.name, type: product.type, category: product.category };
         const idx = workingList.findIndex((i) => i.product_id === product.id);
         if (idx >= 0) workingList[idx] = merged;
         else workingList.unshift(merged);
@@ -229,128 +277,178 @@ export default function InventoryManager({ inventory, onChange }) {
     onChange(workingList);
     setImporting(false);
     setImportSummary(
-      `Imported ${created} product${created === 1 ? '' : 's'}.` +
+      (importMode === 'replace' ? `Replaced your inventory with ${created} product${created === 1 ? '' : 's'}.` : `Imported ${created} product${created === 1 ? '' : 's'}.`) +
         (skipped ? ` Skipped ${skipped} row${skipped === 1 ? '' : 's'} with a missing/invalid product name or price.` : '')
     );
     setImportHeaders([]);
     setImportRows([]);
   }
 
-  const visibleInventory = showAll ? inventory : inventory.slice(0, 5);
-  const allVisibleSelected = visibleInventory.length > 0 && visibleInventory.every((i) => selectedIds.has(i.product_id));
+  const products = sortItems(inventory.filter((i) => i.type !== 'service'), sortBy);
+  const services = sortItems(inventory.filter((i) => i.type === 'service'), sortBy);
 
-  function toggleSelectAllVisible() {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (allVisibleSelected) {
-        visibleInventory.forEach((i) => next.delete(i.product_id));
-      } else {
-        visibleInventory.forEach((i) => next.add(i.product_id));
-      }
-      return next;
-    });
+  function renderSection({ title, icon, items, showAll, setShowAll, emptyHint }) {
+    const visible = showAll ? items : items.slice(0, 5);
+    const allVisibleSelected = visible.length > 0 && visible.every((i) => selectedIds.has(i.product_id));
+
+    function toggleSelectAllVisible() {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (allVisibleSelected) {
+          visible.forEach((i) => next.delete(i.product_id));
+        } else {
+          visible.forEach((i) => next.add(i.product_id));
+        }
+        return next;
+      });
+    }
+
+    return (
+      <div style={{ marginBottom: 18 }}>
+        <h4 style={{ margin: '0 0 6px' }}>
+          {icon} {title} ({items.length})
+        </h4>
+        {items.length === 0 ? (
+          <p className="hint">{emptyHint}</p>
+        ) : (
+          <>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 0 8px' }}>
+              <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} />
+              <span className="hint">Select all shown</span>
+            </label>
+            <ul className="inventory-list">
+              {visible.map((item) => (
+                <li key={item.product_id} className="inventory-item">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(item.product_id)}
+                      onChange={() => toggleSelect(item.product_id)}
+                    />
+                    <span>
+                      {item.name}
+                      {item.category && <span className="hint" style={{ marginLeft: 6 }}>· {item.category}</span>}
+                    </span>
+                  </label>
+                  {editingId === item.product_id ? (
+                    <>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editPrice}
+                        onChange={(e) => setEditPrice(e.target.value)}
+                        style={{ width: 80 }}
+                      />
+                      <button type="button" onClick={() => saveEdit(item)} style={{ padding: '4px 10px', fontSize: '0.78rem' }}>
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => setEditingId(null)}
+                        style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="price">
+                        {item.typical_price
+                          ? item.pricing_type === 'hourly'
+                            ? `$${Number(item.typical_price).toFixed(2)}/hr`
+                            : item.pricing_type === 'starting_from'
+                              ? `From $${Number(item.typical_price).toFixed(2)}`
+                              : `$${Number(item.typical_price).toFixed(2)}`
+                          : '—'}
+                      </span>
+                      <button className={item.in_stock ? 'stock-btn in' : 'stock-btn out'} onClick={() => toggleStock(item)}>
+                        {item.type === 'service'
+                          ? item.in_stock ? 'Available' : 'Not available'
+                          : item.in_stock ? 'In stock' : 'Out of stock'}
+                      </button>
+                      {selectedIds.has(item.product_id) && (
+                        <>
+                          <button
+                            type="button"
+                            className="secondary"
+                            onClick={() => startEdit(item)}
+                            style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                          >
+                            Edit price
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary"
+                            onClick={() => deleteItem(item)}
+                            style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {items.length > 5 && (
+              <button type="button" className="link-btn" onClick={() => setShowAll((s) => !s)}>
+                {showAll ? 'Show less' : `Show more (${items.length - 5} more)`}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    );
   }
 
   return (
     <div className="inventory">
       <div className="alert-main">
         <h3 style={{ margin: 0 }}>Your inventory</h3>
-        {selectedIds.size > 0 && (
-          <button type="button" className="secondary" onClick={deleteSelected}>
-            Delete {selectedIds.size} selected
-          </button>
-        )}
-      </div>
-      {inventory.length === 0 && <p className="hint">No products added yet — add your first one below.</p>}
-      {inventory.length > 0 && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
-          <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} />
-          <span className="hint">Select all shown</span>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}>
+          Sort by:
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="date">Date added</option>
+            <option value="category">Category</option>
+          </select>
         </label>
+      </div>
+
+      {selectedIds.size > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
+          <span className="hint" style={{ alignSelf: 'center' }}>{selectedIds.size} selected:</span>
+          <button type="button" className="secondary" onClick={() => bulkSetStock(false)}>
+            Mark out of stock/unavailable
+          </button>
+          <button type="button" className="secondary" onClick={() => bulkSetStock(true)}>
+            Mark in stock/available
+          </button>
+          <button type="button" className="secondary" onClick={deleteSelected}>
+            Delete selected
+          </button>
+        </div>
       )}
-      <ul className="inventory-list">
-        {visibleInventory.map((item) => (
-          <li key={item.product_id} className="inventory-item">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-              <input
-                type="checkbox"
-                checked={selectedIds.has(item.product_id)}
-                onChange={() => toggleSelect(item.product_id)}
-              />
-              <span>
-                {item.name}
-                {item.type === 'service' && (
-                  <span className="hint" style={{ marginLeft: 6 }}>🔧</span>
-                )}
-              </span>
-            </label>
-            {editingId === item.product_id ? (
-              <>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editPrice}
-                  onChange={(e) => setEditPrice(e.target.value)}
-                  style={{ width: 80 }}
-                />
-                <button type="button" onClick={() => saveEdit(item)} style={{ padding: '4px 10px', fontSize: '0.78rem' }}>
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => setEditingId(null)}
-                  style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="price">
-                  {item.typical_price
-                    ? item.pricing_type === 'hourly'
-                      ? `$${Number(item.typical_price).toFixed(2)}/hr`
-                      : item.pricing_type === 'starting_from'
-                        ? `From $${Number(item.typical_price).toFixed(2)}`
-                        : `$${Number(item.typical_price).toFixed(2)}`
-                    : '—'}
-                </span>
-                <button className={item.in_stock ? 'stock-btn in' : 'stock-btn out'} onClick={() => toggleStock(item)}>
-                  {item.type === 'service'
-                    ? item.in_stock ? 'Available' : 'Not available'
-                    : item.in_stock ? 'In stock' : 'Out of stock'}
-                </button>
-                {selectedIds.has(item.product_id) && (
-                  <>
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() => startEdit(item)}
-                      style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                    >
-                      Edit price
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() => deleteItem(item)}
-                      style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                    >
-                      Delete
-                    </button>
-                  </>
-                )}
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-      {inventory.length > 5 && (
-        <button type="button" className="link-btn" onClick={() => setShowAll((s) => !s)}>
-          {showAll ? 'Show less' : `Show more (${inventory.length - 5} more)`}
-        </button>
-      )}
+
+      {inventory.length === 0 && <p className="hint">No products or services added yet — add your first one below.</p>}
+
+      {renderSection({
+        title: 'Products',
+        icon: '🛒',
+        items: products,
+        showAll: showAllProducts,
+        setShowAll: setShowAllProducts,
+        emptyHint: 'No products added yet.',
+      })}
+      {renderSection({
+        title: 'Services',
+        icon: '🔧',
+        items: services,
+        showAll: showAllServices,
+        setShowAll: setShowAllServices,
+        emptyHint: 'No services added yet.',
+      })}
 
       <div className="category-accordion" style={{ marginTop: 14 }}>
         <div className="category-accordion-body">
@@ -359,6 +457,23 @@ export default function InventoryManager({ inventory, onChange }) {
             Upload a CSV or Excel file with one product per row. It must include a column for the product name and
             a column for its price.
           </p>
+
+          <div style={{ margin: '8px 0' }}>
+            <label className="radio-label">
+              <input type="radio" checked={importMode === 'merge'} onChange={() => setImportMode('merge')} />
+              Add to my existing list (updates matching items, keeps everything else)
+            </label>
+            <label className="radio-label">
+              <input type="radio" checked={importMode === 'replace'} onChange={() => setImportMode('replace')} />
+              Replace my entire inventory with this file
+            </label>
+            {importMode === 'replace' && (
+              <p className="error" style={{ margin: '4px 0 0' }}>
+                ⚠️ This deletes every item currently in your inventory first. This can't be undone.
+              </p>
+            )}
+          </div>
+
           <input type="file" accept=".csv,.txt,.xlsx,.xls" onChange={handleFileSelect} />
 
           {importHeaders.length > 0 && (
@@ -388,7 +503,13 @@ export default function InventoryManager({ inventory, onChange }) {
                 {String(importRows[0]?.[productColumn] ?? '')}" at ${String(importRows[0]?.[priceColumn] ?? '')}
               </p>
               <button type="button" onClick={runImport} disabled={importing}>
-                {importing ? 'Importing…' : `Import ${importRows.length} product${importRows.length === 1 ? '' : 's'}`}
+                {importing
+                  ? importMode === 'replace'
+                    ? 'Replacing…'
+                    : 'Importing…'
+                  : importMode === 'replace'
+                    ? `Replace inventory with ${importRows.length} product${importRows.length === 1 ? '' : 's'}`
+                    : `Import ${importRows.length} product${importRows.length === 1 ? '' : 's'}`}
               </button>
               <button type="button" className="secondary" onClick={resetImport} style={{ marginLeft: 8 }}>
                 Cancel

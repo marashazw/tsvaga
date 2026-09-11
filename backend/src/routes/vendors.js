@@ -171,9 +171,9 @@ router.get('/me', requireAuth, async (req, res) => {
     if (!vendor.rows.length) return res.status(404).json({ error: 'No vendor profile for this account' });
 
     const inventory = await pool.query(
-      `SELECT vi.id, vi.product_id, vi.in_stock, vi.typical_price, vi.pricing_type, vi.updated_at, p.name, p.category, p.type
+      `SELECT vi.id, vi.product_id, vi.in_stock, vi.typical_price, vi.pricing_type, vi.created_at, vi.updated_at, p.name, p.category, p.type
        FROM vendor_inventory vi JOIN products p ON p.id = vi.product_id
-       WHERE vi.vendor_id = $1 ORDER BY vi.updated_at DESC`,
+       WHERE vi.vendor_id = $1 ORDER BY vi.created_at DESC`,
       [req.user.id]
     );
 
@@ -331,6 +331,23 @@ router.delete('/me/inventory/:productId', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete inventory item' });
+  }
+});
+
+// DELETE /api/vendors/me/inventory - clears this vendor's ENTIRE inventory
+// in one go. Used specifically by the "replace my whole inventory with
+// this file" import mode, run immediately before re-populating from the
+// uploaded rows - kept as its own explicit, deliberately-named endpoint
+// rather than overloading the single-item delete route with a special
+// "no productId" case, so a client can't trigger this destructively by
+// accident via a malformed request to the other route.
+router.delete('/me/inventory', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM vendor_inventory WHERE vendor_id = $1 RETURNING id', [req.user.id]);
+    res.json({ deleted: result.rows.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to clear inventory' });
   }
 });
 
