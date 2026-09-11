@@ -17,13 +17,17 @@ module.exports = function buildRequestsRouter(io) {
   // fulfillment_type, delivery_address_text, recipient_name, recipient_phone,
   // categories, expires_at. Returns the number of vendors alerted.
   async function matchAndNotifyVendors({ client, request }) {
-    const { lng, lat, product_id, product_text, categories, is_remote } = request;
+    const { lng, lat, product_id, product_text, categories, is_remote, broadcast_mode } = request;
     const finalCategories = categories && categories.length ? categories : ['miscellaneous'];
     // A remote service isn't tied to physical proximity at all (a designer
     // in Bulawayo can serve someone in Harare) - 1000km safely covers the
     // whole of Zimbabwe, so this effectively removes distance as a factor
-    // without needing a separate un-filtered query path.
-    const effectiveRadiusKm = is_remote ? 1000 : request.radius_km;
+    // without needing a separate un-filtered query path. The same trick
+    // now also covers a requester deliberately opting to broadcast
+    // nationwide, or to a specific area other than their own location -
+    // both cases want every vendor considered regardless of distance,
+    // same as a remote service does.
+    const effectiveRadiusKm = is_remote || (broadcast_mode && broadcast_mode !== 'nearby') ? 1000 : request.radius_km;
 
     const matchQuery = product_id
       ? `SELECT v.id, v.business_name, v.address_text, v.notify_categories, v.notify_mode,
@@ -163,6 +167,7 @@ module.exports = function buildRequestsRouter(io) {
       is_remote,
       dropoff_address_text,
       cart_items,
+      broadcast_mode,
     } = req.body;
 
     if (!product_text || typeof lng !== 'number' || typeof lat !== 'number') {
@@ -197,6 +202,15 @@ module.exports = function buildRequestsRouter(io) {
     // delivery/pickup somewhere, so this flag is meaningless for products.
     const safeIsRemote = safeRequestType === 'service' && is_remote === true;
     const safeFulfillment = fulfillment_type === 'pickup' ? 'pickup' : 'delivery';
+    // Lets a requester deliberately widen who gets matched, beyond the
+    // normal distance-based radius: nationwide, or to a specific area
+    // other than their own location (e.g. sourcing something in a
+    // different city). Defaults to the normal nearby-only behavior for
+    // anything unrecognized, rather than accidentally broadcasting wider
+    // than intended on a bad/missing value.
+    const safeBroadcastMode = ['nearby', 'nationwide', 'custom_area'].includes(broadcast_mode)
+      ? broadcast_mode
+      : 'nearby';
     // A remote service (design, coding, tutoring over video call) has no
     // physical meeting point at all, so the location/address requirement
     // that applies to everything else doesn't apply here.
@@ -223,8 +237,8 @@ module.exports = function buildRequestsRouter(io) {
     try {
       client = await pool.connect();
       const insertResult = await client.query(
-        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories, request_type, is_remote, dropoff_address_text, cart_items)
-         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 50), $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        `INSERT INTO requests (requester_id, product_id, product_text, quantity, location, address_text, radius_km, fulfillment_type, delivery_address_text, recipient_name, recipient_phone, categories, request_type, is_remote, dropoff_address_text, cart_items, broadcast_mode)
+         VALUES ($1, $2, $3, $4, ${toGeoPoint(lng, lat)}, $5, COALESCE($6, 50), $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
          RETURNING *`,
         [
           req.user.id,
@@ -242,6 +256,7 @@ module.exports = function buildRequestsRouter(io) {
           safeIsRemote,
           safeDropoff,
           safeCartItems ? JSON.stringify(safeCartItems) : null,
+          safeBroadcastMode,
         ]
       );
       const request = insertResult.rows[0];
@@ -265,7 +280,7 @@ module.exports = function buildRequestsRouter(io) {
   router.get('/me', requireAuth, async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT r.id, r.product_text, r.quantity, r.status, r.fulfillment_type, r.request_type, r.created_at, r.visible_until, r.cart_items,
+        `SELECT r.id, r.product_text, r.quantity, r.status, r.fulfillment_type, r.request_type, r.created_at, r.visible_until, r.cart_items, r.broadcast_mode,
                 (SELECT COUNT(*) FROM offers WHERE offers.request_id = r.id) AS offer_count,
                 (SELECT o.id FROM orders o WHERE o.request_id = r.id ORDER BY o.created_at DESC LIMIT 1) AS order_id,
                 (SELECT o.status FROM orders o WHERE o.request_id = r.id ORDER BY o.created_at DESC LIMIT 1) AS order_status,
@@ -459,12 +474,12 @@ module.exports = function buildRequestsRouter(io) {
     try {
       const result = await pool.query(
         `SELECT id, product_text, quantity, address_text, expires_at, fulfillment_type, delivery_address_text,
-                recipient_name, recipient_phone, created_at, request_type, is_remote, dropoff_address_text, cart_items,
+                recipient_name, recipient_phone, created_at, request_type, is_remote, broadcast_mode, dropoff_address_text, cart_items,
                 (SELECT o.id FROM offers o WHERE o.request_id = requests.id AND o.vendor_id = $2) AS my_offer_id,
                 ST_Distance(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}) AS distance_m
          FROM requests
          WHERE status = 'open' AND deleted_at IS NULL
-           AND (is_remote = true OR ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1::numeric * 1000))
+           AND (is_remote = true OR broadcast_mode != 'nearby' OR ST_DWithin(location, ${toGeoPoint(parseFloat(lng), parseFloat(lat))}, $1::numeric * 1000))
          ORDER BY created_at DESC
          LIMIT 100`,
         [radius_km || 50, req.user.id]
@@ -520,7 +535,7 @@ module.exports = function buildRequestsRouter(io) {
   router.get('/:id/suggested-vendors', requireAuth, async (req, res) => {
     try {
       const requestRow = await pool.query(
-        `SELECT product_text, radius_km, requester_id, request_type, is_remote, categories, cart_items,
+        `SELECT product_text, radius_km, requester_id, request_type, is_remote, broadcast_mode, categories, cart_items,
                 ST_X(location::geometry) AS lng, ST_Y(location::geometry) AS lat
          FROM requests WHERE id = $1`,
         [req.params.id]
@@ -532,8 +547,11 @@ module.exports = function buildRequestsRouter(io) {
       }
 
       // Same nationwide-match behavior as the broadcast alert flow - a
-      // remote service isn't tied to physical proximity at all.
-      const effectiveRadiusKm = r.is_remote ? 1000 : r.radius_km || 50;
+      // remote service, a nationwide broadcast, or a custom-area broadcast
+      // are all not tied to physical proximity from the requester's own
+      // radius the normal way.
+      const effectiveRadiusKm =
+        r.is_remote || (r.broadcast_mode && r.broadcast_mode !== 'nearby') ? 1000 : r.radius_km || 50;
       // Category-overlap matching only makes sense for services - a
       // category like 'plumbing' genuinely IS one interchangeable offering
       // regardless of phrasing ("plumber" vs "plumbing"). A product
@@ -669,7 +687,7 @@ module.exports = function buildRequestsRouter(io) {
       const paidUp = req.user.role === 'admin' || (await isVendorPaidUp(req.user.id));
       const { rows } = await pool.query(
         `SELECT id, product_text, quantity, address_text, expires_at, fulfillment_type, delivery_address_text,
-                request_type, is_remote, dropoff_address_text, cart_items, status, created_at,
+                request_type, is_remote, broadcast_mode, dropoff_address_text, cart_items, status, created_at,
                 (SELECT o.id FROM offers o WHERE o.request_id = requests.id AND o.vendor_id = $2) AS my_offer_id
          FROM requests WHERE id = $1 AND deleted_at IS NULL`,
         [req.params.id, req.user.id]

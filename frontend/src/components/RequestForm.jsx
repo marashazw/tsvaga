@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { CATEGORIES, suggestCategories } from '../categories.js';
 import PhoneInput from './PhoneInput.jsx';
+import MapView from './MapView.jsx';
+import { api } from '../api';
 
 const compactBtnStyle = { padding: '4px 10px', fontSize: '0.78rem' };
 
@@ -13,6 +15,17 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
   const [recipientPhone, setRecipientPhone] = useState('+263 ');
   const [isRemote, setIsRemote] = useState(false);
   const [dropoffAddress, setDropoffAddress] = useState('');
+
+  // Lets a requester widen who gets matched beyond the normal
+  // distance-based radius above: nationwide, or a specific area other
+  // than their own location (e.g. sourcing something for delivery to a
+  // different city). Same underlying "ignore distance" trick as remote
+  // services, just opt-in for products/any service rather than tied to
+  // the nature of the service itself.
+  const [broadcastMode, setBroadcastMode] = useState('nearby');
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [customAreaLocation, setCustomAreaLocation] = useState(null);
+  const [customAreaLabel, setCustomAreaLabel] = useState(null);
 
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categoriesTouched, setCategoriesTouched] = useState(false);
@@ -68,9 +81,26 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
     setCartItems((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function handlePickCustomArea(loc) {
+    setCustomAreaLocation(loc);
+    api
+      .get('/geocode/reverse', { params: { lat: loc.lat, lng: loc.lng } })
+      .then(({ data }) => setCustomAreaLabel(data.display_name))
+      .catch(() => setCustomAreaLabel(null));
+  }
+
+  function handleCustomAreaFound({ lat, lng, label }) {
+    setCustomAreaLocation({ lat, lng });
+    setCustomAreaLabel(label);
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     if (!isRemote && !location) return;
+    if (broadcastMode === 'custom_area' && !customAreaLocation) {
+      alert('Please pick the area you want to broadcast to on the map.');
+      return;
+    }
     const additionalItems = cartItems; // items beyond the main field above
     const hasCart = !isService && additionalItems.length > 0;
     const allItems = [{ product_text: productText, quantity: quantity || null }, ...additionalItems];
@@ -83,6 +113,13 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       request_type: requestType,
       is_remote: isRemote,
       dropoff_address_text: showsTransportDropoff ? dropoffAddress : undefined,
+      broadcast_mode: broadcastMode,
+      // Only meaningful for custom_area - the parent uses these in place
+      // of the requester's own pin/address when present, since the whole
+      // point is broadcasting to vendors near THIS area instead.
+      override_lat: broadcastMode === 'custom_area' ? customAreaLocation?.lat : undefined,
+      override_lng: broadcastMode === 'custom_area' ? customAreaLocation?.lng : undefined,
+      override_address_text: broadcastMode === 'custom_area' ? customAreaLabel || undefined : undefined,
     };
 
     if (hasCart && cartMode === 'consolidated') {
@@ -274,6 +311,62 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       )}
 
       {!isRemote && (
+        <div className="category-accordion">
+          <button type="button" className="category-accordion-toggle" onClick={() => setBroadcastOpen((o) => !o)}>
+            <span>
+              📡 Broadcast range:{' '}
+              {broadcastMode === 'nearby'
+                ? 'Nearby only'
+                : broadcastMode === 'nationwide'
+                  ? 'Anywhere in the country'
+                  : 'A specific area'}
+            </span>
+            <span>{broadcastOpen ? '▲' : '▼ change'}</span>
+          </button>
+          {broadcastOpen && (
+            <div className="category-accordion-body">
+              <label className="radio-label">
+                <input type="radio" checked={broadcastMode === 'nearby'} onChange={() => setBroadcastMode('nearby')} />
+                Nearby only — uses your location and the radius below
+              </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  checked={broadcastMode === 'nationwide'}
+                  onChange={() => setBroadcastMode('nationwide')}
+                />
+                Broadcast to vendors anywhere in the country
+              </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  checked={broadcastMode === 'custom_area'}
+                  onChange={() => setBroadcastMode('custom_area')}
+                />
+                Broadcast to vendors in a specific area
+              </label>
+
+              {broadcastMode === 'custom_area' && (
+                <div style={{ marginTop: 10 }}>
+                  <p className="hint" style={{ marginTop: 0 }}>
+                    {customAreaLabel
+                      ? `Area set: ${customAreaLabel}`
+                      : 'Tap the map, drag the pin, or search below to choose the area.'}
+                  </p>
+                  <MapView
+                    requesterLocation={customAreaLocation}
+                    onPickLocation={handlePickCustomArea}
+                    onAddressFound={handleCustomAreaFound}
+                    radiusKm={0}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isRemote && broadcastMode === 'nearby' && (
         <label>
           Search radius: {radiusKm} km
           <input
@@ -366,15 +459,26 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
       <p className="hint">
         {isRemote
           ? 'Remote service — no physical location needed, matched nationwide.'
-          : location
-            ? addressLabel
-              ? `Location set: ${addressLabel}`
-              : 'Location set — tap the map again to move it.'
-            : 'Tap the map to drop your location pin first.'}
+          : broadcastMode === 'nationwide'
+            ? 'Broadcasting to vendors anywhere in the country, regardless of distance.'
+            : broadcastMode === 'custom_area'
+              ? customAreaLabel
+                ? `Broadcasting to vendors near: ${customAreaLabel}`
+                : 'Pick the area you want to broadcast to above.'
+              : location
+                ? addressLabel
+                  ? `Location set: ${addressLabel}`
+                  : 'Location set — tap the map again to move it.'
+                : 'Tap the map to drop your location pin first.'}
       </p>
 
-      <button type="submit" disabled={(!isRemote && !location) || submitting}>
-        {submitting ? 'Alerting nearby providers…' : isService ? 'Ask nearby providers' : 'Ask nearby stores'}
+      <button
+        type="submit"
+        disabled={
+          (!isRemote && !location) || (broadcastMode === 'custom_area' && !customAreaLocation) || submitting
+        }
+      >
+        {submitting ? 'Alerting providers…' : isService ? 'Ask nearby providers' : 'Ask nearby stores'}
       </button>
     </form>
   );

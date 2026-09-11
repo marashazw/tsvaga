@@ -254,23 +254,42 @@ export default function App() {
     dropoff_address_text,
     cart_items,
     separate_items,
+    broadcast_mode,
+    override_lat,
+    override_lng,
+    override_address_text,
   }) {
     // location silently defaults to Harare CBD until the person actually
     // drags the pin, uses GPS, or searches an address (addressLabel stays
     // null until then) - without this check, someone could submit a
     // delivery request having never actually set where they are, and it
-    // would silently go to that default location instead. A remote service
-    // has no physical location at all, so this check doesn't apply to it.
-    if (!is_remote && fulfillment_type === 'delivery' && !addressLabel && !delivery_address_text?.trim()) {
+    // would silently go to that default location instead. A remote
+    // service has no physical location at all, so this check doesn't
+    // apply to it - nor does it apply to a nationwide broadcast (no single
+    // location is relevant) or a custom-area broadcast (RequestForm
+    // already validated that area was actually picked before calling
+    // this at all).
+    if (
+      !is_remote &&
+      broadcast_mode !== 'nationwide' &&
+      broadcast_mode !== 'custom_area' &&
+      fulfillment_type === 'delivery' &&
+      !addressLabel &&
+      !delivery_address_text?.trim()
+    ) {
       alert('Please set your location on the map, or enter a delivery/service address, before submitting.');
       return;
     }
     setSubmitting(true);
     try {
       const sharedFields = {
-        lng: location.lng,
-        lat: location.lat,
-        address_text: addressLabel || undefined,
+        // A custom-area broadcast targets vendors near a DIFFERENT place
+        // than the requester's own location - that area becomes what's
+        // actually stored and matched against, since it's genuinely where
+        // fulfillment needs to happen.
+        lng: broadcast_mode === 'custom_area' && override_lng != null ? override_lng : location.lng,
+        lat: broadcast_mode === 'custom_area' && override_lat != null ? override_lat : location.lat,
+        address_text: (broadcast_mode === 'custom_area' ? override_address_text : addressLabel) || undefined,
         radius_km: radiusKm,
         fulfillment_type,
         delivery_address_text,
@@ -279,6 +298,7 @@ export default function App() {
         request_type,
         is_remote,
         dropoff_address_text,
+        broadcast_mode,
       };
 
       if (Array.isArray(separate_items) && separate_items.length > 0) {
