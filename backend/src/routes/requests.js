@@ -135,6 +135,7 @@ module.exports = function buildRequestsRouter(io) {
       body: request.address_text ? `Near ${request.address_text}` : 'Tap to view and send an offer',
       request_id: request.id,
       url: `/vendor.html?request_id=${request.id}`,
+      tag: `request-${request.id}`,
     }).catch((err) => console.error('Push notification batch failed:', err));
 
     notifyUsersByPush(unpaidVendorList, {
@@ -142,6 +143,7 @@ module.exports = function buildRequestsRouter(io) {
       body: 'Subscribe to see the details and respond',
       request_id: request.id,
       url: `/vendor.html?request_id=${request.id}`,
+      tag: `request-${request.id}`,
     }).catch((err) => console.error('Push notification batch failed:', err));
 
     return matches.rows.length;

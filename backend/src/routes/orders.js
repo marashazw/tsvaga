@@ -128,9 +128,12 @@ module.exports = function buildOrdersRouter(io) {
       };
       const notice = STATUS_MESSAGES[status];
       if (notice) {
-        notifyUsersByPush([order.requester_id], { ...notice, order_id: order.id, url: '/' }).catch((err) =>
-          console.error('Push notification failed:', err)
-        );
+        notifyUsersByPush([order.requester_id], {
+          ...notice,
+          order_id: order.id,
+          url: '/',
+          tag: `order-${order.id}`,
+        }).catch((err) => console.error('Push notification failed:', err));
       }
 
       res.json(updated.rows[0]);

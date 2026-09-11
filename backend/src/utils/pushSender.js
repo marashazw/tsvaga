@@ -21,14 +21,21 @@ async function notifyUsersByPush(userIds, payload) {
 
   // Merge in icon, badge, data - so every push shows the Tsvaga cart icon
   // and the correct monochrome status-bar badge, even if the caller didn't
-  // explicitly pass one.
+  // explicitly pass one. The tag defaults to something unique per-call
+  // (not a shared static string) - Android replaces same-tagged
+  // notifications in the shade rather than stacking them, so two
+  // DIFFERENT kinds of updates sharing one generic default tag would
+  // silently overwrite each other before either was seen. Callers that
+  // WANT related notifications to collapse together (e.g. repeated status
+  // updates for the same order) should pass their own shared tag
+  // explicitly - this default only protects callers who don't.
   const enrichedPayload = {
     title: payload.title,
     body: payload.body,
     icon: payload.icon || DEFAULT_ICON, // big color icon
     badge: payload.badge || DEFAULT_BADGE, // small monochrome - must be white+transparent
     data: { url: payload.url || '/' }, // for click handling
-    tag: payload.tag || 'tsvaga',
+    tag: payload.tag || `tsvaga-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     renotify: true,
     ...payload, // let caller override if needed
   };
