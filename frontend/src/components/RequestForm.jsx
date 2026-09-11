@@ -83,6 +83,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
 
   function handlePickCustomArea(loc) {
     setCustomAreaLocation(loc);
+    setBroadcastOpen(false);
     api
       .get('/geocode/reverse', { params: { lat: loc.lat, lng: loc.lng } })
       .then(({ data }) => setCustomAreaLabel(data.display_name))
@@ -92,6 +93,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
   function handleCustomAreaFound({ lat, lng, label }) {
     setCustomAreaLocation({ lat, lng });
     setCustomAreaLabel(label);
+    setBroadcastOpen(false);
   }
 
   function handleSubmit(e) {
@@ -319,7 +321,7 @@ export default function RequestForm({ location, addressLabel, radiusKm, onRadius
                 ? 'Nearby only'
                 : broadcastMode === 'nationwide'
                   ? 'Anywhere in the country'
-                  : 'A specific area'}
+                  : customAreaLabel || 'A specific area'}
             </span>
             <span>{broadcastOpen ? '▲' : '▼ change'}</span>
           </button>
