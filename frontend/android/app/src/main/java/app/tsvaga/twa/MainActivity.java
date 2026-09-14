@@ -1,6 +1,8 @@
 package app.tsvaga.twa;
 
 import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -8,6 +10,8 @@ import androidx.core.view.WindowInsetsCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    private static final String TAG = "TsvagaSafeArea";
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -20,23 +24,28 @@ public class MainActivity extends BridgeActivity {
         // reliably do the way a real mobile browser does. This applies the
         // correct padding directly to the WebView itself at the native
         // level instead - independent of anything the WebView's CSS
-        // engine reports, and independent of the Capacitor config option
-        // for this behaving as expected in this specific version.
+        // engine reports.
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
-        ViewCompat.setOnApplyWindowInsetsListener(getBridge().getWebView(), (view, insets) -> {
+        // Listening on the WebView directly didn't work even after a
+        // confirmed fresh rebuild - the most likely explanation is that
+        // Capacitor's own container view (the WebView isn't necessarily a
+        // direct child of the activity's root) consumed the insets before
+        // they ever reached it. android.R.id.content is the activity's
+        // actual root content view, guaranteed to receive the full,
+        // unconsumed insets directly from the system - padding is applied
+        // to the WebView from here instead.
+        View rootView = findViewById(android.R.id.content);
+        View webView = getBridge().getWebView();
+
+        ViewCompat.setOnApplyWindowInsetsListener(rootView, (view, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            Log.d(TAG, "Insets received - top: " + systemBars.top + " bottom: " + systemBars.bottom
+                    + " left: " + systemBars.left + " right: " + systemBars.right);
+            webView.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        // The listener above only fires on a NEW insets dispatch - if the
-        // WebView already received its initial one before the listener was
-        // attached (a real possibility depending on exact activity/bridge
-        // init timing), it would otherwise never run at all until some
-        // unrelated layout event happened later (rotation, keyboard, etc.)
-        // This forces that first dispatch immediately, rather than leaving
-        // it to chance.
-        ViewCompat.requestApplyInsets(getBridge().getWebView());
+        ViewCompat.requestApplyInsets(rootView);
     }
 }
