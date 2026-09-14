@@ -29,5 +29,14 @@ public class MainActivity extends BridgeActivity {
             view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        // The listener above only fires on a NEW insets dispatch - if the
+        // WebView already received its initial one before the listener was
+        // attached (a real possibility depending on exact activity/bridge
+        // init timing), it would otherwise never run at all until some
+        // unrelated layout event happened later (rotation, keyboard, etc.)
+        // This forces that first dispatch immediately, rather than leaving
+        // it to chance.
+        ViewCompat.requestApplyInsets(getBridge().getWebView());
     }
 }
