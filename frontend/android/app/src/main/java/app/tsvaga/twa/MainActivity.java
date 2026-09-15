@@ -3,6 +3,7 @@ package app.tsvaga.twa;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -42,7 +43,28 @@ public class MainActivity extends BridgeActivity {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             Log.d(TAG, "Insets received - top: " + systemBars.top + " bottom: " + systemBars.bottom
                     + " left: " + systemBars.left + " right: " + systemBars.right);
-            webView.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+
+            // setPadding() on a WebView is known to be unreliable for its
+            // actual rendered web content - confirmed here by real,
+            // correct inset values being received and applied via padding,
+            // with zero visible effect. Chromium's own compositing can
+            // size the page to the WebView's full measured bounds
+            // regardless of padding. Margin actually changes how much
+            // screen space the WebView itself occupies, which reliably
+            // affects what the page renders into.
+            ViewGroup.LayoutParams params = webView.getLayoutParams();
+            if (params instanceof ViewGroup.MarginLayoutParams) {
+                ViewGroup.MarginLayoutParams marginParams = (ViewGroup.MarginLayoutParams) params;
+                marginParams.topMargin = systemBars.top;
+                marginParams.bottomMargin = systemBars.bottom;
+                marginParams.leftMargin = systemBars.left;
+                marginParams.rightMargin = systemBars.right;
+                webView.setLayoutParams(marginParams);
+                Log.d(TAG, "Margin applied successfully to WebView");
+            } else {
+                Log.d(TAG, "WebView's LayoutParams is not margin-capable: " + params.getClass().getName());
+            }
+
             return insets;
         });
 
