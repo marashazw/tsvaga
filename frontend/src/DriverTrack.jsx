@@ -79,6 +79,10 @@ export default function DriverTrack() {
               Tap below to start sharing your location with the customer for this one delivery. This stops
               automatically once the order is marked delivered, or if you tap "Stop sharing".
             </p>
+            <p className="hint" style={{ fontWeight: 600 }}>
+              ⚠️ Keep this tab open and your screen on while delivering - switching to another app, taking a
+              call, or locking your screen will pause location sharing.
+            </p>
             <button type="button" onClick={startSharing} style={{ marginTop: 10 }}>
               📍 Start sharing my location
             </button>
@@ -90,8 +94,9 @@ export default function DriverTrack() {
             <p className="badge status-delivered" style={{ display: 'inline-block' }}>
               🟢 Sharing your live location
             </p>
-            <p className="hint" style={{ marginTop: 8 }}>
-              You can close this tab once the delivery is complete - sharing stops automatically.
+            <p className="hint" style={{ marginTop: 8, fontWeight: 600 }}>
+              ⚠️ Keep this tab open and your screen on - switching apps, taking a call, or locking your screen
+              will pause sharing until you come back.
             </p>
             <button type="button" className="secondary" onClick={stopSharing} style={{ marginTop: 10 }}>
               Stop sharing
