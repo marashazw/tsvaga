@@ -191,50 +191,84 @@ export default function OfferChat({ offerId, socket, currentUserId }) {
       )}
 
       <form onSubmit={send} className="offer-chat-form">
-        <input
-          type="text"
-          placeholder="Type a message…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-
-        {/* No capture attribute - opens the device's normal file/gallery picker. */}
-        <input
-          type="file"
-          accept="image/*"
-          ref={fileInputRef}
-          onChange={handleImageSelect}
-          style={{ display: 'none' }}
-        />
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={imageProcessing}
-          title="Attach a photo"
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            background: '#fff',
+            border: '1px solid #e7ddc9',
+            borderRadius: 20,
+            padding: '2px 4px 2px 14px',
+          }}
         >
-          {imageProcessing ? '…' : '📎'}
-        </button>
+          <input
+            type="text"
+            placeholder="Type a message…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            style={{
+              flex: 1,
+              border: 'none',
+              background: 'transparent',
+              padding: '8px 4px',
+              outline: 'none',
+              minWidth: 0,
+            }}
+          />
 
-        {/* capture="environment" opens the rear camera directly, bypassing
-            the file/gallery chooser entirely. */}
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          ref={cameraInputRef}
-          onChange={handleImageSelect}
-          style={{ display: 'none' }}
-        />
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => cameraInputRef.current?.click()}
-          disabled={imageProcessing}
-          title="Take a photo"
-        >
-          {imageProcessing ? '…' : '📷'}
-        </button>
+          {/* No capture attribute - opens the device's normal file/gallery picker. */}
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleImageSelect}
+            style={{ display: 'none' }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={imageProcessing}
+            title="Attach a photo"
+            style={{
+              border: 'none',
+              background: 'transparent',
+              padding: '4px 6px',
+              fontSize: '1.2rem',
+              lineHeight: 1,
+              cursor: 'pointer',
+            }}
+          >
+            {imageProcessing ? '…' : '📎'}
+          </button>
+
+          {/* capture="environment" opens the rear camera directly, bypassing
+              the file/gallery chooser entirely. */}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            ref={cameraInputRef}
+            onChange={handleImageSelect}
+            style={{ display: 'none' }}
+          />
+          <button
+            type="button"
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={imageProcessing}
+            title="Take a photo"
+            style={{
+              border: 'none',
+              background: 'transparent',
+              padding: '4px 6px',
+              fontSize: '1.2rem',
+              lineHeight: 1,
+              cursor: 'pointer',
+            }}
+          >
+            {imageProcessing ? '…' : '📷'}
+          </button>
+        </div>
 
         <button type="submit" disabled={sending || (!text.trim() && !imagePreview)}>
           {sending ? 'Sending…' : 'Send'}
