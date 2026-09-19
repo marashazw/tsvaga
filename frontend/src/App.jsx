@@ -12,6 +12,7 @@ import InstallPrompt from './components/InstallPrompt.jsx';
 import AdSlot from './components/AdSlot.jsx';
 import AdvertisingSection from './components/AdvertisingSection.jsx';
 import MyRequests from './components/MyRequests.jsx';
+import PullToRefresh from './components/PullToRefresh.jsx';
 import OnlineCount from './components/OnlineCount.jsx';
 import DeleteAccountLink from './components/DeleteAccountLink.jsx';
 import NotificationPrimer from './components/NotificationPrimer.jsx';
@@ -146,36 +147,42 @@ export default function App() {
   // trigger alongside visibilitychange rather than replacing it - this
   // keeps normal browser/PWA behavior unchanged while making native
   // foreground detection actually work.
+  // Shared by both the automatic foreground-refresh handler below AND the
+  // manual pull-to-refresh gesture - one definition, so the two can never
+  // drift apart from each other.
+  const handleRefresh = useCallback(async () => {
+    if (socket && !socket.connected) {
+      socket.connect();
+    }
+    if (request) {
+      try {
+        const { data } = await api.get(`/requests/${request.id}`);
+        setOffers(data.offers || []);
+      } catch {
+        // fine to just leave the current offers as-is if this fails
+      }
+    }
+    // Bumps My Requests' own refresh, same trigger it already watches.
+    setMyRequestsRefreshKey((k) => k + 1);
+  }, [socket, request]);
+
   useEffect(() => {
     if (!socket) return;
-    function handleVisible() {
-      if (!socket.connected) {
-        socket.connect();
-      }
-      if (request) {
-        api
-          .get(`/requests/${request.id}`)
-          .then(({ data }) => {
-            setOffers(data.offers || []);
-          })
-          .catch(() => {});
-      }
-    }
     function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') handleVisible();
+      if (document.visibilityState === 'visible') handleRefresh();
     }
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleVisible);
+    window.addEventListener('focus', handleRefresh);
     let removeResumeListener;
-    CapacitorApp.addListener('resume', handleVisible).then((handle) => {
+    CapacitorApp.addListener('resume', handleRefresh).then((handle) => {
       removeResumeListener = handle.remove;
     });
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleVisible);
+      window.removeEventListener('focus', handleRefresh);
       removeResumeListener?.();
     };
-  }, [socket, request]);
+  }, [socket, request, handleRefresh]);
 
   const handlePickLocation = useCallback((loc) => {
     setLocation(loc);
@@ -435,6 +442,7 @@ export default function App() {
   const mapOpen = mapOpenOverride !== null ? mapOpenOverride : !(addressLabel || request);
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
    <div className="app-shell">
       <InstallPrompt appName="Tsvaga" iconSrc="/icons/icon-192.png" dismissKey="main" />
       <header className="vendor-header">
@@ -588,5 +596,6 @@ export default function App() {
         </div>
       </footer>
     </div>
+    </PullToRefresh>
   );
 }

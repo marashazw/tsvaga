@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { App as CapacitorApp } from '@capacitor/app';
 import MapView from './components/MapView.jsx';
+import PullToRefresh from './components/PullToRefresh.jsx';
 import VendorAuth from './components/VendorAuth.jsx';
 import InventoryManager from './components/InventoryManager.jsx';
 import IncomingRequests from './components/IncomingRequests.jsx';
@@ -230,29 +231,36 @@ export default function VendorApp() {
   // plugin 'resume' event is used here as a second, more reliable trigger
   // alongside it, not a replacement, so normal browser/PWA behavior is
   // unaffected.
+  // Shared by both the automatic foreground-refresh handler below AND the
+  // manual pull-to-refresh gesture - one definition, so the two can never
+  // drift apart. Refreshes everything visible on the dashboard: nearby
+  // requests, plus orders/reviews/profile via loadProfile.
+  const handleRefresh = useCallback(async () => {
+    if (socket && !socket.connected) {
+      socket.connect();
+    }
+    if (vendor) {
+      await Promise.all([loadNearbyRequests(vendor), loadProfile()]);
+    }
+  }, [socket, vendor, loadNearbyRequests, loadProfile]);
+
   useEffect(() => {
     if (!socket || !vendor) return;
-    function handleVisible() {
-      if (!socket.connected) {
-        socket.connect();
-      }
-      loadNearbyRequests(vendor);
-    }
     function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') handleVisible();
+      if (document.visibilityState === 'visible') handleRefresh();
     }
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleVisible);
+    window.addEventListener('focus', handleRefresh);
     let removeResumeListener;
-    CapacitorApp.addListener('resume', handleVisible).then((handle) => {
+    CapacitorApp.addListener('resume', handleRefresh).then((handle) => {
       removeResumeListener = handle.remove;
     });
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleVisible);
+      window.removeEventListener('focus', handleRefresh);
       removeResumeListener?.();
     };
-  }, [socket, vendor, loadNearbyRequests]);
+  }, [socket, vendor, handleRefresh]);
 
   function startEditingName() {
     setNameInput(vendor.business_name);
@@ -356,6 +364,7 @@ export default function VendorApp() {
   const mapOpen = mapOpenOverride !== null ? mapOpenOverride : !vendorLocation;
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
    <div className="app-shell">
       <InstallPrompt appName="Tsvaga Vendor" iconSrc="/icons/vendor-icon-192.png" dismissKey="vendor" />
       <header className="vendor-header">
@@ -536,5 +545,6 @@ export default function VendorApp() {
         </div>
       </footer>
     </div>
+    </PullToRefresh>
   );
 }
