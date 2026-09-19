@@ -5,8 +5,30 @@ const { isVendorPaidUp, getSettings } = require('../utils/subscription');
 const { notifyUsersByPush } = require('../utils/pushSender');
 const { containsProhibitedContent, flagAndReject } = require('../constants/prohibitedContent');
 
+// Chat images are deliberately temporary rather than stored indefinitely -
+// visible to whoever opens the conversation within this window (so someone
+// offline when it's sent still sees it later), then cleared automatically.
+// Not using any external storage service - stored directly as a data URL,
+// which keeps this simple but means images must stay reasonably small
+// (enforced below) since they sit as text in the database.
+const IMAGE_RETENTION_HOURS = 24;
+const MAX_IMAGE_DATA_URL_LENGTH = 1_400_000; // ~1MB of actual image data once base64 overhead is accounted for
+
 module.exports = function buildOffersRouter(io) {
   const router = express.Router();
+
+  // Periodic cleanup, not just a read-time filter - actually frees the
+  // database space rather than leaving expired image data sitting there
+  // indefinitely just because nobody happened to re-fetch that
+  // conversation since it expired.
+  setInterval(() => {
+    pool
+      .query(
+        `UPDATE offer_messages SET image_data = NULL
+         WHERE image_data IS NOT NULL AND created_at <= now() - INTERVAL '${IMAGE_RETENTION_HOURS} hours'`
+      )
+      .catch((err) => console.error('Chat image cleanup failed:', err));
+  }, 60 * 60 * 1000); // hourly is plenty for a 24h retention window
 
   // POST /api/requests/:requestId/offers  { price, delivery_fee?, delivery_eta_minutes, message, cart_prices? }
   router.post('/:requestId/offers', requireAuth, async (req, res) => {
@@ -225,7 +247,9 @@ module.exports = function buildOffersRouter(io) {
         return res.status(403).json({ error: 'Not authorized to view this conversation' });
       }
       const { rows } = await pool.query(
-        `SELECT id, offer_id, sender_id, body, created_at FROM offer_messages
+        `SELECT id, offer_id, sender_id, body, created_at,
+                CASE WHEN created_at > now() - INTERVAL '${IMAGE_RETENTION_HOURS} hours' THEN image_data ELSE NULL END AS image_data
+         FROM offer_messages
          WHERE offer_id = $1 ORDER BY created_at ASC LIMIT 200`,
         [req.params.id]
       );
@@ -236,14 +260,24 @@ module.exports = function buildOffersRouter(io) {
     }
   });
 
-  // POST /api/offers/:id/messages  { body }
+  // POST /api/offers/:id/messages  { body?, image_data? } - at least one required
   router.post('/:id/messages', requireAuth, async (req, res) => {
-    const { body } = req.body;
-    if (!body || !body.trim()) {
-      return res.status(400).json({ error: 'body is required' });
+    const { body, image_data } = req.body;
+    const trimmedBody = body ? body.trim() : '';
+
+    if (!trimmedBody && !image_data) {
+      return res.status(400).json({ error: 'A message or an image is required' });
     }
-    if (containsProhibitedContent(body)) {
-      return flagAndReject(pool, req, res, 'offer_message', body);
+    if (trimmedBody && containsProhibitedContent(trimmedBody)) {
+      return flagAndReject(pool, req, res, 'offer_message', trimmedBody);
+    }
+    if (image_data) {
+      if (typeof image_data !== 'string' || !image_data.startsWith('data:image/')) {
+        return res.status(400).json({ error: 'image_data must be a valid image data URL' });
+      }
+      if (image_data.length > MAX_IMAGE_DATA_URL_LENGTH) {
+        return res.status(400).json({ error: 'Image is too large - please use a smaller photo' });
+      }
     }
     try {
       const ctx = await getOfferContext(req.params.id);
@@ -269,15 +303,14 @@ module.exports = function buildOffersRouter(io) {
       }
 
       const { rows } = await pool.query(
-        `INSERT INTO offer_messages (offer_id, sender_id, body) VALUES ($1, $2, $3)
-         RETURNING id, offer_id, sender_id, body, created_at`,
-        [req.params.id, req.user.id, body.trim()]
+        `INSERT INTO offer_messages (offer_id, sender_id, body, image_data) VALUES ($1, $2, $3, $4)
+         RETURNING id, offer_id, sender_id, body, image_data, created_at`,
+        [req.params.id, req.user.id, trimmedBody || null, image_data || null]
       );
       const savedMessage = rows[0];
 
       // Deliver live to whichever side is watching - the requester's
       // request room, and the vendor's own room.
-      console.log(`[chat-diag] emitting offer:message for offer_id:${savedMessage.offer_id} to request:${ctx.request_id} and vendor:${ctx.vendor_id}`);
       io.to(`request:${ctx.request_id}`).emit('offer:message', savedMessage);
       io.to(`vendor:${ctx.vendor_id}`).emit('offer:message', savedMessage);
 
@@ -290,7 +323,7 @@ module.exports = function buildOffersRouter(io) {
       const recipientId = isRequester ? ctx.vendor_id : ctx.requester_id;
       notifyUsersByPush([recipientId], {
         title: 'New message',
-        body: body.trim().slice(0, 120),
+        body: trimmedBody ? trimmedBody.slice(0, 120) : '📷 Sent a photo',
         offer_id: req.params.id,
         url: isRequester ? '/vendor.html' : '/',
         tag: `chat-${req.params.id}`,
