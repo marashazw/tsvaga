@@ -53,6 +53,7 @@ export default function OfferChat({ offerId, socket, currentUserId }) {
   const [imageProcessing, setImageProcessing] = useState(false);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,6 +192,14 @@ export default function OfferChat({ offerId, socket, currentUserId }) {
 
       <form onSubmit={send} className="offer-chat-form">
         <input
+          type="text"
+          placeholder="Type a message…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+
+        {/* No capture attribute - opens the device's normal file/gallery picker. */}
+        <input
           type="file"
           accept="image/*"
           ref={fileInputRef}
@@ -204,14 +213,29 @@ export default function OfferChat({ offerId, socket, currentUserId }) {
           disabled={imageProcessing}
           title="Attach a photo"
         >
+          {imageProcessing ? '…' : '📎'}
+        </button>
+
+        {/* capture="environment" opens the rear camera directly, bypassing
+            the file/gallery chooser entirely. */}
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          ref={cameraInputRef}
+          onChange={handleImageSelect}
+          style={{ display: 'none' }}
+        />
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={imageProcessing}
+          title="Take a photo"
+        >
           {imageProcessing ? '…' : '📷'}
         </button>
-        <input
-          type="text"
-          placeholder="Type a message…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
+
         <button type="submit" disabled={sending || (!text.trim() && !imagePreview)}>
           {sending ? 'Sending…' : 'Send'}
         </button>
