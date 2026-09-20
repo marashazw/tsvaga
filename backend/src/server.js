@@ -34,7 +34,7 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '*').split(',');
 const io = new Server(server, { cors: { origin: allowedOrigins } });
 
 app.use(cors({ origin: allowedOrigins }));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'tsvaga-backend' }));
 
