@@ -122,6 +122,7 @@ main {
 .request-form-section {
   grid-column: 2;
   grid-row: 1;
+  min-width: 0;
 }
 
 /* Vendor dashboard has its own distinct grid, kept as a separate selector so
@@ -153,10 +154,12 @@ main {
   gap: 8px;
   grid-column: 1;
   grid-row: 1;
+  min-width: 0;
 }
 .vendor-requests-section {
   grid-column: 2;
   grid-row: 1;
+  min-width: 0;
 }
 
 @media (max-width: 780px) {
