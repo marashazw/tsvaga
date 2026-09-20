@@ -2,13 +2,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import OfferChat from './OfferChat.jsx';
 import { playNotificationSound } from '../notificationSound.js';
 
-export default function ChatToggleButton({ offerId, socket, currentUserId, label }) {
+export default function ChatToggleButton({ offerId, socket, currentUserId, label, autoOpen }) {
   const [open, setOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   // A ref mirrors `open` so the socket listener (set up once) always reads
   // the current value, rather than the stale one from whenever it was attached.
   const openRef = useRef(open);
   openRef.current = open;
+
+  // Opens automatically when arriving here via a "you have a new message"
+  // notification - only acts once per mount, so it doesn't fight the
+  // person if they deliberately close the chat afterward.
+  useEffect(() => {
+    if (autoOpen) setOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!socket || !offerId) return;

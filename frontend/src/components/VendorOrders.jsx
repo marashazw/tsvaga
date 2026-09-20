@@ -20,7 +20,7 @@ function nextAction(order) {
   }[order.status];
 }
 
-function OrderCard({ order: o, onAdvance, socket, currentUserId }) {
+function OrderCard({ order: o, onAdvance, socket, currentUserId, isHighlighted, autoOpenChat }) {
   // While THIS order is an actual delivery (not a pickup, where there's no
   // "vendor traveling to you" scenario) and is out for delivery, watch this
   // device's GPS and report it to the backend so the requester can see
@@ -49,7 +49,15 @@ function OrderCard({ order: o, onAdvance, socket, currentUserId }) {
   }, [o.id, o.status, o.fulfillment_type]);
 
   return (
-    <li className="order-card">
+    <li
+      id={`order-card-${o.id}`}
+      className="order-card"
+      style={
+        isHighlighted
+          ? { outline: '3px solid var(--clay)', outlineOffset: 2, transition: 'outline-color 2s ease' }
+          : undefined
+      }
+    >
       <div className="alert-main">
         <strong>{o.product_text}</strong>
         <span className="price">
@@ -110,14 +118,36 @@ function OrderCard({ order: o, onAdvance, socket, currentUserId }) {
         </div>
       )}
       <div style={{ marginTop: 6 }}>
-        <ChatToggleButton offerId={o.offer_id} socket={socket} currentUserId={currentUserId} label="Message customer" />
+        <ChatToggleButton
+          offerId={o.offer_id}
+          socket={socket}
+          currentUserId={currentUserId}
+          label="Message customer"
+          autoOpen={autoOpenChat}
+        />
       </div>
     </li>
   );
 }
 
-export default function VendorOrders({ orders, onUpdated, socket, currentUserId }) {
+export default function VendorOrders({ orders, onUpdated, socket, currentUserId, highlightOrderId, autoOpenChatOrderId }) {
   const [showCompleted, setShowCompleted] = useState(false);
+
+  // Arriving here via a notification for a specific order - if that order
+  // only shows up under "completed" (already delivered), that section
+  // needs to actually be expanded first, otherwise the order is there but
+  // invisible and scrolling to it would do nothing.
+  useEffect(() => {
+    if (!highlightOrderId) return;
+    const isCompleted = orders.some((o) => o.id === highlightOrderId && o.status === 'delivered');
+    if (isCompleted) setShowCompleted(true);
+  }, [highlightOrderId, orders]);
+
+  useEffect(() => {
+    if (!highlightOrderId) return;
+    const el = document.getElementById(`order-card-${highlightOrderId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightOrderId, showCompleted, orders]);
 
   async function advance(order) {
     const next = nextAction(order);
@@ -140,7 +170,15 @@ export default function VendorOrders({ orders, onUpdated, socket, currentUserId 
       ) : (
         <ul className="order-list">
           {activeOrders.map((o) => (
-            <OrderCard key={o.id} order={o} onAdvance={advance} socket={socket} currentUserId={currentUserId} />
+            <OrderCard
+              key={o.id}
+              order={o}
+              onAdvance={advance}
+              socket={socket}
+              currentUserId={currentUserId}
+              isHighlighted={o.id === highlightOrderId}
+              autoOpenChat={o.id === autoOpenChatOrderId}
+            />
           ))}
         </ul>
       )}
@@ -153,7 +191,15 @@ export default function VendorOrders({ orders, onUpdated, socket, currentUserId 
           {showCompleted && (
             <ul className="order-list" style={{ marginTop: 8 }}>
               {completedOrders.map((o) => (
-                <OrderCard key={o.id} order={o} onAdvance={advance} socket={socket} currentUserId={currentUserId} />
+                <OrderCard
+                  key={o.id}
+                  order={o}
+                  onAdvance={advance}
+                  socket={socket}
+                  currentUserId={currentUserId}
+                  isHighlighted={o.id === highlightOrderId}
+                  autoOpenChat={o.id === autoOpenChatOrderId}
+                />
               ))}
             </ul>
           )}

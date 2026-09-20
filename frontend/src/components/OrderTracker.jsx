@@ -26,7 +26,7 @@ const STEPS_PICKUP = [
   { key: 'delivered', label: 'Picked up' },
 ];
 
-export default function OrderTracker({ order, socket, currentUserId }) {
+export default function OrderTracker({ order, socket, currentUserId, autoOpenChat }) {
   const [review, setReview] = useState(
     order.review_id ? { rating: order.review_rating, comment: order.review_comment } : null
   );
@@ -144,6 +144,7 @@ export default function OrderTracker({ order, socket, currentUserId }) {
             socket={socket}
             currentUserId={currentUserId}
             label={`Message ${order.business_name}`}
+            autoOpen={autoOpenChat}
           />
         )}
         <button type="button" className="secondary" disabled={exporting} onClick={handleExportPdf}>

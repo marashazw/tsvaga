@@ -401,6 +401,39 @@ export default function App() {
     }
   }
 
+  const [autoOpenChat, setAutoOpenChat] = useState(false);
+
+  // Notifications deep-link here via URL parameters instead of just
+  // dropping someone on the generic homepage - a "new offer" push takes
+  // you straight to that request's offers, an "out for delivery"/chat
+  // push takes you straight to that specific order (and opens the chat
+  // directly for a message notification), rather than leaving the person
+  // to go hunting for which request or order it was actually about.
+  useEffect(() => {
+    if (!authed) return;
+    const params = new URLSearchParams(window.location.search);
+    const requestId = params.get('request_id');
+    const orderId = params.get('order_id');
+    const openChat = params.get('open_chat') === '1';
+
+    if (orderId) {
+      handleViewOrder(orderId).then(() => {
+        if (openChat) setAutoOpenChat(true);
+      });
+    } else if (requestId) {
+      handleViewOffers(requestId);
+    }
+
+    if (requestId || orderId) {
+      params.delete('request_id');
+      params.delete('order_id');
+      params.delete('open_chat');
+      const newSearch = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed]);
+
   // Once delivered and reviewed, there's nothing left to act on for that
   // request except possibly wanting the same thing again - this starts a
   // fresh request of the same type, with the item description pre-filled.
@@ -553,7 +586,7 @@ export default function App() {
             </>
           ) : order ? (
             <>
-              <OrderTracker order={order} socket={socket} currentUserId={user.id} />
+              <OrderTracker order={order} socket={socket} currentUserId={user.id} autoOpenChat={autoOpenChat} />
               {(order.status === 'delivered' || order.status === 'cancelled') && (
                 <button className="secondary" onClick={startOver} style={{ marginTop: 12 }}>
                   Start a new request

@@ -137,7 +137,7 @@ module.exports = function buildOffersRouter(io) {
         title: 'You have a new offer!',
         body: `${vendorInfo.rows[0]?.business_name || 'A vendor'} responded to: ${requestRow.rows[0].product_text}`,
         request_id: requestId,
-        url: '/',
+        url: `/?request_id=${requestId}`,
         tag: `offer-${offer.id}`,
       }).catch((err) => console.error('Push notification failed:', err));
 
@@ -210,7 +210,7 @@ module.exports = function buildOffersRouter(io) {
         title: 'Your offer was accepted!',
         body: `Get moving on: ${fullOrder.rows[0].product_text}`,
         order_id: orderResult.rows[0].id,
-        url: '/vendor.html',
+        url: `/vendor.html?order_id=${orderResult.rows[0].id}`,
         tag: `order-${orderResult.rows[0].id}`,
       }).catch((err) => console.error('Push notification failed:', err));
 
@@ -229,8 +229,10 @@ module.exports = function buildOffersRouter(io) {
   // socket rooms to notify. Returns null if the offer doesn't exist.
   async function getOfferContext(offerId) {
     const { rows } = await pool.query(
-      `SELECT o.id AS offer_id, o.vendor_id, o.request_id, r.requester_id
-       FROM offers o JOIN requests r ON r.id = o.request_id
+      `SELECT o.id AS offer_id, o.vendor_id, o.request_id, r.requester_id, ord.id AS order_id
+       FROM offers o
+       JOIN requests r ON r.id = o.request_id
+       LEFT JOIN orders ord ON ord.offer_id = o.id
        WHERE o.id = $1`,
       [offerId]
     );
@@ -321,11 +323,21 @@ module.exports = function buildOffersRouter(io) {
       // the same time would otherwise silently replace this one, or vice
       // versa, before either was seen.
       const recipientId = isRequester ? ctx.vendor_id : ctx.requester_id;
+      const chatUrl = ctx.order_id
+        ? isRequester
+          ? `/vendor.html?order_id=${ctx.order_id}&open_chat=1`
+          : `/?order_id=${ctx.order_id}&open_chat=1`
+        : // No order yet (chat before the offer was accepted) - nothing to
+          // deep-link to on the vendor side in that case, and the requester
+          // side falls back to just opening the request itself.
+          isRequester
+          ? '/vendor.html'
+          : `/?request_id=${ctx.request_id}`;
       notifyUsersByPush([recipientId], {
         title: 'New message',
         body: trimmedBody ? trimmedBody.slice(0, 120) : '📷 Sent a photo',
         offer_id: req.params.id,
-        url: isRequester ? '/vendor.html' : '/',
+        url: chatUrl,
         tag: `chat-${req.params.id}`,
       }).catch((err) => console.error('Push notification failed:', err));
 

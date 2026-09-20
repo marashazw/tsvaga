@@ -194,6 +194,29 @@ export default function VendorApp() {
       });
   }, [vendor]);
 
+  const [highlightOrderId, setHighlightOrderId] = useState(null);
+  const [autoOpenChatOrderId, setAutoOpenChatOrderId] = useState(null);
+
+  // Same deep-link pattern as request_id above, for notifications that are
+  // about a specific order already in progress (offer accepted, a chat
+  // message, out for delivery/delivered) - the vendor dashboard has no
+  // separate order detail page, everything's inline in one list, so
+  // "going to" an order means scrolling to and highlighting its card
+  // instead of navigating anywhere.
+  useEffect(() => {
+    if (!vendor) return;
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('order_id');
+    if (!orderId) return;
+    setHighlightOrderId(orderId);
+    if (params.get('open_chat') === '1') setAutoOpenChatOrderId(orderId);
+
+    params.delete('order_id');
+    params.delete('open_chat');
+    const newSearch = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
+  }, [vendor]);
+
   // Connect socket once we know who we are, and subscribe to our vendor room.
   useEffect(() => {
     if (!vendor) return;
@@ -488,7 +511,14 @@ export default function VendorApp() {
 
           <section id="section-orders" className="panel vendor-orders-section">
             <h2 style={{ marginTop: 0 }}>Orders to fulfill</h2>
-            <VendorOrders orders={orders} onUpdated={handleOrderUpdated} socket={socket} currentUserId={vendor.id} />
+            <VendorOrders
+              orders={orders}
+              onUpdated={handleOrderUpdated}
+              socket={socket}
+              currentUserId={vendor.id}
+              highlightOrderId={highlightOrderId}
+              autoOpenChatOrderId={autoOpenChatOrderId}
+            />
           </section>
 
           <section id="section-inventory" className="panel vendor-inventory-section">

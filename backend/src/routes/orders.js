@@ -131,7 +131,7 @@ module.exports = function buildOrdersRouter(io) {
         notifyUsersByPush([order.requester_id], {
           ...notice,
           order_id: order.id,
-          url: '/',
+          url: `/?order_id=${order.id}`,
           tag: `order-${order.id}`,
         }).catch((err) => console.error('Push notification failed:', err));
       }
