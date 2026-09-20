@@ -395,6 +395,7 @@ button.secondary {
 }
 .chat-bubble {
   max-width: 80%;
+  min-width: 0;
   padding: 6px 10px;
   border-radius: 10px;
   background: #fff;
