@@ -1,0 +1,1 @@
+ALTER TABLE offer_messages ALTER COLUMN body DROP NOT NULL;
