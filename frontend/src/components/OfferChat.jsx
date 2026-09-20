@@ -166,7 +166,11 @@ export default function OfferChat({ offerId, socket, currentUserId }) {
 
       {imagePreview && (
         <div style={{ position: 'relative', display: 'inline-block', margin: '0 0 8px' }}>
-          <img src={imagePreview} alt="Selected" style={{ maxHeight: 100, borderRadius: 8, display: 'block' }} />
+          <img
+            src={imagePreview}
+            alt="Selected"
+            style={{ maxHeight: 100, maxWidth: 200, borderRadius: 8, display: 'block', objectFit: 'contain' }}
+          />
           <button
             type="button"
             onClick={() => setImagePreview(null)}
