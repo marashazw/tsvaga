@@ -410,13 +410,11 @@ export default function App() {
   // directly for a message notification), rather than leaving the person
   // to go hunting for which request or order it was actually about.
   useEffect(() => {
-    console.log('[notif-diag] effect running, authed:', authed, 'search:', window.location.search);
     if (!authed) return;
     const params = new URLSearchParams(window.location.search);
     const requestId = params.get('request_id');
     const orderId = params.get('order_id');
     const openChat = params.get('open_chat') === '1';
-    console.log('[notif-diag] parsed - requestId:', requestId, 'orderId:', orderId, 'openChat:', openChat);
 
     if (orderId) {
       handleViewOrder(orderId).then(() => {
