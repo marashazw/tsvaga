@@ -48,7 +48,9 @@ export async function registerNativePush() {
     // same "url" data field the backend already sends for web push, so a
     // tap can navigate to the relevant screen either way.
     PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      console.log('[native-push] Notification tapped, full action:', JSON.stringify(action));
       const url = action.notification?.data?.url;
+      console.log('[native-push] Extracted url:', url, '- navigating now.');
       if (url) window.location.href = url;
     });
   } catch (err) {
