@@ -143,7 +143,7 @@ export default function OfferChat({ offerId, socket, currentUserId }) {
                 <img
                   src={m.image_data}
                   alt="Shared in chat"
-                  style={{ maxWidth: 240, width: '100%', borderRadius: 8, display: 'block' }}
+                  style={{ maxWidth: 'min(200px, 65vw)', width: '100%', borderRadius: 8, display: 'block' }}
                 />
               ) : !m.body ? (
                 // No body AND no image only happens once an image-only
@@ -169,7 +169,7 @@ export default function OfferChat({ offerId, socket, currentUserId }) {
           <img
             src={imagePreview}
             alt="Selected"
-            style={{ maxHeight: 100, maxWidth: 200, borderRadius: 8, display: 'block', objectFit: 'contain' }}
+            style={{ maxHeight: 100, maxWidth: 'min(200px, 65vw)', borderRadius: 8, display: 'block', objectFit: 'contain' }}
           />
           <button
             type="button"
